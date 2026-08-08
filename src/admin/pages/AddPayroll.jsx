@@ -259,26 +259,32 @@ function AddPayroll() {
       if (!monthNumber) return;
 
       const monthFormatted = `${payPeriodYear}-${String(monthNumber).padStart(2, "0")}`;
-      
+
       setWorkingDaysLoading(true);
       try {
         const result = await dispatch(
           fetchWorkingDays({
             employeeId: selectedUserId,
             month: monthFormatted,
-          })
+          }),
         ).unwrap();
 
         console.log("Working days data:", result);
 
         if (result) {
           // ✅ Update total working days from API
-          if (result.total_working_days !== undefined && result.total_working_days !== null) {
+          if (
+            result.total_working_days !== undefined &&
+            result.total_working_days !== null
+          ) {
             setTotalWorkingDays(String(result.total_working_days));
           }
 
           // ✅ Update present days from API
-          if (result.present_days !== undefined && result.present_days !== null) {
+          if (
+            result.present_days !== undefined &&
+            result.present_days !== null
+          ) {
             setDaysPresent(String(result.present_days));
           }
 
@@ -289,15 +295,17 @@ function AddPayroll() {
           const lastDay = new Date(yearVal, monthNumberVal, 0).getDate();
 
           setPeriodStart(`${yearVal}-${monthNumStr}-01`);
-          setPeriodEnd(`${yearVal}-${monthNumStr}-${String(lastDay).padStart(2, "0")}`);
+          setPeriodEnd(
+            `${yearVal}-${monthNumStr}-${String(lastDay).padStart(2, "0")}`,
+          );
           setPaymentDate(`${yearVal}-${monthNumStr}-25`);
 
           // Show success message with details
-          const holidayInfo = result.holidays_count > 0 
-            ? `${result.holidays_count} holiday${result.holidays_count > 1 ? 's' : ''}` 
-            : 'no holidays';
-          const sundayInfo = `${result.sundays_count} Sunday${result.sundays_count > 1 ? 's' : ''}`;
-          
+          const holidayInfo =
+            result.holidays_count > 0
+              ? `${result.holidays_count} holiday${result.holidays_count > 1 ? "s" : ""}`
+              : "no holidays";
+          const sundayInfo = `${result.sundays_count} Sunday${result.sundays_count > 1 ? "s" : ""}`;
         }
       } catch (error) {
         console.error("Failed to fetch working days:", error);
@@ -703,75 +711,178 @@ function AddPayroll() {
   }, [successMessage, error, dispatch]);
 
   // Update countries when calculated data arrives
+  // ─── UPDATE: Handle new calculate API response structure ──────────────
   useEffect(() => {
     if (calculatedCountries) {
       const data = calculatedCountries;
+      console.log("Calculated countries data:", data);
 
-      if (data.location_breakdown && data.location_breakdown.length > 0) {
-        const extractedPackages = data.location_breakdown.map((loc, index) => ({
-          id: loc.package?.id || index + 1,
-          name:
-            loc.package?.name || loc.location_name || `Package ${index + 1}`,
-          currency: loc.currency?.code || loc.package?.currency || "INR",
-          salary_components: loc.salary_components || [],
-          subtotal: loc.subtotal || 0,
-          days_worked: loc.worked_days || 0,
-          daily_rate: loc.dailyRate || 0,
-          package: loc.package || {},
-        }));
+      // ─── SET TOTALS FROM API ──────────────────────────────────────────
+      if (data.total_earnings !== undefined) {
+        setTotalEarnings(data.total_earnings || 0);
+      }
+      if (data.total_deductions !== undefined) {
+        setTotalDeductions(data.total_deductions || 0);
+      }
+      if (data.gross_salary !== undefined) {
+        setGrossSalary(data.gross_salary || 0);
+      }
+      if (data.net_salary !== undefined) {
+        setNetSalary(data.net_salary || 0);
+      }
+
+      // ─── EXTRACT PACKAGES FROM salary_packages ──────────────────────
+      if (data.salary_packages && data.salary_packages.length > 0) {
+        // Extract packages from salary_packages array
+        const extractedPackages = data.salary_packages.map((item, index) => {
+          const pkg = item.package || {};
+          const currency = item.currency?.code || pkg.currency || "INR";
+          const components = item.salary_components || [];
+
+          // Calculate subtotal from components
+          const subtotal = components.reduce(
+            (sum, comp) => sum + (comp.value || 0),
+            0,
+          );
+
+          return {
+            id: pkg.id || index + 1,
+            name: pkg.name || `Package ${index + 1}`,
+            currency: currency,
+            salary_components: components.map((comp) => ({
+              id: comp.id,
+              name: comp.name,
+              amount: comp.value || 0,
+            })),
+            subtotal: subtotal,
+            days_worked: 0,
+            daily_rate: 0,
+            package: pkg,
+            is_active: pkg.is_active,
+            raw: item,
+          };
+        });
 
         console.log(
-          "Extracted packages from calculate response:",
+          "Extracted packages from salary_packages:",
           extractedPackages,
         );
 
         if (extractedPackages.length > 0) {
           setAvailablePackages(extractedPackages);
+          // Select all packages by default
           if (selectedPackageIds.length === 0) {
             const allPackageIds = extractedPackages.map((pkg) => pkg.id);
             setSelectedPackageIds(allPackageIds);
-            console.log(
-              "Selected all packages from calculate response:",
-              allPackageIds,
-            );
+            console.log("Selected all packages:", allPackageIds);
           }
         }
       }
 
-      if (data.location_breakdown) {
-        const updatedCountries = data.location_breakdown.map((loc, index) => ({
-          id: index + 1,
-          name: loc.location_name || "",
-          currency: loc.currency?.code || loc.package?.currency || "AED",
-          dailyRate:
-            loc.salary_components?.length > 0
-              ? loc.salary_components.reduce(
-                  (sum, comp) => sum + comp.amount,
-                  0,
-                ) / (loc.worked_days || 1)
-              : 0,
-          daysWorked: loc.worked_days || 0,
-          fxRate: 1,
-          packageId: loc.package?.id || null,
+      // ─── UPDATE COUNTRIES FROM location_breakdown ────────────────────
+      if (data.location_breakdown && data.location_breakdown.length > 0) {
+        // Use location_breakdown as the primary source for countries
+        const updatedCountries = data.location_breakdown.map((loc, index) => {
+          const packageId = loc.package?.id || null;
+          // Find the package in availablePackages to get its components
+          const foundPackage = availablePackages.find(
+            (p) => p.id === packageId,
+          );
+
+          // Get salary components from location_breakdown
+          const components =
+            loc.salary_components || foundPackage?.salary_components || [];
+
+          return {
+            id: index + 1,
+            name:
+              loc.location_name ||
+              foundPackage?.name ||
+              `Location ${index + 1}`,
+            currency: loc.currency?.code || foundPackage?.currency || "AED",
+            dailyRate:
+              loc.worked_days > 0 ? (loc.subtotal || 0) / loc.worked_days : 0,
+            daysWorked: loc.worked_days || 0,
+            fxRate: 1,
+            packageId: packageId,
+            salary_components: components.map((comp) => ({
+              id: comp.id,
+              name: comp.name,
+              amount: comp.amount || 0,
+            })),
+            subtotal: loc.subtotal || 0,
+            is_saved: true,
+            // Store the full location data
+            raw: loc,
+          };
+        });
+        setCountries(updatedCountries);
+      } else if (data.salary_packages && data.salary_packages.length > 0) {
+        // If no location_breakdown, create countries from salary_packages
+        const packagesFromApi = data.salary_packages.map((item, index) => {
+          const pkg = item.package || {};
+          const currency = item.currency?.code || pkg.currency || "INR";
+          const components = item.salary_components || [];
+          const subtotal = components.reduce(
+            (sum, comp) => sum + (comp.value || 0),
+            0,
+          );
+
+          return {
+            id: index + 1,
+            name: pkg.name || `Package ${index + 1}`,
+            currency: currency,
+            dailyRate: 0,
+            daysWorked: 0,
+            fxRate: 1,
+            packageId: pkg.id || null,
+            salary_components: components.map((comp) => ({
+              id: comp.id,
+              name: comp.name,
+              amount: comp.value || 0,
+            })),
+            subtotal: subtotal,
+            is_saved: false,
+          };
+        });
+        setCountries(packagesFromApi);
+      }
+
+      // ─── UPDATE AVAILABLE PACKAGES FROM location_breakdown ────────────
+      // If location_breakdown has data, also update availablePackages with the actual data
+      if (data.location_breakdown && data.location_breakdown.length > 0) {
+        const packagesFromLocation = data.location_breakdown.map((loc) => ({
+          id: loc.package?.id || null,
+          name: loc.package?.name || loc.location_name,
+          currency: loc.currency?.code || "AED",
           salary_components: loc.salary_components || [],
           subtotal: loc.subtotal || 0,
-          is_saved: true,
+          days_worked: loc.worked_days || 0,
+          package: loc.package || {},
+          is_active: loc.package?.is_active,
+          raw: loc,
         }));
-        setCountries(updatedCountries);
 
-        const totalGross = data.gross_salary || data.total_earnings || 0;
-        setTotalEarnings(data.total_earnings || 0);
-        setTotalDeductions(data.total_deductions || 0);
-        setGrossSalary(totalGross);
-        setNetSalary(data.net_salary || totalGross);
-      } else {
-        setTotalEarnings(data.total_earnings || 0);
-        setTotalDeductions(data.total_deductions || 0);
-        setGrossSalary(data.gross_salary || 0);
-        setNetSalary(data.net_salary || 0);
+        // Update availablePackages with the location data
+        if (packagesFromLocation.length > 0) {
+          // Merge with existing availablePackages
+          const mergedPackages = packagesFromLocation.map((locPkg) => {
+            const existing = availablePackages.find((p) => p.id === locPkg.id);
+            return {
+              ...locPkg,
+              // Preserve any existing data not in location_breakdown
+              ...existing,
+              // But override with location data
+              days_worked: locPkg.days_worked,
+              subtotal: locPkg.subtotal,
+              salary_components: locPkg.salary_components,
+            };
+          });
+          setAvailablePackages(mergedPackages);
+        }
       }
     }
-  }, [calculatedCountries]);
+  }, [calculatedCountries, availablePackages]);
 
   // Update overtime when data arrives
   useEffect(() => {
@@ -1685,7 +1796,8 @@ function AddPayroll() {
                   </h3>
                   {workingDaysLoading && (
                     <span className="ml-2 text-xs text-blue-500">
-                      <i className="fas fa-spinner fa-spin mr-1"></i> Loading working days...
+                      <i className="fas fa-spinner fa-spin mr-1"></i> Loading
+                      working days...
                     </span>
                   )}
                 </div>
@@ -1806,7 +1918,11 @@ function AddPayroll() {
                       onChange={(e) => setTotalWorkingDays(e.target.value)}
                       className="w-full px-3 md:px-4 py-2 md:py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm md:text-base text-gray-800 dark:text-gray-200 focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-500/20"
                       disabled={!selectedUserId || workingDaysLoading}
-                      placeholder={workingDaysLoading ? "Loading..." : "Auto-filled from API"}
+                      placeholder={
+                        workingDaysLoading
+                          ? "Loading..."
+                          : "Auto-filled from API"
+                      }
                     />
                   </div>
                   <div>
@@ -1825,7 +1941,11 @@ function AddPayroll() {
                       onChange={(e) => setDaysPresent(e.target.value)}
                       className="w-full px-3 md:px-4 py-2 md:py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm md:text-base text-gray-800 dark:text-gray-200 focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-500/20"
                       disabled={!selectedUserId || workingDaysLoading}
-                      placeholder={workingDaysLoading ? "Loading..." : "Auto-filled from API"}
+                      placeholder={
+                        workingDaysLoading
+                          ? "Loading..."
+                          : "Auto-filled from API"
+                      }
                     />
                   </div>
                 </div>
@@ -2169,6 +2289,7 @@ function AddPayroll() {
           )}
 
           {/* Step 3 - Overtime */}
+          {/* Step 3 - Overtime */}
           {reduxCurrentStep === 3 && (
             <div>
               <div className="flex items-center gap-2 pb-3 border-b-2 border-green-100 dark:border-green-900/30 mb-4 md:mb-6">
@@ -2190,11 +2311,12 @@ function AddPayroll() {
                 </button>
               </div>
 
+              {/* ✅ SCROLLABLE TABLE CONTAINER - Added max-height and overflow-y-auto */}
               <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-soft overflow-hidden">
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto max-h-[400px] overflow-y-auto">
                   <table className="w-full text-left border-collapse">
                     <thead>
-                      <tr className="bg-gray-50 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700 text-xs md:text-sm text-gray-500 dark:text-gray-400">
+                      <tr className="bg-gray-50 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700 text-xs md:text-sm text-gray-500 dark:text-gray-400 sticky top-0 z-10">
                         <th className="py-3 px-4 font-semibold">Date</th>
                         <th className="py-3 px-4 font-semibold">Day</th>
                         <th className="py-3 px-4 font-semibold">
@@ -2591,13 +2713,11 @@ function AddPayroll() {
                           }
                         }}
                         className="px-2 py-1 text-xs bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors flex items-center gap-1"
-                        disabled={
-                          currencies.every((c) =>
-                            conversionRatesList.some(
-                              (item) => item.currency === c,
-                            ),
-                          )
-                        }
+                        disabled={currencies.every((c) =>
+                          conversionRatesList.some(
+                            (item) => item.currency === c,
+                          ),
+                        )}
                       >
                         <i className="fas fa-plus text-[10px]"></i> Add
                       </button>
