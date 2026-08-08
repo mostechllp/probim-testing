@@ -1,10 +1,8 @@
-// src/admin/pages/AddPayroll.js - Updated with working days API integration
+// src/admin/pages/AddPayroll.js - Only API response, no automatic calculation
 
 import { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Link } from "react-router-dom";
-import { jsPDF } from "jspdf";
-import autoTable from "jspdf-autotable";
 import { showToast } from "../components/common/Toast";
 import DateInput from "../components/common/DateInput";
 
@@ -40,7 +38,7 @@ import {
   clearEmployeePackages,
   convertSalary,
   generatePayslip,
-  fetchWorkingDays, // Add this import
+  fetchWorkingDays,
 } from "../store/slices/payrollSlice";
 
 import {
@@ -219,22 +217,6 @@ function AddPayroll() {
     December: 12,
   };
 
-  // Month number to name mapping
-  const monthNumberToName = {
-    1: "January",
-    2: "February",
-    3: "March",
-    4: "April",
-    5: "May",
-    6: "June",
-    7: "July",
-    8: "August",
-    9: "September",
-    10: "October",
-    11: "November",
-    12: "December",
-  };
-
   // Available currencies
   const currencies = ["AED", "INR", "USD", "EUR", "GBP", "PHP", "LKR"];
 
@@ -290,17 +272,17 @@ function AddPayroll() {
         console.log("Working days data:", result);
 
         if (result) {
-          // Update total working days
-          if (result.total_working_days) {
+          // ✅ Update total working days from API
+          if (result.total_working_days !== undefined && result.total_working_days !== null) {
             setTotalWorkingDays(String(result.total_working_days));
           }
 
-          // Update present days
-          if (result.present_days) {
+          // ✅ Update present days from API
+          if (result.present_days !== undefined && result.present_days !== null) {
             setDaysPresent(String(result.present_days));
           }
 
-          // Auto-calculate period dates based on month
+          // ✅ Auto-calculate period dates based on month
           const monthNumberVal = monthNames[payPeriodMonth];
           const yearVal = parseInt(payPeriodYear);
           const monthNumStr = String(monthNumberVal).padStart(2, "0");
@@ -316,14 +298,9 @@ function AddPayroll() {
             : 'no holidays';
           const sundayInfo = `${result.sundays_count} Sunday${result.sundays_count > 1 ? 's' : ''}`;
           
-          showToast(
-            `Working days loaded: ${result.total_working_days} working days, ${sundayInfo}, ${holidayInfo}`,
-            "success"
-          );
         }
       } catch (error) {
         console.error("Failed to fetch working days:", error);
-        // Don't show error toast if it's just that the API isn't ready
         if (!error.includes("not found")) {
           showToast(error || "Failed to fetch working days", "warning");
         }
@@ -412,39 +389,32 @@ function AddPayroll() {
 
       // Calculate net pay by currency (Gross + Overtime - Deductions)
       const originalNetByCurrency = {};
-      // Start with gross amounts
       Object.keys(originalGrossByCurrency).forEach((currency) => {
         originalNetByCurrency[currency] =
           (originalNetByCurrency[currency] || 0) +
           (originalGrossByCurrency[currency] || 0);
       });
-      // Add overtime
       Object.keys(originalOvertimeByCurrency).forEach((currency) => {
         originalNetByCurrency[currency] =
           (originalNetByCurrency[currency] || 0) +
           (originalOvertimeByCurrency[currency] || 0);
       });
-      // Subtract deductions
       Object.keys(originalDeductionsByCurrency).forEach((currency) => {
         originalNetByCurrency[currency] =
           (originalNetByCurrency[currency] || 0) -
           (originalDeductionsByCurrency[currency] || 0);
       });
 
-      // Build the breakdown string for net pay including overtime
-      let netPayBreakdownParts = [];
       let grossParts = [];
       let overtimeParts = [];
       let deductionParts = [];
 
-      // Build gross parts
       Object.entries(originalGrossByCurrency).forEach(([currency, amount]) => {
         if (amount > 0) {
           grossParts.push(`${currency} ${amount.toFixed(2)}`);
         }
       });
 
-      // Build overtime parts
       Object.entries(originalOvertimeByCurrency).forEach(
         ([currency, amount]) => {
           if (amount > 0) {
@@ -453,7 +423,6 @@ function AddPayroll() {
         },
       );
 
-      // Build deduction parts
       Object.entries(originalDeductionsByCurrency).forEach(
         ([currency, amount]) => {
           if (amount > 0) {
@@ -462,7 +431,6 @@ function AddPayroll() {
         },
       );
 
-      // Build full net pay breakdown: Gross + Overtime - Deductions
       const grossStr =
         grossParts.length > 0 ? `(${grossParts.join(" + ")})` : "0";
       const overtimeStr =
@@ -471,11 +439,6 @@ function AddPayroll() {
         deductionParts.length > 0 ? ` - (${deductionParts.join(" + ")})` : "";
       const netPayBreakdown = `${grossStr}${overtimeStr}${deductionStr}`;
 
-      // Determine the base currency for display
-      const baseCurrency = conversionRatesList[0]?.currency || "INR";
-      const baseRate = conversionRatesList[0]?.rate || 1;
-
-      // Update conversion details with mixed currency data
       setConversionDetails({
         gross_salary: {
           amount: 0,
@@ -538,7 +501,6 @@ function AddPayroll() {
               currency,
               amount,
             })),
-          // Store individual parts for display
           grossParts: grossParts,
           overtimeParts: overtimeParts,
           deductionParts: deductionParts,
@@ -556,7 +518,6 @@ function AddPayroll() {
   };
 
   // Handle employee selection
-  // Handle employee selection - make sure packages are fetched
   const handleEmployeeSelect = async (employeeId) => {
     setSelectedEmployee(employeeId);
 
@@ -565,7 +526,6 @@ function AddPayroll() {
         const result = await dispatch(fetchEmployeeById(employeeId)).unwrap();
         if (result && result.user_id) {
           setSelectedUserId(result.user_id.toString());
-          // Fetch salary packages for this employee
           console.log("Fetching salary packages for user_id:", result.user_id);
           const packagesResult = await dispatch(
             fetchEmployeeSalaryPackages(result.user_id),
@@ -671,7 +631,6 @@ function AddPayroll() {
         setPayPeriodMonth(monthNamesList[currentMonth - 1]);
         setPayPeriodYear(currentYear.toString());
 
-        // Set dates in YYYY-MM-DD format for DateInput
         setPeriodStart(`${currentYear}-${monthNum}-01`);
         const lastDay = new Date(currentYear, currentMonth, 0).getDate();
         setPeriodEnd(
@@ -683,97 +642,40 @@ function AddPayroll() {
     }
   }, [currentEmployee, employees, payPeriodMonth, selectedEmployee, dispatch]);
 
-  // NEW: Update dates when pay period month or year changes
-  useEffect(() => {
-    // Only run if we have a valid pay period month and year
-    if (payPeriodMonth && payPeriodYear) {
-      const monthNamesList = [
-        "January",
-        "February",
-        "March",
-        "April",
-        "May",
-        "June",
-        "July",
-        "August",
-        "September",
-        "October",
-        "November",
-        "December",
-      ];
-
-      const monthIndex = monthNamesList.indexOf(payPeriodMonth);
-      if (monthIndex !== -1) {
-        const monthNumber = monthIndex + 1;
-        const year = parseInt(payPeriodYear);
-        const monthNum = String(monthNumber).padStart(2, "0");
-
-        // Update period start date
-        setPeriodStart(`${year}-${monthNum}-01`);
-
-        // Update period end date (last day of month)
-        const lastDay = new Date(year, monthNumber, 0).getDate();
-        setPeriodEnd(`${year}-${monthNum}-${String(lastDay).padStart(2, "0")}`);
-
-        // Update payment date (25th of the month, but can be customized)
-        setPaymentDate(`${year}-${monthNum}-25`);
-
-        // Only update working days if they haven't been set by the API
-        if (!totalWorkingDays) {
-          // Calculate working days (Mon-Fri) - approximate
-          let workingDays = 0;
-          for (let day = 1; day <= lastDay; day++) {
-            const date = new Date(year, monthNumber - 1, day);
-            const dayOfWeek = date.getDay();
-            // Monday to Friday (1-5)
-            if (dayOfWeek >= 1 && dayOfWeek <= 5) {
-              workingDays++;
-            }
-          }
-          setTotalWorkingDays(String(workingDays));
-          setDaysPresent(String(workingDays));
-        }
-      }
-    }
-  }, [payPeriodMonth, payPeriodYear]);
+  // ✅ REMOVED: The automatic calculation useEffect is completely removed
+  // No automatic calculation of working days or present days
 
   // Handle month change with date updates
   const handleMonthChange = (e) => {
     const newMonth = e.target.value;
     setPayPeriodMonth(newMonth);
-    // Clear working days so they get refetched
+    // Clear working days so they get refetched from API
     setTotalWorkingDays("");
     setDaysPresent("");
-    // Dates will be auto-updated by the useEffect above
   };
 
   // Handle year change with date updates
   const handleYearChange = (e) => {
     const newYear = e.target.value;
     setPayPeriodYear(newYear);
-    // Clear working days so they get refetched
+    // Clear working days so they get refetched from API
     setTotalWorkingDays("");
     setDaysPresent("");
-    // Dates will be auto-updated by the useEffect above
   };
 
   // Update countries based on selected packages
-  // Update this useEffect to properly set availablePackages
   useEffect(() => {
     console.log("Employee packages received:", employeePackages);
 
     if (employeePackages && employeePackages.length > 0) {
-      // Set available packages for the dropdown
       setAvailablePackages(employeePackages);
 
-      // If no packages selected yet, select all by default
       if (selectedPackageIds.length === 0) {
         const allPackageIds = employeePackages.map((pkg) => pkg.id);
         setSelectedPackageIds(allPackageIds);
         console.log("Selected all packages:", allPackageIds);
       }
     } else {
-      // If no packages, clear the selection
       setAvailablePackages([]);
       setSelectedPackageIds([]);
       setCountries([]);
@@ -800,14 +702,12 @@ function AddPayroll() {
     }
   }, [successMessage, error, dispatch]);
 
-  // Update countries when calculated data arrives - ALSO extract packages from here
+  // Update countries when calculated data arrives
   useEffect(() => {
     if (calculatedCountries) {
       const data = calculatedCountries;
 
-      // ─── EXTRACT PACKAGES FROM CALCULATE RESPONSE ──────────────────────
       if (data.location_breakdown && data.location_breakdown.length > 0) {
-        // Extract packages from the location breakdown
         const extractedPackages = data.location_breakdown.map((loc, index) => ({
           id: loc.package?.id || index + 1,
           name:
@@ -825,10 +725,8 @@ function AddPayroll() {
           extractedPackages,
         );
 
-        // Set available packages from calculate response
         if (extractedPackages.length > 0) {
           setAvailablePackages(extractedPackages);
-          // If no packages selected yet, select all by default
           if (selectedPackageIds.length === 0) {
             const allPackageIds = extractedPackages.map((pkg) => pkg.id);
             setSelectedPackageIds(allPackageIds);
@@ -840,7 +738,6 @@ function AddPayroll() {
         }
       }
 
-      // ─── UPDATE COUNTRIES ──────────────────────────────────────────────
       if (data.location_breakdown) {
         const updatedCountries = data.location_breakdown.map((loc, index) => ({
           id: index + 1,
@@ -862,14 +759,12 @@ function AddPayroll() {
         }));
         setCountries(updatedCountries);
 
-        // Set the total earnings and gross salary from the API response
         const totalGross = data.gross_salary || data.total_earnings || 0;
         setTotalEarnings(data.total_earnings || 0);
         setTotalDeductions(data.total_deductions || 0);
         setGrossSalary(totalGross);
         setNetSalary(data.net_salary || totalGross);
       } else {
-        // If no location_breakdown, use the top-level values
         setTotalEarnings(data.total_earnings || 0);
         setTotalDeductions(data.total_deductions || 0);
         setGrossSalary(data.gross_salary || 0);
@@ -885,7 +780,6 @@ function AddPayroll() {
       Array.isArray(overtimeData) &&
       overtimeData.length > 0
     ) {
-      // The API returns an array of objects with date, projects, etc.
       setOvertimeRequests(
         overtimeData.map((item, index) => ({
           id: index + 1,
@@ -895,10 +789,9 @@ function AddPayroll() {
           total_logged_hours: item.total_logged_hours || 0,
           overtime_hours: item.overtime_hours || 0,
           projects: item.projects || [],
-          // For backward compatibility with existing UI
           project: item.projects?.map((p) => p.project_name).join(", ") || "",
           hours: item.total_logged_hours || 0,
-          overtime_amount: 0, // This will be set by user
+          overtime_amount: 0,
           currency: item.currency || targetCurrency || "INR",
           status: "pending",
           reason: "",
@@ -910,13 +803,11 @@ function AddPayroll() {
   // Update summary when data arrives
   useEffect(() => {
     if (summaryData) {
-      // The API returns: { gross_salary, overtime_amount, deductions, net_pay }
       setLocalSummaryData({
         gross_salary: summaryData.gross_salary || 0,
         overtime_amount: summaryData.overtime_amount || 0,
         deductions: summaryData.deductions || 0,
         net_pay: summaryData.net_pay || 0,
-        // Keep backward compatibility
         gross_earnings: summaryData.gross_salary || 0,
         total_deductions: summaryData.deductions || 0,
         combined: summaryData.gross_salary || 0,
@@ -925,14 +816,12 @@ function AddPayroll() {
   }, [summaryData]);
 
   // ─── STEP 2: Calculate salary split by location ──────────────────────
-  // ─── STEP 2: Calculate salary split by location ──────────────────────
   const handleCalculateSalarySplit = async () => {
     if (!selectedUserId) {
       showToast("Please select an employee first", "error");
       return;
     }
 
-    // Clear existing packages before calculating
     setAvailablePackages([]);
     setSelectedPackageIds([]);
     setCountries([]);
@@ -960,25 +849,20 @@ function AddPayroll() {
   const handlePackageSelection = (packageId) => {
     setSelectedPackageIds((prev) => {
       if (prev.includes(packageId)) {
-        // Remove package
         return prev.filter((id) => id !== packageId);
       } else {
-        // Add package
         return [...prev, packageId];
       }
     });
-    // Reset saved state when selection changes
     setIsStep2Saved(false);
   };
 
-  // Handle select all packages
   const handleSelectAllPackages = () => {
     const allPackageIds = availablePackages.map((pkg) => pkg.id);
     setSelectedPackageIds(allPackageIds);
     setIsStep2Saved(false);
   };
 
-  // Handle deselect all packages
   const handleDeselectAllPackages = () => {
     setSelectedPackageIds([]);
     setIsStep2Saved(false);
@@ -1037,7 +921,6 @@ function AddPayroll() {
   };
 
   // Get current step data based on form state
-  // Get current step data based on form state
   const getCurrentStepData = () => {
     const step = reduxCurrentStep;
     let data = {};
@@ -1060,7 +943,6 @@ function AddPayroll() {
         break;
 
       case 2:
-        // Filter countries to only include selected packages
         const selectedCountriesForStep = countries.filter((c) =>
           selectedPackageIds.includes(c.packageId),
         );
@@ -1133,19 +1015,15 @@ function AddPayroll() {
         break;
 
       case 5:
-        // Get step 2 data from Redux store (use the stepData from the component)
         const step2Data = stepData[2] || {};
         const step2LocationBreakdown = step2Data.location_breakdown || [];
 
-        // Get step 3 data from Redux store
         const step3Data = stepData[3] || {};
         const step3OvertimeDetails = step3Data.overtime_details || [];
 
-        // Get step 4 data from Redux store
         const step4Data = stepData[4] || {};
         const step4Deductions = step4Data.deductions || [];
 
-        // Build location breakdown from saved step 2 data
         const locationBreakdown = step2LocationBreakdown.map((loc) => ({
           location_name: loc.location_name || loc.name || "",
           currency: loc.currency?.code || loc.package?.currency || "INR",
@@ -1155,29 +1033,24 @@ function AddPayroll() {
           package: loc.package || {},
         }));
 
-        // Calculate totals from saved step 2 data
         const totalEarnings = locationBreakdown.reduce(
           (sum, loc) => sum + (loc.subtotal || 0),
           0,
         );
 
-        // Get totals from saved step 3 data
         const totalOvertime = step3OvertimeDetails.reduce(
           (sum, item) => sum + (parseFloat(item.amount) || 0),
           0,
         );
 
-        // Get totals from saved step 4 data
         const totalDeductionsFromSaved = step4Deductions.reduce(
           (sum, item) => sum + (parseFloat(item.amount) || 0),
           0,
         );
 
-        // Get conversion rates from saved step 5 data if exists
         const savedConversionRates = stepData[5]?.conversion_rates || {};
         const savedTargetCurrency = stepData[5]?.target_currency || "INR";
 
-        // Use existing conversion details or create from saved data
         const existingConversionDetails =
           stepData[5]?.conversions || conversionDetails;
 
@@ -1214,7 +1087,6 @@ function AddPayroll() {
           },
           target_currency: savedTargetCurrency,
           conversion_rates: savedConversionRates,
-          // Include all required fields for submission
           gross_salary: totalEarnings,
           overtime: totalOvertime,
           deductions: totalDeductionsFromSaved,
@@ -1269,10 +1141,8 @@ function AddPayroll() {
       dispatch(updateStepData({ step, data: enrichedData }));
       dispatch(markStepCompleted(step));
 
-      // Check if the save was successful and current_step is updated
       if (result.data && result.data.current_step) {
         console.log("Current step from server:", result.data.current_step);
-        // If current_step is 6, the payroll is ready for submission
         if (result.data.current_step === 6) {
           console.log("Payroll data is complete and ready for submission");
         }
@@ -1353,14 +1223,13 @@ function AddPayroll() {
     }
   };
 
-  // Handle final submission - Using converted amounts
+  // Handle final submission
   const handleSubmitPayroll = async () => {
     if (!selectedUserId) {
       showToast("Please select an employee first", "error");
       return;
     }
 
-    // Check if conversion has been done
     if (!isConverted) {
       showToast(
         "Please convert the currency first before submitting",
@@ -1370,7 +1239,6 @@ function AddPayroll() {
     }
 
     try {
-      // First, ensure step 5 is saved
       const finalData = getCurrentStepData();
       const saved = await handleSaveStep(5, finalData);
 
@@ -1383,32 +1251,26 @@ function AddPayroll() {
         monthNames[payPeriodMonth] || new Date().getMonth() + 1;
       const year = parseInt(payPeriodYear) || new Date().getFullYear();
 
-      // USE CONVERTED AMOUNTS from conversionDetails
       const convertedGrossSalary =
         conversionDetails.gross_salary?.convertedAmount || 0;
       const convertedOvertime =
         conversionDetails.overtime_amount?.convertedAmount || 0;
       const convertedDeductions =
         conversionDetails.deductions?.convertedAmount || 0;
-      // Net Pay = Gross + Overtime - Deductions (all in target currency)
       const convertedNetPay =
         convertedGrossSalary + convertedOvertime - convertedDeductions;
 
-      // Determine the primary currency (target currency)
       const primaryCurrency = targetCurrency || "INR";
 
-      // Build the submission payload with CONVERTED amounts
       const payload = {
         user_id: parseInt(selectedUserId),
         pay_period_month: parseInt(monthNumber),
         pay_period_year: parseInt(year),
-        // Use CONVERTED amounts
         gross_salary: parseFloat(convertedGrossSalary),
         overtime: parseFloat(convertedOvertime),
         deductions: parseFloat(convertedDeductions),
         net_pay: parseFloat(convertedNetPay),
         currency: primaryCurrency,
-        // Additional data for reference (original mixed currency data)
         target_currency: targetCurrency,
         conversion_rates: conversionRatesList.reduce((acc, item) => {
           acc[item.currency] = parseFloat(item.rate) || 1;
@@ -1436,7 +1298,6 @@ function AddPayroll() {
           amount_converted: parseFloat(d.amount) || 0,
           is_statutory: d.is_statutory || "no",
         })),
-        // Include conversion details for reference with CORRECT net pay breakdown
         conversion_details: {
           gross_salary: {
             original_breakdown: conversionDetails.gross_salary?.breakdown || "",
@@ -1471,9 +1332,7 @@ function AddPayroll() {
         currency: primaryCurrency,
         calculation: `${convertedGrossSalary} + ${convertedOvertime} - ${convertedDeductions} = ${convertedNetPay}`,
       });
-      console.log("Full payload:", payload);
 
-      // Submit the payroll
       const result = await dispatch(submitPayroll(payload)).unwrap();
 
       showToast(
@@ -1482,7 +1341,6 @@ function AddPayroll() {
         "success",
       );
 
-      // Generate payslip using the API endpoint
       if (result.data?.id) {
         const payrollId = result.data?.id;
         if (payrollId) {
@@ -1498,7 +1356,6 @@ function AddPayroll() {
         }
       }
 
-      // Redirect to payroll page after a delay
       setTimeout(() => {
         window.location.href = `${basePath}/payroll`;
       }, 3000);
@@ -1654,7 +1511,6 @@ function AddPayroll() {
   };
 
   const handleRemoveDeduction = (id) => {
-    // Allow removal even if only one deduction exists
     setDeductions(deductions.filter((d) => d.id !== id));
   };
 
@@ -2096,10 +1952,10 @@ function AddPayroll() {
                                 type="checkbox"
                                 checked={isSelected}
                                 onChange={(e) => {
-                                  e.stopPropagation(); // Stop event from bubbling to parent
+                                  e.stopPropagation();
                                   handlePackageSelection(country.packageId);
                                 }}
-                                onClick={(e) => e.stopPropagation()} // Also stop click event
+                                onClick={(e) => e.stopPropagation()}
                                 className="w-5 h-5 text-green-500 focus:ring-green-500 rounded border-gray-300 dark:border-gray-600 cursor-pointer"
                               />
                               <div>
@@ -2140,7 +1996,7 @@ function AddPayroll() {
                                   <div
                                     key={idx}
                                     className="flex items-center gap-2"
-                                    onClick={(e) => e.stopPropagation()} // Prevent card click when editing
+                                    onClick={(e) => e.stopPropagation()}
                                   >
                                     <span className="text-sm text-gray-600 dark:text-gray-400 w-32 flex-shrink-0">
                                       {comp.name}
@@ -2186,7 +2042,7 @@ function AddPayroll() {
                                         setCountries(updatedCountries);
                                         setIsStep2Saved(false);
                                       }}
-                                      onClick={(e) => e.stopPropagation()} // Prevent card click when editing
+                                      onClick={(e) => e.stopPropagation()}
                                       className="flex-1 px-2 py-1 text-sm rounded border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 focus:outline-none focus:border-green-500"
                                     />
                                   </div>
@@ -2212,7 +2068,6 @@ function AddPayroll() {
                     })}
                   </div>
 
-                  {/* Selected Packages Summary */}
                   {selectedPackageIds.length > 0 && (
                     <div className="mt-4 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
                       <p className="text-sm font-medium text-green-700 dark:text-green-300">
@@ -2232,7 +2087,6 @@ function AddPayroll() {
                 </>
               )}
               {/* Save Packages Button */}
-              {/* Save Packages Button */}
               <div className="mt-6 flex justify-end">
                 <button
                   onClick={async () => {
@@ -2249,12 +2103,10 @@ function AddPayroll() {
                     const year =
                       parseInt(payPeriodYear) || new Date().getFullYear();
 
-                    // Filter location_breakdown to only include selected packages
                     const selectedCountries = countries.filter((c) =>
                       selectedPackageIds.includes(c.packageId),
                     );
 
-                    // Calculate totals for selected packages only
                     const selectedTotalEarnings = selectedCountries.reduce(
                       (sum, c) => sum + (c.subtotal || 0),
                       0,
@@ -2306,7 +2158,6 @@ function AddPayroll() {
                   {selectedPackageIds.length} selected)
                 </button>
               </div>
-              {/* Mixed Currencies Notice */}
               {countries.some((c) => c.currency !== targetCurrency) && (
                 <div className="mt-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg text-sm text-yellow-700 dark:text-yellow-300">
                   <i className="fas fa-exclamation-triangle mr-2"></i>
@@ -2409,18 +2260,14 @@ function AddPayroll() {
                                 inputMode="decimal"
                                 value={req.overtime_amount || ""}
                                 onChange={(e) => {
-                                  // Only allow numbers, decimal point, and backspace
                                   const value = e.target.value;
-                                  // Remove any non-numeric characters except decimal point
                                   const cleaned = value.replace(/[^0-9.]/g, "");
-                                  // Prevent multiple decimal points
                                   const parts = cleaned.split(".");
                                   let finalValue = cleaned;
                                   if (parts.length > 2) {
                                     finalValue =
                                       parts[0] + "." + parts.slice(1).join("");
                                   }
-                                  // Limit to 2 decimal places
                                   if (finalValue.includes(".")) {
                                     const [whole, decimal] =
                                       finalValue.split(".");
@@ -2436,7 +2283,6 @@ function AddPayroll() {
                                   );
                                 }}
                                 onKeyDown={(e) => {
-                                  // Allow: backspace, delete, tab, escape, enter, decimal point
                                   const allowedKeys = [
                                     "Backspace",
                                     "Delete",
@@ -2449,7 +2295,6 @@ function AddPayroll() {
                                   if (allowedKeys.includes(e.key)) {
                                     return;
                                   }
-                                  // Allow numbers
                                   if (!/^[0-9]$/.test(e.key)) {
                                     e.preventDefault();
                                   }
@@ -2691,7 +2536,6 @@ function AddPayroll() {
                       onChange={(e) => {
                         const newTarget = e.target.value;
                         setTargetCurrency(newTarget);
-                        // Remove any conversion rates that match the new target currency
                         setConversionRatesList(
                           conversionRatesList.filter(
                             (item) => item.currency !== newTarget,
@@ -2719,7 +2563,6 @@ function AddPayroll() {
                       </label>
                       <button
                         onClick={() => {
-                          // Allow adding ANY currency from the currencies list, including the target currency
                           const existingCurrencies = conversionRatesList.map(
                             (item) => item.currency,
                           );
@@ -2749,7 +2592,6 @@ function AddPayroll() {
                         }}
                         className="px-2 py-1 text-xs bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors flex items-center gap-1"
                         disabled={
-                          // Disable if all currencies are already in the list
                           currencies.every((c) =>
                             conversionRatesList.some(
                               (item) => item.currency === c,
@@ -2908,12 +2750,10 @@ function AddPayroll() {
                         </span>
                       </div>
 
-                      {/* Get location breakdown from saved step 2 data */}
                       {(() => {
                         const step2Data = stepData[2] || {};
                         const locationBreakdown =
                           step2Data.location_breakdown || [];
-                        const packageIds = step2Data.package_ids || [];
 
                         if (locationBreakdown.length === 0) {
                           return (
@@ -2952,11 +2792,9 @@ function AddPayroll() {
                                 return null;
                               })}
 
-                              {/* Total - Show as Mixed or individual currencies */}
                               <div className="border-t border-blue-200 dark:border-blue-700 mt-1 pt-1 flex justify-between items-center font-semibold">
                                 <span className="text-gray-600 dark:text-gray-400">
-                                  Total ({locationBreakdown.length} package
-                                  {locationBreakdown.length > 1 ? "s" : ""}):
+                                  Total:
                                 </span>
                                 <span className="text-blue-600 dark:text-blue-400">
                                   {locationBreakdown
@@ -2968,23 +2806,6 @@ function AddPayroll() {
                                     .join(" + ")}
                                 </span>
                               </div>
-                            </div>
-
-                            <div className="text-xs text-gray-400 mt-1">
-                              Based on{" "}
-                              {
-                                locationBreakdown.filter(
-                                  (loc) => (loc.subtotal || 0) > 0,
-                                ).length
-                              }{" "}
-                              location(s):{" "}
-                              {locationBreakdown
-                                .filter((loc) => (loc.subtotal || 0) > 0)
-                                .map(
-                                  (loc) =>
-                                    `${loc.location_name || loc.name} (${loc.currency?.code || loc.package?.currency || "INR"})`,
-                                )
-                                .join(", ")}
                             </div>
                           </>
                         );
@@ -3002,7 +2823,6 @@ function AddPayroll() {
                         </span>
                       </div>
 
-                      {/* Overtime Details - Show each currency separately */}
                       <div className="mb-3">
                         <div className="text-[10px] text-gray-500 mb-1">
                           Overtime Entries:
@@ -3035,7 +2855,6 @@ function AddPayroll() {
                           </div>
                         )}
 
-                        {/* Overtime Total - Show as Mixed or individual currencies */}
                         {overtimeRequests.filter(
                           (req) => parseFloat(req.overtime_amount || 0) > 0,
                         ).length > 0 && (
@@ -3071,7 +2890,6 @@ function AddPayroll() {
                         </span>
                       </div>
 
-                      {/* Deduction Details - Show each currency separately */}
                       <div className="mb-3">
                         <div className="text-[10px] text-gray-500 mb-1">
                           Deduction Entries:
@@ -3099,7 +2917,6 @@ function AddPayroll() {
                           </div>
                         )}
 
-                        {/* Deductions Total - Show as Mixed or individual currencies */}
                         {deductions.filter((d) => parseFloat(d.amount || 0) > 0)
                           .length > 0 && (
                           <div className="border-t border-red-200 dark:border-red-700 mt-1 pt-1 flex justify-between items-center font-semibold">
@@ -3132,7 +2949,6 @@ function AddPayroll() {
                       </div>
 
                       {(() => {
-                        // Get saved data from Redux
                         const step2Data = stepData[2] || {};
                         const locationBreakdown =
                           step2Data.location_breakdown || [];
@@ -3144,10 +2960,8 @@ function AddPayroll() {
                         const step4Data = stepData[4] || {};
                         const deductionsList = step4Data.deductions || [];
 
-                        // Calculate totals by currency
                         const netPayByCurrency = {};
 
-                        // Add gross amounts by currency from step 2
                         locationBreakdown.forEach((loc) => {
                           const subtotal = loc.subtotal || 0;
                           const currency =
@@ -3160,7 +2974,6 @@ function AddPayroll() {
                           }
                         });
 
-                        // Add overtime by currency from step 3
                         overtimeDetails.forEach((item) => {
                           const amount = parseFloat(item.amount) || 0;
                           const currency = item.currency || "INR";
@@ -3170,7 +2983,6 @@ function AddPayroll() {
                           }
                         });
 
-                        // Subtract deductions by currency from step 4
                         deductionsList.forEach((item) => {
                           const amount = parseFloat(item.amount) || 0;
                           const currency = item.currency || "INR";
@@ -3180,7 +2992,6 @@ function AddPayroll() {
                           }
                         });
 
-                        // Format display
                         const grossDisplay = locationBreakdown
                           .filter((loc) => (loc.subtotal || 0) > 0)
                           .map(
@@ -3256,13 +3067,12 @@ function AddPayroll() {
 
                 {isConverted && conversionDetails.gross_salary && (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                    {/* Gross Salary - Show mixed currency breakdown */}
+                    {/* Gross Salary */}
                     <div className="p-4 rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
                       <div className="text-xs text-gray-500 dark:text-gray-400 font-medium mb-2">
                         Gross Salary
                       </div>
 
-                      {/* Original Mixed Currency Breakdown - FROM SAVED STEP 2 DATA */}
                       <div className="mb-2">
                         <div className="text-[10px] text-gray-500 mb-1">
                           Original:
@@ -3303,7 +3113,6 @@ function AddPayroll() {
                             ));
                         })()}
 
-                        {/* Show the total breakdown string */}
                         <div className="mt-1 text-xs text-gray-500">
                           {(() => {
                             const step2Data = stepData[2] || {};
@@ -3320,7 +3129,6 @@ function AddPayroll() {
                         </div>
                       </div>
 
-                      {/* Conversion Display */}
                       <div className="flex justify-between items-center gap-2 bg-white/50 dark:bg-gray-800/50 p-2 rounded-lg">
                         <div className="flex-1">
                           <div className="text-[10px] text-gray-500">
@@ -3360,7 +3168,7 @@ function AddPayroll() {
                       </div>
                     </div>
 
-                    {/* Overtime Amount - FROM SAVED STEP 3 DATA */}
+                    {/* Overtime Amount */}
                     <div className="p-4 rounded-xl bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800">
                       <div className="text-xs text-gray-500 dark:text-gray-400 font-medium mb-2">
                         Overtime Amount
@@ -3435,7 +3243,7 @@ function AddPayroll() {
                       )}
                     </div>
 
-                    {/* Deductions - FROM SAVED STEP 4 DATA */}
+                    {/* Deductions */}
                     <div className="p-4 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
                       <div className="text-xs text-gray-500 dark:text-gray-400 font-medium mb-2">
                         Deductions
@@ -3508,7 +3316,7 @@ function AddPayroll() {
                       )}
                     </div>
 
-                    {/* Net Pay - Combine all saved data */}
+                    {/* Net Pay */}
                     <div className="p-4 rounded-xl bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800">
                       <div className="text-xs text-gray-500 dark:text-gray-400 font-medium mb-2">
                         Net Pay
@@ -3519,7 +3327,6 @@ function AddPayroll() {
                           Original (Gross + Overtime - Deductions):
                         </div>
                         {(() => {
-                          // Get data from stepData
                           const step2Data = stepData[2] || {};
                           const locationBreakdown =
                             step2Data.location_breakdown || [];
@@ -3529,10 +3336,8 @@ function AddPayroll() {
                           const step4Data = stepData[4] || {};
                           const deductionsList = step4Data.deductions || [];
 
-                          // Calculate by currency
                           const netByCurrency = {};
 
-                          // Add gross
                           locationBreakdown.forEach((loc) => {
                             const subtotal = loc.subtotal || 0;
                             const currency =
@@ -3545,7 +3350,6 @@ function AddPayroll() {
                             }
                           });
 
-                          // Add overtime
                           overtimeDetails.forEach((item) => {
                             const amount = parseFloat(item.amount) || 0;
                             const currency = item.currency || "INR";
@@ -3555,7 +3359,6 @@ function AddPayroll() {
                             }
                           });
 
-                          // Subtract deductions
                           deductionsList.forEach((item) => {
                             const amount = parseFloat(item.amount) || 0;
                             const currency = item.currency || "INR";
@@ -3593,7 +3396,6 @@ function AddPayroll() {
                         })()}
                       </div>
 
-                      {/* Calculation Breakdown */}
                       <div className="mb-2 text-xs text-gray-500">
                         <div>
                           Gross:{" "}
@@ -3647,7 +3449,6 @@ function AddPayroll() {
                         </div>
                       </div>
 
-                      {/* Conversion Display */}
                       <div className="flex justify-between items-center gap-2 bg-white/50 dark:bg-gray-800/50 p-2 rounded-lg">
                         <div className="flex-1">
                           <div className="text-[10px] text-gray-500">
@@ -3665,7 +3466,6 @@ function AddPayroll() {
                               const deductionsList = step4Data.deductions || [];
 
                               const parts = [];
-                              // Gross parts
                               locationBreakdown
                                 .filter((loc) => (loc.subtotal || 0) > 0)
                                 .forEach((loc) => {
@@ -3673,7 +3473,6 @@ function AddPayroll() {
                                     `${loc.currency?.code || loc.package?.currency || "INR"} ${(loc.subtotal || 0).toFixed(2)}`,
                                   );
                                 });
-                              // Overtime parts
                               overtimeDetails
                                 .filter((item) => parseFloat(item.amount) > 0)
                                 .forEach((item) => {
@@ -3681,7 +3480,6 @@ function AddPayroll() {
                                     `(${item.currency || "INR"} ${parseFloat(item.amount).toFixed(2)})`,
                                   );
                                 });
-                              // Deductions parts (negative)
                               deductionsList
                                 .filter((item) => parseFloat(item.amount) > 0)
                                 .forEach((item) => {

@@ -603,7 +603,6 @@ export const fetchEmployeeSalaryPackages = createAsyncThunk(
 
       return {
         data: packagesData,
-        message: response.data?.message || "Salary packages fetched successfully",
       };
     } catch (error) {
       console.error("Fetch employee salary packages error:", error);
