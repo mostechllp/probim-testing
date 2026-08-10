@@ -59,11 +59,38 @@ const Payroll = () => {
   // Local state
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [monthFilter, setMonthFilter] = useState("");
-  const [yearFilter, setYearFilter] = useState("");
+  const [selectedMonth, setSelectedMonth] = useState("");
+  const [selectedYear, setSelectedYear] = useState("");
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [selectedPayroll, setSelectedPayroll] = useState(null);
   const [currentPageState, setCurrentPageState] = useState(1);
+
+  // Generate month options (with month numbers)
+  const monthOptions = [
+    { value: "", label: "All Months" },
+    { value: "1", label: "January" },
+    { value: "2", label: "February" },
+    { value: "3", label: "March" },
+    { value: "4", label: "April" },
+    { value: "5", label: "May" },
+    { value: "6", label: "June" },
+    { value: "7", label: "July" },
+    { value: "8", label: "August" },
+    { value: "9", label: "September" },
+    { value: "10", label: "October" },
+    { value: "11", label: "November" },
+    { value: "12", label: "December" },
+  ];
+
+  // Generate year options (last 5 years)
+  const currentYear = new Date().getFullYear();
+  const yearOptions = [
+    { value: "", label: "All Years" },
+    ...Array.from({ length: 5 }, (_, i) => ({
+      value: String(currentYear - i),
+      label: String(currentYear - i),
+    })),
+  ];
 
   // Function to fetch payrolls with current filters
   const fetchPayrollsData = useCallback(() => {
@@ -72,17 +99,28 @@ const Payroll = () => {
       per_page: perPage || 15,
       search: searchTerm || undefined,
       status: statusFilter !== "all" ? statusFilter : undefined,
-      month: monthFilter || undefined,
-      year: yearFilter || undefined,
     };
+
+    // Add month parameter if selected (month only - 2 digit)
+    if (selectedMonth) {
+      const monthPadded = String(selectedMonth).padStart(2, "0");
+      params.month = monthPadded;
+    }
+
+    // Add year parameter if selected
+    if (selectedYear) {
+      params.year = parseInt(selectedYear);
+    }
+
+    console.log("Fetching payrolls with params:", params);
     dispatch(fetchPayrolls(params));
   }, [
     dispatch,
     currentPageState,
     searchTerm,
     statusFilter,
-    monthFilter,
-    yearFilter,
+    selectedMonth,
+    selectedYear,
     perPage,
   ]);
 
@@ -91,13 +129,25 @@ const Payroll = () => {
     fetchPayrollsData();
   }, [fetchPayrollsData]);
 
+  // Fetch stats when filters change
   useEffect(() => {
-    const params = {
-      month: monthFilter || undefined,
-      year: yearFilter || undefined,
-    };
+    const params = {};
+    
+    if (selectedMonth) {
+      const monthPadded = String(selectedMonth).padStart(2, "0");
+      params.month = monthPadded;
+    }
+    
+    if (selectedYear) {
+      params.year = parseInt(selectedYear);
+    }
+    
+    if (statusFilter && statusFilter !== "all") {
+      params.status = statusFilter;
+    }
+
     dispatch(fetchPayrollStats(params));
-  }, [dispatch, monthFilter, yearFilter]);
+  }, [dispatch, selectedMonth, selectedYear, statusFilter]);
 
   // Handle errors and success messages
   useEffect(() => {
@@ -113,15 +163,6 @@ const Payroll = () => {
       dispatch(clearPayrollSuccess());
     }
   }, [successMessage, dispatch]);
-
-  useEffect(() => {
-    const params = {};
-    if (monthFilter) params.month = monthFilter;
-    if (yearFilter) params.year = yearFilter;
-    if (statusFilter && statusFilter !== "all") params.status = statusFilter;
-
-    dispatch(fetchPayrollStats(params));
-  }, [dispatch, monthFilter, yearFilter, statusFilter]);
 
   // Stats from API
   const totalPayrolls = stats?.total_generated || 0;
@@ -199,13 +240,13 @@ const Payroll = () => {
     setCurrentPageState(1);
   };
 
-  const handleMonthFilterChange = (e) => {
-    setMonthFilter(e.target.value);
+  const handleMonthChange = (e) => {
+    setSelectedMonth(e.target.value);
     setCurrentPageState(1);
   };
 
-  const handleYearFilterChange = (e) => {
-    setYearFilter(e.target.value);
+  const handleYearChange = (e) => {
+    setSelectedYear(e.target.value);
     setCurrentPageState(1);
   };
 
@@ -291,33 +332,6 @@ const Payroll = () => {
     return `${baseUrl}/storage/${avatar}`;
   };
 
-  // Generate month options
-  const monthOptions = [
-    { value: "", label: "All Months" },
-    { value: "1", label: "January" },
-    { value: "2", label: "February" },
-    { value: "3", label: "March" },
-    { value: "4", label: "April" },
-    { value: "5", label: "May" },
-    { value: "6", label: "June" },
-    { value: "7", label: "July" },
-    { value: "8", label: "August" },
-    { value: "9", label: "September" },
-    { value: "10", label: "October" },
-    { value: "11", label: "November" },
-    { value: "12", label: "December" },
-  ];
-
-  // Generate year options (last 5 years)
-  const currentYear = new Date().getFullYear();
-  const yearOptions = [
-    { value: "", label: "All Years" },
-    ...Array.from({ length: 5 }, (_, i) => ({
-      value: String(currentYear - i),
-      label: String(currentYear - i),
-    })),
-  ];
-
   // Get the base path based on user role
   const basePath = isAdmin ? "/admin" : "/employee";
 
@@ -354,18 +368,6 @@ const Payroll = () => {
           </div>
         </div>
 
-        {/* <div className="bg-white dark:bg-gray-800 rounded-xl p-3 md:p-4 border border-gray-200 dark:border-gray-700 transition-all hover:-translate-y-0.5 hover:shadow-soft">
-          <div className="w-8 h-8 md:w-10 md:h-10 bg-emerald-100 dark:bg-emerald-900/30 rounded-xl flex items-center justify-center mb-1 md:mb-2">
-            <i className="fas fa-check-circle text-emerald-600 dark:text-emerald-400 text-sm md:text-lg"></i>
-          </div>
-          <div className="text-xl md:text-2xl font-bold text-emerald-600 dark:text-emerald-400">
-            {paidCount}
-          </div>
-          <div className="text-[10px] md:text-xs text-gray-500 dark:text-gray-400 font-medium">
-            Paid
-          </div>
-        </div> */}
-
         <div className="bg-white dark:bg-gray-800 rounded-xl p-3 md:p-4 border border-gray-200 dark:border-gray-700 transition-all hover:-translate-y-0.5 hover:shadow-soft">
           <div className="w-8 h-8 md:w-10 md:h-10 bg-yellow-100 dark:bg-yellow-900/30 rounded-xl flex items-center justify-center mb-1 md:mb-2">
             <i className="fas fa-clock text-yellow-600 dark:text-yellow-400 text-sm md:text-lg"></i>
@@ -378,7 +380,6 @@ const Payroll = () => {
           </div>
         </div>
 
-        {/* AED Total Amount Card */}
         <div className="bg-white dark:bg-gray-800 rounded-xl p-3 md:p-4 border border-gray-200 dark:border-gray-700 transition-all hover:-translate-y-0.5 hover:shadow-soft">
           <div className="w-8 h-8 md:w-10 md:h-10 bg-green-100 dark:bg-green-900/30 rounded-xl flex items-center justify-center mb-1 md:mb-2">
             <span className="text-sm md:text-lg font-bold text-green-600 dark:text-green-400">AED</span>
@@ -390,6 +391,7 @@ const Payroll = () => {
             AED Total Amount
           </div>
         </div>
+
         <div className="bg-white dark:bg-gray-800 rounded-xl p-3 md:p-4 border border-gray-200 dark:border-gray-700 transition-all hover:-translate-y-0.5 hover:shadow-soft">
           <div className="w-8 h-8 md:w-10 md:h-10 bg-blue-100 dark:bg-blue-900/30 rounded-xl flex items-center justify-center mb-1 md:mb-2">
             <span className="text-sm md:text-lg font-bold text-blue-600 dark:text-blue-400">INR</span>
@@ -432,6 +434,33 @@ const Payroll = () => {
           />
         </div>
         <div className="flex flex-wrap items-center gap-3">
+          {/* Month Dropdown */}
+          <select
+            value={selectedMonth}
+            onChange={handleMonthChange}
+            className="px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-xs text-gray-700 dark:text-gray-200 focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-500/20"
+          >
+            {monthOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+
+          {/* Year Dropdown */}
+          <select
+            value={selectedYear}
+            onChange={handleYearChange}
+            className="px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-xs text-gray-700 dark:text-gray-200 focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-500/20"
+          >
+            {yearOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+
+          {/* Status Dropdown */}
           <select
             value={statusFilter}
             onChange={handleStatusFilterChange}
@@ -443,30 +472,6 @@ const Payroll = () => {
             <option value="pending">Pending</option>
             <option value="draft">Draft</option>
             <option value="failed">Failed</option>
-          </select>
-
-          <select
-            value={monthFilter}
-            onChange={handleMonthFilterChange}
-            className="px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-xs text-gray-700 dark:text-gray-200 focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-500/20"
-          >
-            {monthOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-
-          <select
-            value={yearFilter}
-            onChange={handleYearFilterChange}
-            className="px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-xs text-gray-700 dark:text-gray-200 focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-500/20"
-          >
-            {yearOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
           </select>
 
           <SearchBar
