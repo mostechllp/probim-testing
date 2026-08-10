@@ -272,241 +272,251 @@ function EditPayroll() {
   }, [dispatch, id]);
 
   // ─── Populate form with payroll data when loaded ────────────────────
-  useEffect(() => {
-    if (currentPayroll && !isDataLoaded) {
-      const stepData = currentPayroll.step_data || {};
-      
-      console.log("Current Payroll Data:", currentPayroll);
-      console.log("Step Data:", stepData);
+ // ─── Populate form with payroll data when loaded ────────────────────
+useEffect(() => {
+  if (currentPayroll && !isDataLoaded) {
+    const stepData = currentPayroll.step_data || {};
+    
+    console.log("Current Payroll Data:", currentPayroll);
+    console.log("Step Data:", stepData);
 
-      // ✅ Set employee info from payroll data
-      if (currentPayroll.employee_id) {
-        setSelectedUserId(String(currentPayroll.employee_id));
-      }
-      
-      if (currentPayroll.employee_name) {
-        setEmployeeName(currentPayroll.employee_name);
-      }
+    // ✅ Set employee info from payroll data
+    if (currentPayroll.employee_id) {
+      setSelectedUserId(String(currentPayroll.employee_id));
+    }
+    
+    if (currentPayroll.employee_name) {
+      setEmployeeName(currentPayroll.employee_name);
+    }
 
-      // ✅ Set employee details from the payroll response directly
-      if (currentPayroll.designation?.name) {
-        setDesignation(currentPayroll.designation.name);
-      }
-      if (currentPayroll.department?.name) {
-        setDepartment(currentPayroll.department.name);
-      }
-      if (currentPayroll.employee_type) {
-        setEmploymentType(currentPayroll.employee_type);
-      }
+    // ✅ Set employee details from the payroll response directly
+    if (currentPayroll.designation?.name) {
+      setDesignation(currentPayroll.designation.name);
+    }
+    if (currentPayroll.department?.name) {
+      setDepartment(currentPayroll.department.name);
+    }
+    if (currentPayroll.employee_type) {
+      setEmploymentType(currentPayroll.employee_type);
+    }
 
-      // Set employee ID from payroll response
-      if (currentPayroll.employee_id) {
-        // Try to find employee in employees list for employee_id
-        if (employees && employees.length > 0) {
-          const userId = parseInt(currentPayroll.employee_id);
-          const foundEmployee = employees.find(
-            (emp) => emp.user_id === userId || emp.id === userId,
-          );
-          if (foundEmployee) {
-            setEmployeeId(foundEmployee.employee_id || "");
-          }
-        }
-        // If not found, use the employee_id from payroll
-        if (!employeeId) {
-          setEmployeeId(String(currentPayroll.employee_id));
-        }
-      }
-
-      // ✅ Find employee from employees list for additional details
-      if (currentPayroll.employee_id && employees && employees.length > 0) {
+    // Set employee ID from payroll response
+    if (currentPayroll.employee_id) {
+      if (employees && employees.length > 0) {
         const userId = parseInt(currentPayroll.employee_id);
         const foundEmployee = employees.find(
           (emp) => emp.user_id === userId || emp.id === userId,
         );
-
         if (foundEmployee) {
-          // Fetch full employee details if available
-          dispatch(fetchEmployeeById(foundEmployee.id))
-            .unwrap()
-            .then((data) => {
-              if (data) {
-                populateEmployeeFields(data);
-              }
-            })
-            .catch(() => {});
+          setEmployeeId(foundEmployee.employee_id || "");
         }
       }
-
-      // ✅ Set pay period from step_1 data
-      const step1Data = stepData.step_1 || {};
-      
-      // Get month name from month number
-      let monthName = "";
-      if (currentPayroll.month) {
-        monthName = monthNumberToName[currentPayroll.month] || "";
-      } else if (step1Data.pay_period_month) {
-        monthName = monthNumberToName[step1Data.pay_period_month] || "";
+      if (!employeeId) {
+        setEmployeeId(String(currentPayroll.employee_id));
       }
-      setPayPeriodMonth(monthName);
-      
-      const yearValue = currentPayroll.year?.toString() ||
-        step1Data.pay_period_year?.toString() || "";
-      setPayPeriodYear(yearValue);
-      
-      setPeriodStart(step1Data.period_start || "");
-      setPeriodEnd(step1Data.period_end || "");
-      setPaymentDate(
-        currentPayroll.payment_date || step1Data.payment_date || ""
+    }
+
+    // ✅ Find employee from employees list for additional details
+    if (currentPayroll.employee_id && employees && employees.length > 0) {
+      const userId = parseInt(currentPayroll.employee_id);
+      const foundEmployee = employees.find(
+        (emp) => emp.user_id === userId || emp.id === userId,
       );
-      setPaymentMode(step1Data.payment_mode || null);
-      
-      // ✅ Set working days from step_1 data directly (no API call needed)
-      // The data comes from the payroll response
-      if (step1Data.total_worked_days !== undefined && step1Data.total_worked_days !== null) {
-        setDaysPresent(String(step1Data.total_worked_days));
+
+      if (foundEmployee) {
+        dispatch(fetchEmployeeById(foundEmployee.id))
+          .unwrap()
+          .then((data) => {
+            if (data) {
+              populateEmployeeFields(data);
+            }
+          })
+          .catch(() => {});
       }
-      if (step1Data.working_days !== undefined && step1Data.working_days !== null) {
-        setTotalWorkingDays(String(step1Data.working_days));
+    }
+
+    // ✅ Set pay period from step_1 data
+    const step1Data = stepData.step_1 || {};
+    
+    // Get month name from month number
+    let monthName = "";
+    if (currentPayroll.month) {
+      monthName = monthNumberToName[currentPayroll.month] || "";
+    } else if (step1Data.pay_period_month) {
+      monthName = monthNumberToName[step1Data.pay_period_month] || "";
+    }
+    setPayPeriodMonth(monthName);
+    
+    const yearValue = currentPayroll.year?.toString() ||
+      step1Data.pay_period_year?.toString() || "";
+    setPayPeriodYear(yearValue);
+    
+    setPeriodStart(step1Data.period_start || "");
+    setPeriodEnd(step1Data.period_end || "");
+    setPaymentDate(
+      currentPayroll.payment_date || step1Data.payment_date || ""
+    );
+    setPaymentMode(step1Data.payment_mode || null);
+    
+    // ✅ FIX: Set working days from step_1 data correctly
+    // The API returns:
+    // - days_present: number of days the employee was present
+    // - total_working_days: total working days in the period
+    
+    // Set Days Present (days_present from API)
+    if (step1Data.days_present !== undefined && step1Data.days_present !== null) {
+      setDaysPresent(String(step1Data.days_present));
+    } else if (step1Data.total_worked_days !== undefined && step1Data.total_worked_days !== null) {
+      // Fallback to total_worked_days if days_present is not available
+      setDaysPresent(String(step1Data.total_worked_days));
+    }
+    
+    // Set Total Working Days (total_working_days from API)
+    if (step1Data.total_working_days !== undefined && step1Data.total_working_days !== null) {
+      setTotalWorkingDays(String(step1Data.total_working_days));
+    } else if (step1Data.working_days !== undefined && step1Data.working_days !== null) {
+      // Fallback to working_days if total_working_days is not available
+      setTotalWorkingDays(String(step1Data.working_days));
+    }
+
+    // ✅ Set countries from step_1 location_breakdown
+    if (step1Data.location_breakdown) {
+      const mappedCountries = step1Data.location_breakdown.map(
+        (loc, index) => ({
+          id: index + 1,
+          name: loc.location_name || loc.package?.name || "",
+          currency: loc.currency?.code || loc.package?.currency || "AED",
+          dailyRate: loc.worked_days > 0 ? (loc.subtotal || 0) / loc.worked_days : 0,
+          daysWorked: loc.worked_days || 0,
+          fxRate: 1,
+          packageId: loc.package?.id || null,
+          salary_components: loc.salary_components || [],
+          subtotal: loc.subtotal || 0,
+          is_saved: true,
+        }),
+      );
+      setCountries(mappedCountries);
+
+      // Set available packages and selected package IDs
+      const packages = mappedCountries.map((c) => ({
+        id: c.packageId || c.id,
+        name: c.name,
+        currency: c.currency,
+      }));
+      setAvailablePackages(packages);
+      setSelectedPackageIds(packages.map((p) => p.id));
+
+      setTotalEarnings(step1Data.total_earnings || 0);
+      setTotalDeductions(step1Data.total_deductions || 0);
+      setGrossSalary(step1Data.gross_salary || 0);
+      setNetSalary(step1Data.net_salary || 0);
+
+      setIsStep2Saved(true);
+    }
+
+    // ✅ Set overtime from step_3 and step_5
+    const step5Overtime = stepData.step_5?.overtime_details || [];
+    const step3Overtime = stepData.step_3?.overtime_details || [];
+
+    const step5OvertimeMap = {};
+    step5Overtime.forEach((ot) => {
+      if (ot.date) {
+        step5OvertimeMap[ot.date] = {
+          amount: ot.amount || 0,
+          currency: ot.currency || "INR",
+          projects: ot.projects || [],
+        };
       }
+    });
 
-      // ✅ Set countries from step_1 location_breakdown
-      if (step1Data.location_breakdown) {
-        const mappedCountries = step1Data.location_breakdown.map(
-          (loc, index) => ({
-            id: index + 1,
-            name: loc.location_name || loc.package?.name || "",
-            currency: loc.currency?.code || loc.package?.currency || "AED",
-            dailyRate: loc.worked_days > 0 ? (loc.subtotal || 0) / loc.worked_days : 0,
-            daysWorked: loc.worked_days || 0,
-            fxRate: 1,
-            packageId: loc.package?.id || null,
-            salary_components: loc.salary_components || [],
-            subtotal: loc.subtotal || 0,
-            is_saved: true,
-          }),
-        );
-        setCountries(mappedCountries);
-
-        // Set available packages and selected package IDs
-        const packages = mappedCountries.map((c) => ({
-          id: c.packageId || c.id,
-          name: c.name,
-          currency: c.currency,
-        }));
-        setAvailablePackages(packages);
-        setSelectedPackageIds(packages.map((p) => p.id));
-
-        setTotalEarnings(step1Data.total_earnings || 0);
-        setTotalDeductions(step1Data.total_deductions || 0);
-        setGrossSalary(step1Data.gross_salary || 0);
-        setNetSalary(step1Data.net_salary || 0);
-
-        setIsStep2Saved(true);
-      }
-
-      // ✅ Set overtime from step_3 and step_5
-      const step5Overtime = stepData.step_5?.overtime_details || [];
-      const step3Overtime = stepData.step_3?.overtime_details || [];
-
-      const step5OvertimeMap = {};
-      step5Overtime.forEach((ot) => {
-        if (ot.date) {
-          step5OvertimeMap[ot.date] = {
-            amount: ot.amount || 0,
-            currency: ot.currency || "INR",
-            projects: ot.projects || [],
-          };
-        }
-      });
-
-      if (step3Overtime.length > 0) {
-        setOvertimeRequests(
-          step3Overtime.map((ot, index) => {
-            const step5Data = step5OvertimeMap[ot.date] || {};
-            return {
-              id: index + 1,
-              date: ot.date || "",
-              day: ot.day || "",
-              required_working_hours: ot.required_working_hours || 0,
-              total_logged_hours: ot.total_logged_hours || 0,
-              overtime_hours: ot.overtime_hours || 0,
-              projects: ot.projects || [],
-              project: ot.projects?.map((p) => p.project_name).join(", ") || "",
-              hours: ot.overtime_hours || 0,
-              overtime_amount: step5Data.amount || ot.amount || 0,
-              currency: step5Data.currency || ot.currency || "INR",
-              status: ot.status || "pending",
-              reason: "",
-            };
-          }),
-        );
-      } else if (step5Overtime.length > 0) {
-        setOvertimeRequests(
-          step5Overtime.map((ot, index) => ({
+    if (step3Overtime.length > 0) {
+      setOvertimeRequests(
+        step3Overtime.map((ot, index) => {
+          const step5Data = step5OvertimeMap[ot.date] || {};
+          return {
             id: index + 1,
             date: ot.date || "",
-            day: "",
-            required_working_hours: 0,
-            total_logged_hours: 0,
-            overtime_hours: 0,
+            day: ot.day || "",
+            required_working_hours: ot.required_working_hours || 0,
+            total_logged_hours: ot.total_logged_hours || 0,
+            overtime_hours: ot.overtime_hours || 0,
             projects: ot.projects || [],
             project: ot.projects?.map((p) => p.project_name).join(", ") || "",
-            hours: 0,
-            overtime_amount: ot.amount || 0,
-            currency: ot.currency || "INR",
-            status: "pending",
+            hours: ot.overtime_hours || 0,
+            overtime_amount: step5Data.amount || ot.amount || 0,
+            currency: step5Data.currency || ot.currency || "INR",
+            status: ot.status || "pending",
             reason: "",
-          })),
-        );
-      }
-
-      // ✅ Set deductions from step_4
-      if (stepData.step_4?.deductions) {
-        setDeductions(
-          stepData.step_4.deductions.map((d, index) => ({
-            id: index + 1,
-            type: d.type || "",
-            currency: d.currency || "INR",
-            amount: d.amount?.toString() || "0",
-            is_statutory: d.is_statutory || "no",
-          })),
-        );
-      }
-
-      // ✅ Set target currency
-      setTargetCurrency(
-        stepData.step_5?.target_currency || currentPayroll.currency || "INR"
+          };
+        }),
       );
-
-      // ✅ Set conversion rates
-      if (stepData.step_5?.conversion_rates) {
-        const rates = Object.entries(stepData.step_5.conversion_rates).map(
-          ([currency, rate]) => ({
-            id: Date.now() + Math.random(),
-            currency: currency,
-            rate: parseFloat(rate) || 1,
-          }),
-        );
-        setConversionRatesList(rates);
-      }
-
-      // ✅ Set local summary data
-      setLocalSummaryData({
-        gross_earnings: step1Data.gross_salary || 0,
-        total_deductions: stepData.step_4?.total_deductions || 0,
-        combined: step1Data.gross_salary || 0,
-        net_pay: currentPayroll.net_pay || step1Data.net_salary || 0,
-      });
-
-      // ✅ If summary data exists with conversions, set it
-      if (stepData.step_5?.summary?.conversions) {
-        setConversionDetails(stepData.step_5.summary.conversions);
-        setIsConverted(true);
-      }
-
-      setIsDataLoaded(true);
+    } else if (step5Overtime.length > 0) {
+      setOvertimeRequests(
+        step5Overtime.map((ot, index) => ({
+          id: index + 1,
+          date: ot.date || "",
+          day: "",
+          required_working_hours: 0,
+          total_logged_hours: 0,
+          overtime_hours: 0,
+          projects: ot.projects || [],
+          project: ot.projects?.map((p) => p.project_name).join(", ") || "",
+          hours: 0,
+          overtime_amount: ot.amount || 0,
+          currency: ot.currency || "INR",
+          status: "pending",
+          reason: "",
+        })),
+      );
     }
-  }, [currentPayroll, employees, isDataLoaded]);
+
+    // ✅ Set deductions from step_4
+    if (stepData.step_4?.deductions) {
+      setDeductions(
+        stepData.step_4.deductions.map((d, index) => ({
+          id: index + 1,
+          type: d.type || "",
+          currency: d.currency || "INR",
+          amount: d.amount?.toString() || "0",
+          is_statutory: d.is_statutory || "no",
+        })),
+      );
+    }
+
+    // ✅ Set target currency
+    setTargetCurrency(
+      stepData.step_5?.target_currency || currentPayroll.currency || "INR"
+    );
+
+    // ✅ Set conversion rates
+    if (stepData.step_5?.conversion_rates) {
+      const rates = Object.entries(stepData.step_5.conversion_rates).map(
+        ([currency, rate]) => ({
+          id: Date.now() + Math.random(),
+          currency: currency,
+          rate: parseFloat(rate) || 1,
+        }),
+      );
+      setConversionRatesList(rates);
+    }
+
+    // ✅ Set local summary data
+    setLocalSummaryData({
+      gross_earnings: step1Data.gross_salary || 0,
+      total_deductions: stepData.step_4?.total_deductions || 0,
+      combined: step1Data.gross_salary || 0,
+      net_pay: currentPayroll.net_pay || step1Data.net_salary || 0,
+    });
+
+    // ✅ If summary data exists with conversions, set it
+    if (stepData.step_5?.summary?.conversions) {
+      setConversionDetails(stepData.step_5.summary.conversions);
+      setIsConverted(true);
+    }
+
+    setIsDataLoaded(true);
+  }
+}, [currentPayroll, employees, isDataLoaded]);
 
   // ─── Populate employee fields ────────────────────────────────────────
   const populateEmployeeFields = (employee) => {
