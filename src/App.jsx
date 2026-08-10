@@ -85,7 +85,8 @@ const EmployeeAttendancePage = lazy(
 const AdminWFH = lazy(() => import("./admin/pages/WFH"));
 const Settings = lazy(() => import("./admin/pages/Settings"));
 const RoleManagement = lazy(() => import("./admin/pages/RoleManagement"));
-const Payroll = lazy(() => import("./admin/pages/Payroll"));
+const PayrollCalender = lazy(() => import("./admin/pages/PayrollCalender"));
+const PayrollList = lazy(() => import("./admin/pages/PayrollList"));
 const AddPayroll = lazy(() => import("./admin/pages/AddPayroll"));
 const Onboarding = lazy(() => import("./admin/pages/Onboarding"));
 const ProjectWorkingHours = lazy(
@@ -306,7 +307,8 @@ function App() {
             path="leaves/allocations/:id"
             element={<EditLeaveAllocation />}
           />
-          <Route path="payroll" element={<Payroll />} />
+          <Route path="payroll" element={<PayrollCalender />} />
+          <Route path="payroll/list" element={<PayrollList />} />
           <Route path="payroll/add" element={<AddPayroll />} />
           <Route path="wfh" element={<AdminWFH />} />
           <Route path="settings" element={<Settings />} />

@@ -77,40 +77,85 @@ export const deletePayroll = createAsyncThunk(
 
 // ─── Generate Payslip ──────────────────────────────────────────────────
 // ─── Generate Payslip ──────────────────────────────────────────────────
+import { saveAs } from 'file-saver';
+
 export const generatePayslip = createAsyncThunk(
   "payroll/generatePayslip",
   async (id, { rejectWithValue }) => {
     try {
-      const response = await apiClient.get(`/admin/payroll/${id}/download`, {
-        responseType: "blob", // Important: Tell axios to return blob
-      });
+      const response = await apiClient.get(
+        `/admin/payroll/${id}/download`,
+        {
+          responseType: "blob",
+        }
+      );
+
       console.log("Generate payslip response:", response);
 
-      // Create a blob from the response data
-      const blob = new Blob([response.data], { type: "application/pdf" });
+      const blob = response.data;
 
-      // Create a URL for the blob
-      const url = window.URL.createObjectURL(blob);
+      // Get filename from backend Content-Disposition header
+      const contentDisposition = response.headers["content-disposition"];
+      let filename = "payslip.pdf";
 
-      // Create a link element and trigger download
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `Payslip_${id}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      if (contentDisposition) {
+        const match = contentDisposition.match(
+          /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/
+        );
 
-      // Clean up the URL
-      window.URL.revokeObjectURL(url);
+        if (match?.[1]) {
+          filename = match[1].replace(/['"]/g, "");
+        }
+      }
 
-      return { success: true, message: "Payslip downloaded successfully" };
+      console.log("Backend filename:", filename);
+
+      // Download using backend filename
+      saveAs(blob, filename);
+
+      return {
+        success: true,
+        filename,
+      };
     } catch (error) {
       console.error("Generate payslip error:", error);
-      return rejectWithValue(
-        error.response?.data?.message || "Failed to generate payslip",
-      );
+
+      // Extract error message from the response
+      let errorMessage = "Failed to generate payslip";
+
+      if (error.response) {
+        // If the error response is a blob (PDF error page)
+        if (error.response.data instanceof Blob) {
+          try {
+            const text = await error.response.data.text();
+            // Try to parse as JSON
+            try {
+              const parsed = JSON.parse(text);
+              errorMessage = parsed.message || parsed.error || text;
+            } catch {
+              // If not JSON, use the text directly
+              errorMessage = text || errorMessage;
+            }
+          } catch {
+            errorMessage = "Failed to generate payslip";
+          }
+        } else if (error.response.data) {
+          // If it's a regular JSON response
+          if (typeof error.response.data === 'object') {
+            errorMessage = error.response.data.message || 
+                          error.response.data.error || 
+                          errorMessage;
+          } else {
+            errorMessage = error.response.data || errorMessage;
+          }
+        }
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
+      return rejectWithValue(errorMessage);
     }
-  },
+  }
 );
 
 // ─── Fetch Payroll by ID ──────────────────────────────────────────────

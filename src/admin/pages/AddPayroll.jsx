@@ -1895,9 +1895,9 @@ function AddPayroll() {
                       disabled={!selectedUserId}
                     >
                       <option value="">Select Payment Mode</option>
-                      <option value="NEFT">WPS</option>
-                      <option value="RTGS">Bank Transfer</option>
-                      <option value="RTGS">INR Transfer</option>
+                      <option value="WPS">WPS</option>
+                      <option value="bank_transfer">Bank Transfer</option>
+                      <option value="INR_transfer">INR Transfer</option>
                       <option value="Cheque">Cheque</option>
                       <option value="Cash">Cash</option>
                     </select>

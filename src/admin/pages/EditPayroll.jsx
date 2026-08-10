@@ -36,7 +36,6 @@ import {
   convertSalary,
   selectCurrentPayroll,
   setCurrentPayroll,
-  fetchWorkingDays,
 } from "../store/slices/payrollSlice";
 
 import {
@@ -221,68 +220,6 @@ function EditPayroll() {
     }
   };
 
-  // ─── Fetch working days from API ─────────────────────────────────────
-  const fetchWorkingDaysData = async (userId, month, year) => {
-    if (!userId || !month || !year) return;
-
-    const monthNumber = monthNames[month];
-    if (!monthNumber) return;
-
-    const monthFormatted = `${year}-${String(monthNumber).padStart(2, "0")}`;
-    
-    setIsWorkingDaysLoading(true);
-    try {
-      const result = await dispatch(
-        fetchWorkingDays({
-          employeeId: userId,
-          month: monthFormatted,
-        })
-      ).unwrap();
-
-      console.log("Working days data fetched:", result);
-
-      if (result) {
-        if (result.total_working_days !== undefined && result.total_working_days !== null) {
-          setTotalWorkingDays(String(result.total_working_days));
-        }
-
-        if (result.present_days !== undefined && result.present_days !== null) {
-          setDaysPresent(String(result.present_days));
-        }
-
-        // If step_1 doesn't have these dates, set them from working days
-        const monthNumberVal = monthNames[month];
-        const yearVal = parseInt(year);
-        const monthNumStr = String(monthNumberVal).padStart(2, "0");
-        const lastDay = new Date(yearVal, monthNumberVal, 0).getDate();
-
-        if (!periodStart) {
-          setPeriodStart(`${yearVal}-${monthNumStr}-01`);
-        }
-        if (!periodEnd) {
-          setPeriodEnd(`${yearVal}-${monthNumStr}-${String(lastDay).padStart(2, "0")}`);
-        }
-        if (!paymentDate) {
-          setPaymentDate(`${yearVal}-${monthNumStr}-25`);
-        }
-
-        const holidayInfo = result.holidays_count > 0 
-          ? `${result.holidays_count} holiday${result.holidays_count > 1 ? 's' : ''}` 
-          : 'no holidays';
-        const sundayInfo = `${result.sundays_count} Sunday${result.sundays_count > 1 ? 's' : ''}`;
-        
-        showToast(
-          `Working days loaded: ${result.total_working_days} working days, ${sundayInfo}, ${holidayInfo}`,
-          "success"
-        );
-      }
-    } catch (error) {
-      console.error("Failed to fetch working days:", error);
-    } finally {
-      setIsWorkingDaysLoading(false);
-    }
-  };
-
   // ─── Fetch payroll data on mount ─────────────────────────────────────
   useEffect(() => {
     // Reset all local state when ID changes
@@ -422,23 +359,19 @@ function EditPayroll() {
         currentPayroll.payment_date || step1Data.payment_date || ""
       );
       setPaymentMode(step1Data.payment_mode || null);
-      setTotalWorkingDays(
-        step1Data.total_working_days?.toString() || ""
-      );
-      setDaysPresent(step1Data.days_present?.toString() || "");
-
-      // ✅ If working days not in step_1, fetch from API
-      if (!step1Data.total_working_days && monthName && yearValue && currentPayroll.employee_id) {
-        fetchWorkingDaysData(
-          String(currentPayroll.employee_id),
-          monthName,
-          yearValue
-        );
+      
+      // ✅ Set working days from step_1 data directly (no API call needed)
+      // The data comes from the payroll response
+      if (step1Data.total_worked_days !== undefined && step1Data.total_worked_days !== null) {
+        setDaysPresent(String(step1Data.total_worked_days));
+      }
+      if (step1Data.working_days !== undefined && step1Data.working_days !== null) {
+        setTotalWorkingDays(String(step1Data.working_days));
       }
 
-      // ✅ Set countries from step_2
-      if (stepData.step_2?.location_breakdown) {
-        const mappedCountries = stepData.step_2.location_breakdown.map(
+      // ✅ Set countries from step_1 location_breakdown
+      if (step1Data.location_breakdown) {
+        const mappedCountries = step1Data.location_breakdown.map(
           (loc, index) => ({
             id: index + 1,
             name: loc.location_name || loc.package?.name || "",
@@ -463,10 +396,10 @@ function EditPayroll() {
         setAvailablePackages(packages);
         setSelectedPackageIds(packages.map((p) => p.id));
 
-        setTotalEarnings(stepData.step_2?.total_earnings || 0);
-        setTotalDeductions(stepData.step_2?.total_deductions || 0);
-        setGrossSalary(stepData.step_2?.gross_salary || 0);
-        setNetSalary(stepData.step_2?.net_salary || 0);
+        setTotalEarnings(step1Data.total_earnings || 0);
+        setTotalDeductions(step1Data.total_deductions || 0);
+        setGrossSalary(step1Data.gross_salary || 0);
+        setNetSalary(step1Data.net_salary || 0);
 
         setIsStep2Saved(true);
       }
@@ -559,10 +492,10 @@ function EditPayroll() {
 
       // ✅ Set local summary data
       setLocalSummaryData({
-        gross_earnings: stepData.step_2?.gross_salary || 0,
+        gross_earnings: step1Data.gross_salary || 0,
         total_deductions: stepData.step_4?.total_deductions || 0,
-        combined: stepData.step_2?.gross_salary || 0,
-        net_pay: currentPayroll.net_pay || stepData.step_2?.net_salary || 0,
+        combined: step1Data.gross_salary || 0,
+        net_pay: currentPayroll.net_pay || step1Data.net_salary || 0,
       });
 
       // ✅ If summary data exists with conversions, set it
@@ -1520,37 +1453,36 @@ function EditPayroll() {
     });
   }, [selectedUserId, employeeId, employeeName, payPeriodMonth, payPeriodYear, totalWorkingDays, daysPresent, countries, isDataLoaded, currentPayroll]);
 
-  if (isLoading && !isDataLoaded) {
-    return (
-      <div className="w-full overflow-x-hidden px-4 md:px-6">
-        <div className="flex justify-center items-center h-96">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500"></div>
-        </div>
+  if (isLoading || !isDataLoaded) {
+  return (
+    <div className="w-full overflow-x-hidden px-4 md:px-6">
+      <div className="flex justify-center items-center h-96">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500"></div>
       </div>
-    );
-  }
+    </div>
+  );
+}
 
-  if (!currentPayroll && isDataLoaded) {
-    return (
-      <div className="w-full overflow-x-hidden px-4 md:px-6">
-        <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
-          <i className="fas fa-file-invoice text-6xl text-gray-300 dark:text-gray-600 mb-4 block"></i>
-          <h3 className="text-xl font-semibold text-gray-700 dark:text-gray-300">
-            Payroll not found
-          </h3>
-          <button
-            onClick={() => navigate(`${basePath}/payroll`)}
-            className="mt-4 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600"
-          >
-            Back to Payroll
-          </button>
-        </div>
+// Only show not found after loading is complete AND data is loaded AND no payroll exists
+if (!currentPayroll && !isLoading && isDataLoaded) {
+  return (
+    <div className="w-full overflow-x-hidden px-4 md:px-6">
+      <div className="text-center py-12 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
+        <i className="fas fa-file-invoice text-6xl text-gray-300 dark:text-gray-600 mb-4 block"></i>
+        <h3 className="text-xl font-semibold text-gray-700 dark:text-gray-300">
+          Payroll not found
+        </h3>
+        <button
+          onClick={() => navigate(`${basePath}/payroll`)}
+          className="mt-4 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600"
+        >
+          Back to Payroll
+        </button>
       </div>
-    );
-  }
+    </div>
+  );
+}
 
-  // Rest of the component remains the same...
-  // ... (the JSX render part is unchanged from your version)
   return (
     <div className="w-full overflow-x-hidden px-4 md:px-6">
       {/* Breadcrumbs */}
