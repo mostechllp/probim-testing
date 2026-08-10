@@ -1,4 +1,4 @@
-// src/admin/pages/PayrollView.js - Updated with bank details and joining date
+// src/admin/pages/PayrollView.js - Updated with avatar in employee details
 
 import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
@@ -295,6 +295,9 @@ function PayrollView() {
   const ibanNumber = primaryBank?.iban_number || "-";
   const bankCountry = primaryBank?.bank_country || "-";
 
+  // ✅ Get employee avatar
+  const avatarUrl = payroll.avatar || employeeDetails?.avatar || null;
+
   // Generate payslip reference number
   const payslipRef = `#PS${yearDisplay}${String(payroll.month || 6).padStart(2, "0")}${String(payroll.id || '').padStart(4, "0")}`;
 
@@ -302,9 +305,6 @@ function PayrollView() {
   const orgName = employeeDetails?.organization?.name || 
                   employeeDetails?.user?.organization?.name || 
                   "Organization";
-
-  // Get employee avatar
-  const avatarUrl = payroll.avatar || employeeDetails?.avatar || null;
 
   return (
     <div className="w-full overflow-x-hidden px-4 md:px-6 py-6">
@@ -344,20 +344,13 @@ function PayrollView() {
         {/* Top Stripe */}
         <div className="h-2 bg-gradient-to-r from-emerald-900 to-emerald-500"></div>
 
-        {/* Header */}
+        {/* Header - Removed avatar from here */}
         <div className="px-6 md:px-11 py-7 md:py-9 border-b border-gray-200 dark:border-gray-700 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div className="flex items-center gap-4">
-            {avatarUrl ? (
-              <img
-                src={avatarUrl}
-                alt={employeeName}
-                className="w-12 h-12 rounded-xl object-cover border border-emerald-200 dark:border-emerald-800"
-              />
-            ) : (
-              <div className="w-12 h-12 bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-800 rounded-xl flex items-center justify-center text-emerald-700 dark:text-emerald-400 font-extrabold text-xl">
-                {employeeName?.charAt(0) || "P"}
-              </div>
-            )}
+            {/* ✅ Removed avatar from header */}
+            <div className="w-12 h-12 bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-800 rounded-xl flex items-center justify-center text-emerald-700 dark:text-emerald-400 font-extrabold text-xl">
+              P
+            </div>
             <div>
               <h1 className="text-xl md:text-2xl font-extrabold text-emerald-800 dark:text-emerald-400 tracking-tight">
                 {orgName}
@@ -431,23 +424,38 @@ function PayrollView() {
 
           {/* Employee & Banking Info */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 mb-6">
-            {/* Employee Info */}
+            {/* Employee Info - Added avatar here */}
             <div className="border border-gray-200 dark:border-gray-700 rounded-xl p-4 md:p-6">
               <div className="text-[10px] md:text-xs font-extrabold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider mb-3 pb-2 border-b-2 border-emerald-50 dark:border-emerald-900/30">
                 Employee Profile
               </div>
+              
+              {/* ✅ Employee Avatar and Name Header */}
+              <div className="flex items-center gap-4 mb-4 pb-3 border-b border-gray-100 dark:border-gray-700">
+                {avatarUrl ? (
+                  <img
+                    src={avatarUrl}
+                    alt={employeeName}
+                    className="w-16 h-16 rounded-full object-cover border-2 border-emerald-200 dark:border-emerald-800"
+                  />
+                ) : (
+                  <div className="w-16 h-16 bg-emerald-50 dark:bg-emerald-900/30 border-2 border-emerald-200 dark:border-emerald-800 rounded-full flex items-center justify-center text-emerald-700 dark:text-emerald-400 font-extrabold text-2xl">
+                    {employeeName?.charAt(0) || "E"}
+                  </div>
+                )}
+                <div>
+                  <h4 className="text-base font-bold text-gray-800 dark:text-gray-200">
+                    {employeeName}
+                  </h4>
+                </div>
+              </div>
+              
               <table className="w-full border-collapse text-sm">
                 <tbody>
                   <tr>
                     <td className="py-1.5 text-gray-500 dark:text-gray-400 font-medium">Employee Name</td>
                     <td className="py-1.5 text-gray-800 dark:text-gray-200 font-semibold text-right">
                       {employeeName}
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="py-1.5 text-gray-500 dark:text-gray-400 font-medium">Employee ID</td>
-                    <td className="py-1.5 text-gray-800 dark:text-gray-200 font-semibold text-right">
-                      {employeeId}
                     </td>
                   </tr>
                   <tr>
