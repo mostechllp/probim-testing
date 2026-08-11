@@ -21,6 +21,8 @@ import {
   DollarSign,
   Loader,
   AlertCircleIcon,
+  Trash2,
+  Play,
 } from "lucide-react";
 import { showToast } from "../../components/common/Toast";
 import { fetchEmployees } from "../store/slices/employeeSlice";
@@ -658,15 +660,17 @@ const OffboardingDashboard = () => {
                         <div className="flex items-center justify-end gap-2">
                           <button
                             onClick={() => handleContinue(item)}
-                            className="text-xs md:text-sm font-semibold text-green-600 dark:text-green-400 hover:text-green-700 flex items-center gap-1"
+                            title="Continue"
+                            className="p-2 rounded-xl bg-blue-50 text-blue-500 hover:bg-blue-100 hover:text-blue-600 transition-colors flex items-center justify-center"
                           >
-                            Continue
+                            <Play size={16} className="ml-0.5" />
                           </button>
                           <button
                             onClick={() => handleDeleteClick(item)}
-                            className="text-xs md:text-sm font-semibold text-red-600 dark:text-red-400 hover:text-red-700 flex items-center gap-1"
+                            title="Delete"
+                            className="p-2 rounded-xl bg-red-50 text-red-500 hover:bg-red-100 hover:text-red-600 transition-colors flex items-center justify-center"
                           >
-                            Delete
+                            <Trash2 size={16} />
                           </button>
                         </div>
                       </td>

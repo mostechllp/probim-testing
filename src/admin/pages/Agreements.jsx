@@ -43,7 +43,7 @@ const Agreements = () => {
     ...(folders && folders.length > 0
       ? folders.map(folder => ({
         name: folder.name || folder,
-        value: folder.name || folder,
+        value: folder.id || folder.name || folder,
         icon: 'fas fa-folder'
       }))
       : [
@@ -62,16 +62,18 @@ const Agreements = () => {
     let filtered = docsArray;
 
     if (currentFolder !== 'all') {
-      filtered = filtered.filter(doc =>
-        (doc.folder || doc.type || '').toLowerCase() === currentFolder.toLowerCase()
-      );
+      filtered = filtered.filter(doc => {
+        const folderIdMatch = doc.folder_id && String(doc.folder_id) === String(currentFolder);
+        const folderNameMatch = (doc.folder_name || doc.folder || doc.type || '').toLowerCase() === String(currentFolder).toLowerCase();
+        return folderIdMatch || folderNameMatch;
+      });
     }
     if (searchTerm) {
       const searchLower = searchTerm.toLowerCase();
       filtered = filtered.filter(doc =>
         (doc.name || '').toLowerCase().includes(searchLower) ||
         (doc.description || '').toLowerCase().includes(searchLower) ||
-        (doc.folder || '').toLowerCase().includes(searchLower)
+        (doc.folder_name || doc.folder || '').toLowerCase().includes(searchLower)
       );
     }
     return filtered;

@@ -25,54 +25,7 @@ import {
   fetchOffboardingById,
   updateOffboarding,
 } from "../../store/slices/offboardingSlice";
-
-// ----------------------------------------------------
-// STATIC REPORTING MANAGERS DATA
-// ----------------------------------------------------
-const STATIC_MANAGERS = [
-  {
-    id: "mgr_001",
-    name: "Sara Al Hashmi",
-    designation: "Operations Director",
-    department: "Operations",
-  },
-  {
-    id: "mgr_002",
-    name: "Elena Rostova",
-    designation: "HR Manager",
-    department: "Human Resources",
-  },
-  {
-    id: "mgr_003",
-    name: "Marcus Aurelius",
-    designation: "IT Director",
-    department: "IT Department",
-  },
-  {
-    id: "mgr_004",
-    name: "John Doe",
-    designation: "Finance Manager",
-    department: "Finance",
-  },
-  {
-    id: "mgr_005",
-    name: "Ahmed Al Qasimi",
-    designation: "Sales Director",
-    department: "Sales",
-  },
-  {
-    id: "mgr_006",
-    name: "Fatima Al Zaabi",
-    designation: "Marketing Manager",
-    department: "Marketing",
-  },
-  {
-    id: "mgr_007",
-    name: "David Chen",
-    designation: "Product Manager",
-    department: "Product",
-  },
-];
+import apiClient from "../../../utils/apiClient";
 
 // ----------------------------------------------------
 // ZOD RESOLVER SCHEMA
@@ -121,6 +74,7 @@ const OffboardingInitiation = () => {
   const [managerSearchQuery, setManagerSearchQuery] = useState("");
   const [showProgress, setShowProgress] = useState(false);
   const [loadingData, setLoadingData] = useState(false);
+  const [reportingManagers, setReportingManagers] = useState([]);
 
   // Redux state
   const { employees, loading: employeesLoading } = useSelector(
@@ -168,6 +122,23 @@ const OffboardingInitiation = () => {
     dispatch(fetchEmployees());
     dispatch(fetchDepartments());
     dispatch(fetchDesignations());
+    
+    // Fetch reporting managers
+    const fetchManagers = async () => {
+      try {
+        const response = await apiClient.get('/admin/offboarding/reporting-managers');
+        if (response.data?.status === 'success' && response.data?.data) {
+          setReportingManagers(response.data.data);
+        } else if (Array.isArray(response.data?.data)) {
+          setReportingManagers(response.data.data);
+        } else if (Array.isArray(response.data)) {
+          setReportingManagers(response.data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch reporting managers:", error);
+      }
+    };
+    fetchManagers();
   }, [dispatch]);
 
   // Load existing offboarding data when in edit mode
@@ -416,17 +387,11 @@ const OffboardingInitiation = () => {
   });
 
   // Filter managers based on search query
-  const filteredManagers = STATIC_MANAGERS.filter((manager) => {
-    const managerName = manager.name.toLowerCase();
-    const managerDesignation = manager.designation.toLowerCase();
-    const managerDepartment = manager.department.toLowerCase();
-    const searchLower = managerSearchQuery.toLowerCase();
+  const filteredManagers = reportingManagers.filter((manager) => {
+    const managerName = (manager.full_name || manager.name || "").toLowerCase();
+    const searchLower = (managerSearchQuery || "").toLowerCase();
 
-    return (
-      managerName.includes(searchLower) ||
-      managerDesignation.includes(searchLower) ||
-      managerDepartment.includes(searchLower)
-    );
+    return managerName.includes(searchLower);
   });
 
   // Handle employee selection and auto-populate all form fields
@@ -933,23 +898,26 @@ const OffboardingInitiation = () => {
                 {showManagerDropdown && (
                   <div className="absolute z-10 mt-1 w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg max-h-60 overflow-y-auto divide-y divide-gray-100 dark:divide-gray-700">
                     {filteredManagers.length > 0 ? (
-                      filteredManagers.map((manager) => (
-                        <button
-                          key={manager.id}
-                          type="button"
-                          onClick={() => handleSelectManager(manager)}
-                          className="w-full text-left px-4 py-2.5 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
-                        >
-                          <div>
-                            <p className="text-sm font-semibold text-gray-900 dark:text-white">
-                              {manager.name}
-                            </p>
-                            <p className="text-xs text-gray-500 dark:text-gray-400">
-                              {manager.designation} • {manager.department}
-                            </p>
-                          </div>
-                        </button>
-                      ))
+                      filteredManagers.map((manager) => {
+                        const managerName = manager.full_name || manager.name || "";
+                        return (
+                          <button
+                            key={manager.id}
+                            type="button"
+                            onClick={() => handleSelectManager({
+                              ...manager,
+                              name: managerName
+                            })}
+                            className="w-full text-left px-4 py-2.5 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
+                          >
+                            <div>
+                              <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                                {managerName}
+                              </p>
+                            </div>
+                          </button>
+                        );
+                      })
                     ) : (
                       <div className="p-3 text-center text-xs text-gray-400">
                         No managers found matching "{managerSearchQuery}"
