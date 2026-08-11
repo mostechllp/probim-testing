@@ -85,7 +85,7 @@ const EmployeeDetailsForm = () => {
         packages: data.packages || {
           package1: {
             id: "package1",
-            name: "Home Country / WFH",
+            name: "Package 1 - Home Country / WFH",
             currency: "AED",
             salaryComponents: [],
             isSaved: false,
@@ -94,7 +94,7 @@ const EmployeeDetailsForm = () => {
           },
           package2: {
             id: "package2",
-            name: "Dubai Onsite",
+            name: "Package 2 - Dubai Onsite",
             currency: "AED",
             salaryComponents: [],
             isSaved: false,

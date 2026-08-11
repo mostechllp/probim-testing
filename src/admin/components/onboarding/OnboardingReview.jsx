@@ -141,7 +141,7 @@ const OnboardingReview = () => {
     if (packages.package1 && packages.package1.isSaved) {
       const pkg1 = packages.package1;
       packagesArray.push({
-        name: pkg1.name || "Home Country / WFH",
+        name: pkg1.name || "Package 1 - Home Country / WFH",
         is_active: true,
         currency: pkg1.currency || "AED",
         salary_components: (pkg1.salaryComponents || []).map((comp) => ({
@@ -157,7 +157,7 @@ const OnboardingReview = () => {
     if (packages.package2 && packages.package2.isSaved) {
       const pkg2 = packages.package2;
       packagesArray.push({
-        name: pkg2.name || "Dubai Onsite",
+        name: pkg2.name || "Package 2 - Dubai Onsite",
         is_active: true,
         currency: pkg2.currency || "AED",
         salary_components: (pkg2.salaryComponents || []).map((comp) => ({

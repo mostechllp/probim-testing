@@ -43,7 +43,7 @@ const SalaryBankDetailsForm = () => {
   const [packages, setPackages] = useState({
     package1: {
       id: "package1",
-      name: "Home Country / WFH",
+      name: "Package 1 - Home Country / WFH",
       iconName: "FiHome",
       iconClass: "text-blue-500",
       currency: "AED",
@@ -54,7 +54,7 @@ const SalaryBankDetailsForm = () => {
     },
     package2: {
       id: "package2",
-      name: "Dubai Onsite",
+      name: "Package 2 - Dubai Onsite",
       iconName: "FiMapPin",
       iconClass: "text-green-500",
       currency: "AED",
@@ -681,7 +681,7 @@ const SalaryBankDetailsForm = () => {
       // Add package1 if saved
       if (packages.package1.isSaved && packages.package1.salaryComponents.length > 0) {
         salaryPayload.packages.push({
-          name: packages.package1.name || "Home Country / WFH",
+          name: packages.package1.name || "Package 1 - Home Country / WFH",
           is_active: true,
           currency: packages.package1.currency || "AED",
           salary_components: packages.package1.salaryComponents.map((comp) => ({
@@ -694,7 +694,7 @@ const SalaryBankDetailsForm = () => {
       // Add package2 if saved
       if (packages.package2.isSaved && packages.package2.salaryComponents.length > 0) {
         salaryPayload.packages.push({
-          name: packages.package2.name || "Dubai Onsite",
+          name: packages.package2.name || "Package 2 - Dubai Onsite",
           is_active: true,
           currency: packages.package2.currency || "AED",
           salary_components: packages.package2.salaryComponents.map((comp) => ({

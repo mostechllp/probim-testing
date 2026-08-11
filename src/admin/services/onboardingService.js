@@ -48,14 +48,28 @@ class OnboardingService {
   }
 
   /**
-   * Step 1 – Save employee personal & professional details.
-   * POST api/admin/employees/onboard/details
+   * Step 2 – Save employee personal & professional details.
+   * If employeeId is provided, UPDATE the existing employee (draft).
+   * Otherwise, CREATE a new employee.
+   * 
+   * POST api/admin/employees/onboard/details (create)
+   * PUT api/admin/employees/{employeeId} (update)
    */
-  async saveDetails(payload) {
+  async saveDetails(payload, employeeId = null) {
     try {
-      console.log('[Onboarding] POST /employees/onboard/details | Payload:', payload);
-      const response = await apiClient.post(`${BASE_PATH}/employees/onboard/details`, payload);
-      console.log('[Onboarding] save-details response:', response.data);
+      let response;
+      
+      if (employeeId) {
+        // ✅ UPDATE existing draft employee
+        console.log(`[Onboarding] PUT /employees/${employeeId} | Updating draft employee`);
+        response = await apiClient.put(`${BASE_PATH}/employees/${employeeId}`, payload);
+      } else {
+        // ✅ CREATE new employee
+        console.log('[Onboarding] POST /employees/onboard/details | Creating new employee');
+        response = await apiClient.post(`${BASE_PATH}/employees/onboard/details`, payload);
+      }
+      
+      console.log('[Onboarding] saveDetails response:', response.data);
       return response.data;
     } catch (error) {
       throw handleError(error, 'Failed to save employee details');
@@ -63,7 +77,7 @@ class OnboardingService {
   }
 
   /**
-   * Step 2 – Save salary structure (components + payment cycle).
+   * Step 3 – Save salary structure (components + payment cycle).
    * POST api/admin/employees/onboard/salary
    */
   async saveSalary(payload) {
@@ -94,13 +108,28 @@ class OnboardingService {
   }
 
   /**
-   * Step 4 – Complete / finalise the onboarding process.
-   * POST api/admin/employees/onboard/complete
+   * Step 5 – Complete / finalise the onboarding process.
+   * If employeeId is provided, UPDATE the existing employee to complete.
+   * Otherwise, use the complete endpoint.
+   * 
+   * POST api/admin/employees/onboard/complete (create)
+   * PUT api/admin/employees/{employeeId}/complete (update)
    */
   async completeOnboarding(payload) {
     try {
-      console.log('[Onboarding] POST /employees/onboard/complete | Payload:', payload);
-      const response = await apiClient.post(`${BASE_PATH}/employees/onboard/complete`, payload);
+      const { employeeId, ...restPayload } = payload;
+      let response;
+      
+      if (employeeId) {
+        // ✅ UPDATE existing draft employee to complete
+        console.log(`[Onboarding] PUT /employees/${employeeId}/complete | Finalizing onboarding`);
+        response = await apiClient.put(`${BASE_PATH}/employees/${employeeId}/complete`, restPayload);
+      } else {
+        // ✅ Create new employee from onboarding
+        console.log('[Onboarding] POST /employees/onboard/complete | Creating employee');
+        response = await apiClient.post(`${BASE_PATH}/employees/onboard/complete`, restPayload);
+      }
+      
       console.log('[Onboarding] complete response:', response.data);
       return response.data;
     } catch (error) {

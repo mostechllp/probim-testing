@@ -44,7 +44,9 @@ const offboardingSchema = z.object({
   department: z.string().min(1, "Department is required"),
   designation: z.string().min(1, "Designation is required"),
   reportingManager: z.string().min(1, "Reporting manager is required"),
-  reportingManagerId: z.string().optional(),
+  reportingManagerId: z
+    .union([z.string(), z.number()])
+    .optional(),
   noticeStartDate: z.string().min(1, "Notice start date is required"),
   noticePeriodDays: z.coerce.number().min(0, "Notice period must be 0 or more"),
   lastWorkingDay: z.string().min(1, "Last working day is required"),
@@ -389,9 +391,15 @@ const OffboardingInitiation = () => {
   // Filter managers based on search query
   const filteredManagers = reportingManagers.filter((manager) => {
     const managerName = (manager.full_name || manager.name || "").toLowerCase();
+    const managerDesignation = (manager.designation || "").toLowerCase();
+    const managerDepartment = (manager.department || "").toLowerCase();
     const searchLower = (managerSearchQuery || "").toLowerCase();
 
-    return managerName.includes(searchLower);
+    return (
+      managerName.includes(searchLower) ||
+      managerDesignation.includes(searchLower) ||
+      managerDepartment.includes(searchLower)
+    );
   });
 
   // Handle employee selection and auto-populate all form fields
@@ -436,10 +444,17 @@ const OffboardingInitiation = () => {
   // Handle manager selection
   const handleSelectManager = (manager) => {
     setValue("reportingManager", manager.name, { shouldValidate: true });
-    setValue("reportingManagerId", manager.id, { shouldValidate: true });
+    // The backend might expect the string EMP- identifier instead of the numeric user_id
+    setValue("reportingManagerId", manager.employee_id || manager.id, { shouldValidate: true });
     setManagerSearchQuery(manager.name);
     setShowManagerDropdown(false);
     showToast(`Reporting manager ${manager.name} selected`, "success");
+  };
+
+  // Handle validation errors when form submit is attempted
+  const onError = (errors) => {
+    console.error("Form validation errors:", errors);
+    showToast("Please fill all required fields. Ensure you select Employee and Manager from the dropdowns.", "error");
   };
 
   const onSubmit = async (data) => {
@@ -447,12 +462,12 @@ const OffboardingInitiation = () => {
 
     try {
       const payload = {
-        employee_id: data.backendEmployeeId,
+        employee_id: data.backendEmployeeId ? String(data.backendEmployeeId) : "",
         employee_name: data.employeeName,
         department: data.department,
         designation: data.designation,
         reporting_manager: data.reportingManager,
-        reporting_manager_id: data.reportingManagerId,
+        reporting_manager_id: data.reportingManagerId ? String(data.reportingManagerId) : "",
         last_working_day: data.lastWorkingDay,
         separation_type: data.separationType.toLowerCase(),
         notice_period_days: data.noticePeriodDays,
@@ -689,7 +704,7 @@ const OffboardingInitiation = () => {
 
         {/* Form Container Card */}
         <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700/80 rounded-2xl shadow-soft p-6 sm:p-8">
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+          <form onSubmit={handleSubmit(onSubmit, onError)} className="space-y-6">
             {/* Header Title with Draft Badge */}
             <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-700 pb-4 mb-6">
               <h1 className="text-xl sm:text-2xl font-black text-gray-900 dark:text-white tracking-tight">
@@ -914,6 +929,11 @@ const OffboardingInitiation = () => {
                               <p className="text-sm font-semibold text-gray-900 dark:text-white">
                                 {managerName}
                               </p>
+                              {(manager.designation || manager.department) && (
+                                <p className="text-xs text-gray-500 dark:text-gray-400">
+                                  {manager.designation || 'No Designation'} {manager.designation && manager.department ? '•' : ''} {manager.department || ''}
+                                </p>
+                              )}
                             </div>
                           </button>
                         );
