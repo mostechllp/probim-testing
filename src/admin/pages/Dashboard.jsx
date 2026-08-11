@@ -1,4 +1,4 @@
-// src/admin/pages/Dashboard.js
+// src/admin/pages/Dashboard.js - Updated with Project Time & Cost Chart
 
 import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
@@ -7,9 +7,11 @@ import { fetchEmployees } from "../store/slices/employeeSlice";
 import { fetchProjects } from "../store/slices/projectSlice";
 import {
   fetchDashboard,
+  fetchProjectTimeCost,
   fetchMonthlyHoursByProject,
   fetchEmployeeDetails,
   clearMonthlyHours,
+  clearProjectTimeCost,
 } from "../store/slices/dashboardSlice";
 import { fetchAssignments } from "../store/slices/projectAssignmentSlice";
 import { StatsCard } from "../components/dashboard/StatsCard";
@@ -23,6 +25,7 @@ import { AvgPunchTimeCard } from "../components/dashboard/AvgPunchTimeCrd";
 import { RecentPunchesList } from "../components/dashboard/RecentPunchesList";
 import { PunchDistributionChart } from "../components/dashboard/PunchDistributionChart";
 import { ProjectHoursModal } from "../components/dashboard/ProjectHoursModal";
+import { ProjectTimeCostChart } from "../components/dashboard/ProjectTimeCostChart";
 
 // ─── COLOR PALETTE ──────────────────────────────────────────────────────
 export const COLORS = {
@@ -111,9 +114,10 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const { employees } = useSelector((state) => state.employees);
   const { user } = useSelector((state) => state.auth);
-  const { stats, charts, recentData, loading } = useSelector(
+  const { stats, charts, loading } = useSelector(
     (state) => state.dashboard,
   );
+  const { projectTimeCost } = useSelector((state) => state.dashboard);
   const { projects, loading: projectsLoading } = useSelector(
     (state) => state.projects || { projects: [], loading: false },
   );
@@ -125,6 +129,8 @@ const Dashboard = () => {
   const [selectedProject, setSelectedProject] = useState(null);
   const [modalMonth, setModalMonth] = useState(new Date().getMonth() + 1);
   const [modalYear, setModalYear] = useState(new Date().getFullYear());
+  const [reportMonth, setReportMonth] = useState(new Date().getMonth() + 1);
+  const [reportYear, setReportYear] = useState(new Date().getFullYear());
 
   const userType = user?.type || "admin";
   const basePath = userType === "admin" ? "/admin" : "/employee";
@@ -134,7 +140,9 @@ const Dashboard = () => {
     dispatch(fetchProjects());
     dispatch(fetchAssignments());
     dispatch(fetchEmployees());
-  }, [dispatch]);
+    // Fetch project time & cost report for current month
+    dispatch(fetchProjectTimeCost({ month: reportMonth, year: reportYear }));
+  }, [dispatch, reportMonth, reportYear]);
 
   const totalEmployees = employees?.length || 0;
   const activeProjects = projects.filter((p) => p.status === "Active").length;
@@ -144,26 +152,20 @@ const Dashboard = () => {
     0,
   );
 
-  // ✅ Get stats from the correct location
   const todayStatus = charts?.today_status || {};
-  
-  // ✅ Correctly map the stats from the API response
   const onTimeCount = todayStatus["On time"] || 0;
   const lateCount = todayStatus.Late || 0;
   const absentCount = todayStatus.Absent || 0;
   const wfhCount = todayStatus.WFH || 0;
   const leaveCount = todayStatus.Leave || 0;
   
-  // ✅ Punched in total = On time + Late (people who punched in)
   const punchedInToday = todayStatus.punched_in || (onTimeCount + lateCount);
-  
   const totalPresent = onTimeCount + lateCount;
   const attendanceRate = totalEmployees > 0 ? Math.round((totalPresent / totalEmployees) * 100) : 0;
 
   const lateArrivals = lateCount;
   const absentToday = absentCount;
 
-  // ✅ Project stats from the API response
   const projectStats = charts?.project_stats || {};
   const totalProjects = projectStats.total_projects || projects.length;
   const activeProjectsCount = projectStats.active_projects || activeProjects;
@@ -172,6 +174,7 @@ const Dashboard = () => {
 
   const allocationData = charts?.project_allocation || [];
   const hoursData = charts?.project_hours || [];
+  const timeCostData = charts?.project_time_cost || projectTimeCost?.data?.projects || [];
 
   const handleNavigate = (route) => {
     navigate(`${basePath}${route}`);
@@ -184,7 +187,7 @@ const Dashboard = () => {
         projectData.fullName || projectData.name || projectData.displayName;
       const matchedProject = projects.find((p) => p.name === projectName);
       const projectId =
-        matchedProject?.id || projectData.id || projectData.projectId;
+        matchedProject?.id || projectData.id || projectData.projectId || projectData.project_id;
 
       if (projectId) {
         setSelectedProject({
@@ -197,6 +200,26 @@ const Dashboard = () => {
         setShowProjectHoursModal(true);
       } else {
         showToast("Project ID not found", "error");
+      }
+    }
+  };
+
+  const handleProjectTimeCostClick = (data) => {
+    if (data && data.activePayload && data.activePayload.length > 0) {
+      const projectData = data.activePayload[0].payload;
+      const projectName = projectData.fullName || projectData.name;
+      const matchedProject = projects.find((p) => p.name === projectName);
+      const projectId = matchedProject?.id || projectData.projectId || projectData.project_id;
+
+      if (projectId) {
+        setSelectedProject({
+          id: projectId,
+          name: projectName,
+          projectId: projectId,
+        });
+        setModalMonth(new Date().getMonth() + 1);
+        setModalYear(new Date().getFullYear());
+        setShowProjectHoursModal(true);
       }
     }
   };
@@ -300,6 +323,18 @@ const Dashboard = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
         <ProjectAllocationChart data={allocationData} />
         <ProjectHoursChart data={hoursData} onBarClick={handleBarClick} />
+      </div>
+
+      {/* ─── ROW 3.5: Project Time & Cost ─────────────────────────────── */}
+      <div className="section-label text-xs font-medium uppercase tracking-wider text-gray-400 dark:text-gray-500 mt-4 mb-2">
+        Project Time & Cost Report
+      </div>
+      <div className="mb-6">
+        <ProjectTimeCostChart
+          data={timeCostData}
+          onBarClick={handleProjectTimeCostClick}
+          loading={projectTimeCost?.loading}
+        />
       </div>
 
       {/* ─── ROW 4: Attendance Analytics (3 equal height cards) ────────── */}

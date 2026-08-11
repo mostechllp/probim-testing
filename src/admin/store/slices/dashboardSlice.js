@@ -10,10 +10,8 @@ export const fetchDashboard = createAsyncThunk(
       const res = await apiClient.get("/admin/dashboard");
       console.log("Dashboard API Response:", res.data);
       
-      // ✅ Extract data from the correct nested structure
       const responseData = res.data?.data?.data || res.data?.data || res.data || {};
       
-      // ✅ Map the data to match the component's expected structure
       return {
         stats: {
           today: {
@@ -35,6 +33,7 @@ export const fetchDashboard = createAsyncThunk(
           project_allocation: responseData.project_allocation || null,
           project_hours: responseData.project_hours || null,
           project_stats: responseData.project_stats || null,
+          project_time_cost: responseData.project_time_cost || null,
         },
         recent_data: responseData.recent_data || null,
         metadata: responseData.metadata || null,
@@ -42,6 +41,29 @@ export const fetchDashboard = createAsyncThunk(
     } catch (err) {
       console.error("Dashboard fetch error:", err);
       return rejectWithValue(err.response?.data || "Error fetching dashboard");
+    }
+  }
+);
+
+// ─── Fetch Project Time & Cost Report ──────────────────────────────────
+export const fetchProjectTimeCost = createAsyncThunk(
+  "dashboard/fetchProjectTimeCost",
+  async ({ month, year } = {}, { rejectWithValue }) => {
+    try {
+      const params = new URLSearchParams();
+      if (month) params.append('month', month);
+      if (year) params.append('year', year);
+      
+      const url = `/admin/reports/project-cost-time${params.toString() ? '?' + params.toString() : ''}`;
+      console.log("Fetching project time & cost report:", url);
+      
+      const res = await apiClient.get(url);
+      console.log("Project time & cost response:", res.data);
+      
+      return res.data?.data || res.data || { projects: [] };
+    } catch (err) {
+      console.error("Fetch project time & cost error:", err);
+      return rejectWithValue(err.response?.data || "Error fetching project time & cost");
     }
   }
 );
@@ -94,6 +116,7 @@ const dashboardSlice = createSlice({
       project_allocation: null,
       project_hours: null,
       project_stats: null,
+      project_time_cost: null,
     },
     recentData: null,
     metadata: null,
@@ -105,6 +128,11 @@ const dashboardSlice = createSlice({
       error: null,
     },
     employeeDetails: {},
+    projectTimeCost: {
+      data: null,
+      loading: false,
+      error: null,
+    },
   },
   reducers: {
     clearDashboardError: (state) => {
@@ -113,6 +141,10 @@ const dashboardSlice = createSlice({
     clearMonthlyHours: (state) => {
       state.monthlyHours.data = [];
       state.monthlyHours.error = null;
+    },
+    clearProjectTimeCost: (state) => {
+      state.projectTimeCost.data = null;
+      state.projectTimeCost.error = null;
     },
   },
   extraReducers: (builder) => {
@@ -131,6 +163,22 @@ const dashboardSlice = createSlice({
       .addCase(fetchDashboard.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload || "Failed to fetch dashboard data";
+      })
+      .addCase(fetchProjectTimeCost.pending, (state) => {
+        state.projectTimeCost.loading = true;
+        state.projectTimeCost.error = null;
+      })
+      .addCase(fetchProjectTimeCost.fulfilled, (state, action) => {
+        state.projectTimeCost.loading = false;
+        state.projectTimeCost.data = action.payload;
+        // Also update charts with the data
+        if (state.charts) {
+          state.charts.project_time_cost = action.payload?.projects || [];
+        }
+      })
+      .addCase(fetchProjectTimeCost.rejected, (state, action) => {
+        state.projectTimeCost.loading = false;
+        state.projectTimeCost.error = action.payload || "Failed to fetch project time & cost";
       })
       .addCase(fetchMonthlyHoursByProject.pending, (state) => {
         state.monthlyHours.loading = true;
@@ -161,6 +209,7 @@ export const selectDashboardLoading = (state) => state.dashboard.loading;
 export const selectDashboardError = (state) => state.dashboard.error;
 export const selectMonthlyHours = (state) => state.dashboard.monthlyHours;
 export const selectEmployeeDetails = (state) => state.dashboard.employeeDetails;
+export const selectProjectTimeCost = (state) => state.dashboard.projectTimeCost;
 
-export const { clearDashboardError, clearMonthlyHours } = dashboardSlice.actions;
+export const { clearDashboardError, clearMonthlyHours, clearProjectTimeCost } = dashboardSlice.actions;
 export default dashboardSlice.reducer;
