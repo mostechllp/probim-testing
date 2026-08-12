@@ -13,6 +13,7 @@ import Login from "./pages/Login";
 import { ThemeProvider } from "./context/ThemeContext";
 import NotFound from "./pages/NotFound";
 import apiClient from "./utils/apiClient";
+import ErrorBoundary from "./components/common/ErrorBoundary";
 
 // Lazy load layouts with prefetch
 const AdminLayout = lazy(() => import("./shared/layouts/AdminLayout"));
@@ -164,9 +165,12 @@ const isAdminType = (type) => {
 
 // Custom wrapper for lazy-loaded components
 const LazyWrapper = ({ children }) => {
-  return <Suspense fallback={<Loader fullScreen />}>{children}</Suspense>;
+  return (
+    <ErrorBoundary>
+      <Suspense fallback={<Loader fullScreen />}>{children}</Suspense>
+    </ErrorBoundary>
+  );
 };
-
 function App() {
   const { theme } = useTheme();
   const dispatch = useDispatch();

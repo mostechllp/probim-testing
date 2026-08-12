@@ -16,12 +16,22 @@ const ProjectTags = ({ projectIds, projectsList }) => {
   const displayItems = assignedProjects.slice(0, displayLimit);
   const remainingCount = assignedProjects.length - displayLimit;
 
-  const toggleShowAll = () => {
+  // FIX: Stop event propagation to prevent row click
+  const toggleShowAll = (e) => {
+    e.stopPropagation(); // This prevents the click from bubbling up
     setShowAll(!showAll);
   };
 
+  // FIX: Stop propagation on the container as well
+  const handleContainerClick = (e) => {
+    e.stopPropagation();
+  };
+
   return (
-    <div className="flex flex-wrap items-center gap-1.5 justify-start max-w-full">
+    <div 
+      className="flex flex-wrap items-center gap-1.5 justify-start max-w-full"
+      onClick={handleContainerClick} // Stop propagation on the whole container
+    >
       {showAll ? (
         // Show all projects - NO TRUNCATION
         assignedProjects.map((proj) => (
