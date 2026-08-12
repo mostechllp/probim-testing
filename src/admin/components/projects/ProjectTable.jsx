@@ -13,7 +13,6 @@ const ProjectTable = ({
   onStatusChange,
   onViewDetails,
 }) => {
-  // In ProjectTable.jsx
   const getEmployeeName = (id) => {
     if (!id)
       return (
@@ -22,10 +21,7 @@ const ProjectTable = ({
         </span>
       );
 
-    // First try to match by user_id (since projects store user_id)
     let emp = employees.find((e) => String(e.user_id) === String(id));
-
-    // If not found, try by id
     if (!emp) {
       emp = employees.find((e) => String(e.id) === String(id));
     }
@@ -39,19 +35,19 @@ const ProjectTable = ({
     );
   };
 
-   const formatCurrency = (amount, currency = "AED") => {
-  if (!amount) return "-";
-  return `${currency} ${Number(amount).toFixed(2)}`;
-};
+  const formatCurrency = (amount, currency = "AED") => {
+    if (!amount) return "-";
+    return `${currency} ${Number(amount).toFixed(2)}`;
+  };
+  
   const formatHours = (hours) => {
     if (!hours || hours === 0) return "-";
     return `${hours.toFixed(1)} hrs`;
   };
 
-
   const [searchTerm, setSearchTerm] = useState("");
-  const [sortField, setSortField] = useState("name");
-  const [sortDirection, setSortDirection] = useState("asc");
+  const [sortField, setSortField] = useState("createdDate");
+  const [sortDirection, setSortDirection] = useState("desc"); // Default to newest first
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
 
@@ -85,6 +81,13 @@ const ProjectTable = ({
       let valA = a[sortField];
       let valB = b[sortField];
 
+      // Handle date fields specially
+      if (sortField === "createdDate" || sortField === "updatedDate") {
+        const dateA = new Date(valA);
+        const dateB = new Date(valB);
+        return sortDirection === "asc" ? dateA - dateB : dateB - dateA;
+      }
+
       if (typeof valA === "string") {
         return sortDirection === "asc"
           ? valA.localeCompare(valB)
@@ -115,6 +118,29 @@ const ProjectTable = ({
     setCurrentPage(1);
   }, [searchTerm, itemsPerPage]);
 
+  // Sort options for dropdown
+  const sortOptions = [
+    { value: "name_asc", label: "Name (A-Z)" },
+    { value: "name_desc", label: "Name (Z-A)" },
+    { value: "createdDate_desc", label: "Newest First" },
+    { value: "createdDate_asc", label: "Oldest First" },
+    { value: "totalHours_desc", label: "Most Hours" },
+    { value: "totalHours_asc", label: "Least Hours" },
+    { value: "totalCost_desc", label: "Highest Cost" },
+    { value: "totalCost_asc", label: "Lowest Cost" },
+  ];
+
+  const handleSortChange = (e) => {
+    const [field, direction] = e.target.value.split("_");
+    setSortField(field);
+    setSortDirection(direction);
+  };
+
+  // Get current sort value for dropdown
+  const getCurrentSortValue = () => {
+    return `${sortField}_${sortDirection}`;
+  };
+
   return (
     <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700/60 shadow-soft overflow-hidden">
       {/* Header Utilities */}
@@ -139,23 +165,43 @@ const ProjectTable = ({
           </span>
         </div>
 
-        <div className="relative w-full md:w-72">
-          <input
-            type="text"
-            placeholder={`Search projects...`}
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 text-xs rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/30 text-gray-800 dark:text-gray-200 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 focus:bg-white dark:focus:bg-gray-800 transition-all"
-          />
-          <i className="fas fa-search absolute left-3 top-3 text-gray-400 text-xs"></i>
-          {searchTerm && (
-            <button
-              onClick={() => setSearchTerm("")}
-              className="absolute right-3 top-2.5 text-gray-400 hover:text-red-500"
+        <div className="flex items-center gap-3 w-full md:w-auto">
+          {/* Sort Dropdown */}
+          <div className="relative">
+            <select
+              value={getCurrentSortValue()}
+              onChange={handleSortChange}
+              className="pl-9 pr-8 py-2 text-xs rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/30 text-gray-700 dark:text-gray-300 font-medium focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 focus:bg-white dark:focus:bg-gray-800 transition-all appearance-none cursor-pointer min-w-[140px]"
             >
-              <i className="fas fa-times text-xs"></i>
-            </button>
-          )}
+              {sortOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            <i className="fas fa-sort absolute left-3 top-2.5 text-gray-400 text-xs"></i>
+            <i className="fas fa-chevron-down absolute right-3 top-2.5 text-gray-400 text-[10px] pointer-events-none"></i>
+          </div>
+
+          {/* Search */}
+          <div className="relative w-full md:w-56">
+            <input
+              type="text"
+              placeholder={`Search projects...`}
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-9 pr-4 py-2 text-xs rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/30 text-gray-800 dark:text-gray-200 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 focus:bg-white dark:focus:bg-gray-800 transition-all"
+            />
+            <i className="fas fa-search absolute left-3 top-3 text-gray-400 text-xs"></i>
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm("")}
+                className="absolute right-3 top-2.5 text-gray-400 hover:text-red-500"
+              >
+                <i className="fas fa-times text-xs"></i>
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -181,7 +227,6 @@ const ProjectTable = ({
               <th className="px-6 py-4 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider select-none whitespace-nowrap">
                 Leadership
               </th>
-
               <th
                 onClick={() => handleSort("totalHours")}
                 className="px-6 py-4 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100/50 dark:hover:bg-gray-700/30 select-none whitespace-nowrap transition-colors"
@@ -193,7 +238,6 @@ const ProjectTable = ({
                   ></i>
                 )}
               </th>
-              {/* NEW: Total Cost Column */}
               <th
                 onClick={() => handleSort("totalCost")}
                 className="px-6 py-4 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100/50 dark:hover:bg-gray-700/30 select-none whitespace-nowrap transition-colors"
@@ -205,7 +249,6 @@ const ProjectTable = ({
                   ></i>
                 )}
               </th>
-
               <th
                 onClick={() => handleSort("createdDate")}
                 className="px-6 py-4 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100/50 dark:hover:bg-gray-700/30 select-none whitespace-nowrap transition-colors"
@@ -238,7 +281,15 @@ const ProjectTable = ({
                     <div className="h-3.5 bg-gray-200 dark:bg-gray-700 rounded w-32 mb-1.5"></div>
                     <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-24"></div>
                   </td>
-
+                  <td className="px-6 py-4">
+                    <div className="h-3.5 bg-gray-200 dark:bg-gray-700 rounded w-16"></div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="h-3.5 bg-gray-200 dark:bg-gray-700 rounded w-20"></div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="h-3.5 bg-gray-200 dark:bg-gray-700 rounded w-24"></div>
+                  </td>
                   <td className="px-6 py-4">
                     <div className="flex gap-2 justify-end">
                       <div className="h-8 w-8 bg-gray-200 dark:bg-gray-700 rounded-full"></div>
@@ -249,7 +300,7 @@ const ProjectTable = ({
               ))
             ) : paginatedProjects.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-6 py-10">
+                <td colSpan={7} className="px-6 py-10">
                   <EmptyState
                     message={
                       searchTerm
@@ -308,19 +359,16 @@ const ProjectTable = ({
                       </div>
                     </div>
                   </td>
-
                   <td className="px-6 py-4 whitespace-nowrap">
-                  <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">
-                    {formatHours(project.totalHours)}
-                  </span>
-                </td>
-                {/* NEW: Total Cost Cell */}
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className="text-xs font-semibold text-green-600 dark:text-green-400">
-                    {formatCurrency(project.totalCost)}
-                  </span>
-                </td>
-
+                    <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">
+                      {formatHours(project.totalHours)}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className="text-xs font-semibold text-green-600 dark:text-green-400">
+                      {formatCurrency(project.totalCost)}
+                    </span>
+                  </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className="text-xs text-gray-500 dark:text-gray-400 font-semibold">
                       <i className="far fa-calendar-alt text-gray-400 mr-1.5"></i>

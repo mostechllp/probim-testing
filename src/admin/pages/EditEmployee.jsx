@@ -71,10 +71,11 @@ const EditEmployee = () => {
   const [documentPreviews, setDocumentPreviews] = useState({});
   const [existingDocuments, setExistingDocuments] = useState({});
   const [removedDocuments, setRemovedDocuments] = useState({});
-  
+
   // Additional Documents states
   const [additionalDocuments, setAdditionalDocuments] = useState([]);
-  const [existingAdditionalDocuments, setExistingAdditionalDocuments] = useState([]);
+  const [existingAdditionalDocuments, setExistingAdditionalDocuments] =
+    useState([]);
 
   // Fetch data from slices
   const { currentEmployee, loading: employeeLoading } = useSelector(
@@ -267,7 +268,9 @@ const EditEmployee = () => {
     },
   ];
 
-  const [customFormat, setCustomFormat] = useState("prefix+year+month+day+timestamp");
+  const [customFormat, setCustomFormat] = useState(
+    "prefix+year+month+day+timestamp",
+  );
 
   const generateEmployeeIdWithOptions = (dob, joiningDate, prefix, format) => {
     if (
@@ -547,21 +550,51 @@ const EditEmployee = () => {
       setValue("designation_id", currentEmployee.user?.designation_id || "");
       setValue("department_id", currentEmployee.user?.department_id || "");
       setValue("employee_id", currentEmployee.employee_id || "");
-      setValue("type", currentEmployee.user?.type || currentEmployee.type || "employee");
+      setValue(
+        "type",
+        currentEmployee.user?.type || currentEmployee.type || "employee",
+      );
       setValue(
         "joining_date",
         convertToDisplayDate(currentEmployee.joining_date),
       );
       setValue("dob", convertToDisplayDate(currentEmployee.dob));
-      setValue("probation_start_date", convertToDisplayDate(currentEmployee.probation_start_date));
-      setValue("probation_end_date", convertToDisplayDate(currentEmployee.probation_end_date));
-      setValue("confirmation_date", convertToDisplayDate(currentEmployee.confirmation_date));
-      setValue("contract_start_date", convertToDisplayDate(currentEmployee.contract_start_date));
-      setValue("contract_end_date", convertToDisplayDate(currentEmployee.contract_end_date));
-      setValue("notice_period_start_date", convertToDisplayDate(currentEmployee.notice_period_start_date));
-      setValue("last_working_day", convertToDisplayDate(currentEmployee.last_working_day));
-      setValue("resignation_date", convertToDisplayDate(currentEmployee.resignation_date));
-      setValue("relieving_date", convertToDisplayDate(currentEmployee.relieving_date));
+      setValue(
+        "probation_start_date",
+        convertToDisplayDate(currentEmployee.probation_start_date),
+      );
+      setValue(
+        "probation_end_date",
+        convertToDisplayDate(currentEmployee.probation_end_date),
+      );
+      setValue(
+        "confirmation_date",
+        convertToDisplayDate(currentEmployee.confirmation_date),
+      );
+      setValue(
+        "contract_start_date",
+        convertToDisplayDate(currentEmployee.contract_start_date),
+      );
+      setValue(
+        "contract_end_date",
+        convertToDisplayDate(currentEmployee.contract_end_date),
+      );
+      setValue(
+        "notice_period_start_date",
+        convertToDisplayDate(currentEmployee.notice_period_start_date),
+      );
+      setValue(
+        "last_working_day",
+        convertToDisplayDate(currentEmployee.last_working_day),
+      );
+      setValue(
+        "resignation_date",
+        convertToDisplayDate(currentEmployee.resignation_date),
+      );
+      setValue(
+        "relieving_date",
+        convertToDisplayDate(currentEmployee.relieving_date),
+      );
       setValue("gender", currentEmployee.gender || "male");
       setValue("nationality", currentEmployee.nationality || "");
       setValue("marital_status", currentEmployee.marital_status || "");
@@ -695,15 +728,20 @@ const EditEmployee = () => {
       setExistingDocuments(docs);
 
       // Handle additional documents
-      if (currentEmployee.additional_documents && Array.isArray(currentEmployee.additional_documents)) {
+      if (
+        currentEmployee.additional_documents &&
+        Array.isArray(currentEmployee.additional_documents)
+      ) {
         setExistingAdditionalDocuments(currentEmployee.additional_documents);
-        setAdditionalDocuments(currentEmployee.additional_documents.map(doc => ({
-          name: doc.document_name,
-          filename: doc.filename || doc.document_name,
-          isExisting: true,
-          preview: null,
-          file: null
-        })));
+        setAdditionalDocuments(
+          currentEmployee.additional_documents.map((doc) => ({
+            name: doc.document_name,
+            filename: doc.filename || doc.document_name,
+            isExisting: true,
+            preview: null,
+            file: null,
+          })),
+        );
       }
 
       setFormInitialized(true);
@@ -747,6 +785,96 @@ const EditEmployee = () => {
     { value: "family_visa", label: "Family Visa" },
     { value: "other_visa", label: "Other Visa" },
   ];
+
+  const validateDob = (value) => {
+    if (!value) return true;
+    if (isInitializing) return true;
+
+    let date;
+    try {
+      if (typeof value === "string" && value.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
+        const [day, month, year] = value.split("/");
+        date = new Date(year, month - 1, day);
+      } else {
+        date = new Date(value);
+      }
+
+      if (isNaN(date.getTime())) {
+        return true;
+      }
+    } catch (e) {
+      return true;
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    date.setHours(0, 0, 0, 0);
+
+    if (date > today) {
+      return "Date of Birth cannot be in the future";
+    }
+
+    return true;
+  };
+
+  const validateJoiningDate = (value, dobValue) => {
+    if (!value) return true;
+    if (isInitializing) return true;
+
+    let date;
+    let dob;
+
+    try {
+      // Parse joining date
+      if (typeof value === "string" && value.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
+        const [day, month, year] = value.split("/");
+        date = new Date(year, month - 1, day);
+      } else {
+        date = new Date(value);
+      }
+
+      if (isNaN(date.getTime())) {
+        return true;
+      }
+    } catch (e) {
+      return true;
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    date.setHours(0, 0, 0, 0);
+
+    // Check if joining date is in future
+    if (date > today) {
+      return "Joining Date cannot be in the future";
+    }
+
+    // Check if joining date is after DOB
+    if (dobValue) {
+      try {
+        if (
+          typeof dobValue === "string" &&
+          dobValue.match(/^\d{2}\/\d{2}\/\d{4}$/)
+        ) {
+          const [day, month, year] = dobValue.split("/");
+          dob = new Date(year, month - 1, day);
+        } else {
+          dob = new Date(dobValue);
+        }
+
+        if (!isNaN(dob.getTime())) {
+          dob.setHours(0, 0, 0, 0);
+          if (date <= dob) {
+            return "Joining Date must be after Date of Birth";
+          }
+        }
+      } catch (e) {
+        // Ignore parsing errors
+      }
+    }
+
+    return true;
+  };
 
   const getStepFields = (stepIndex) => {
     switch (stepIndex) {
@@ -876,23 +1004,29 @@ const EditEmployee = () => {
     if (file.type.startsWith("image/")) {
       const reader = new FileReader();
       reader.onload = (e) => {
-        setAdditionalDocuments(prev => [...prev, {
-          name: file.name,
-          file: file,
-          preview: e.target.result,
-          isExisting: false,
-          filename: file.name
-        }]);
+        setAdditionalDocuments((prev) => [
+          ...prev,
+          {
+            name: file.name,
+            file: file,
+            preview: e.target.result,
+            isExisting: false,
+            filename: file.name,
+          },
+        ]);
       };
       reader.readAsDataURL(file);
     } else {
-      setAdditionalDocuments(prev => [...prev, {
-        name: file.name,
-        file: file,
-        preview: "pdf",
-        isExisting: false,
-        filename: file.name
-      }]);
+      setAdditionalDocuments((prev) => [
+        ...prev,
+        {
+          name: file.name,
+          file: file,
+          preview: "pdf",
+          isExisting: false,
+          filename: file.name,
+        },
+      ]);
     }
 
     showToast(`Document "${file.name}" added`, "success");
@@ -902,15 +1036,17 @@ const EditEmployee = () => {
     if (isExisting) {
       // Remove from existing list and track for removal
       const docToRemove = existingAdditionalDocuments[index];
-      setExistingAdditionalDocuments(prev => prev.filter((_, i) => i !== index));
-      setAdditionalDocuments(prev => prev.filter((_, i) => i !== index));
-      setRemovedDocuments(prev => ({
+      setExistingAdditionalDocuments((prev) =>
+        prev.filter((_, i) => i !== index),
+      );
+      setAdditionalDocuments((prev) => prev.filter((_, i) => i !== index));
+      setRemovedDocuments((prev) => ({
         ...prev,
-        [`additional_document_${docToRemove.document_name || index}`]: true
+        [`additional_document_${docToRemove.document_name || index}`]: true,
       }));
     } else {
       // Remove from new documents list
-      setAdditionalDocuments(prev => prev.filter((_, i) => i !== index));
+      setAdditionalDocuments((prev) => prev.filter((_, i) => i !== index));
     }
   };
 
@@ -968,7 +1104,7 @@ const EditEmployee = () => {
     setLoading(true);
 
     const employeeIdValue = data.employee_id || manualEmployeeId;
-    
+
     if (!employeeIdValue) {
       showToast("Employee ID is required", "error");
       setLoading(false);
@@ -1012,15 +1148,51 @@ const EditEmployee = () => {
     if (dob) formData.append("dob", dob);
     if (joiningDate) formData.append("joining_date", joiningDate);
 
-    if (data.probation_start_date) formData.append("probation_start_date", convertDateToBackend(data.probation_start_date));
-    if (data.probation_end_date) formData.append("probation_end_date", convertDateToBackend(data.probation_end_date));
-    if (data.confirmation_date) formData.append("confirmation_date", convertDateToBackend(data.confirmation_date));
-    if (data.contract_start_date) formData.append("contract_start_date", convertDateToBackend(data.contract_start_date));
-    if (data.contract_end_date) formData.append("contract_end_date", convertDateToBackend(data.contract_end_date));
-    if (data.notice_period_start_date) formData.append("notice_period_start_date", convertDateToBackend(data.notice_period_start_date));
-    if (data.last_working_day) formData.append("last_working_day", convertDateToBackend(data.last_working_day));
-    if (data.resignation_date) formData.append("resignation_date", convertDateToBackend(data.resignation_date));
-    if (data.relieving_date) formData.append("relieving_date", convertDateToBackend(data.relieving_date));
+    if (data.probation_start_date)
+      formData.append(
+        "probation_start_date",
+        convertDateToBackend(data.probation_start_date),
+      );
+    if (data.probation_end_date)
+      formData.append(
+        "probation_end_date",
+        convertDateToBackend(data.probation_end_date),
+      );
+    if (data.confirmation_date)
+      formData.append(
+        "confirmation_date",
+        convertDateToBackend(data.confirmation_date),
+      );
+    if (data.contract_start_date)
+      formData.append(
+        "contract_start_date",
+        convertDateToBackend(data.contract_start_date),
+      );
+    if (data.contract_end_date)
+      formData.append(
+        "contract_end_date",
+        convertDateToBackend(data.contract_end_date),
+      );
+    if (data.notice_period_start_date)
+      formData.append(
+        "notice_period_start_date",
+        convertDateToBackend(data.notice_period_start_date),
+      );
+    if (data.last_working_day)
+      formData.append(
+        "last_working_day",
+        convertDateToBackend(data.last_working_day),
+      );
+    if (data.resignation_date)
+      formData.append(
+        "resignation_date",
+        convertDateToBackend(data.resignation_date),
+      );
+    if (data.relieving_date)
+      formData.append(
+        "relieving_date",
+        convertDateToBackend(data.relieving_date),
+      );
 
     // Special days
     if (data.special_days && data.special_days.length > 0) {
@@ -1159,25 +1331,33 @@ const EditEmployee = () => {
 
     // ============ ADDITIONAL DOCUMENTS ============
     // First, track removed existing additional documents
-    const removedAdditionalDocKeys = Object.keys(removedDocuments).filter(key => 
-      key.startsWith('additional_document_') && removedDocuments[key]
+    const removedAdditionalDocKeys = Object.keys(removedDocuments).filter(
+      (key) => key.startsWith("additional_document_") && removedDocuments[key],
     );
     removedAdditionalDocKeys.forEach((key, index) => {
-      formData.append(`remove_additional_document_${index}`, 'true');
+      formData.append(`remove_additional_document_${index}`, "true");
     });
 
     // Then send new additional documents
-    const newAdditionalDocs = additionalDocuments.filter(doc => !doc.isExisting);
+    const newAdditionalDocs = additionalDocuments.filter(
+      (doc) => !doc.isExisting,
+    );
     if (newAdditionalDocs.length > 0) {
       newAdditionalDocs.forEach((doc, index) => {
         if (doc.file) {
           formData.append(`additional_documents[${index}][file]`, doc.file);
         }
         if (doc.name) {
-          formData.append(`additional_documents[${index}][document_name]`, doc.name);
+          formData.append(
+            `additional_documents[${index}][document_name]`,
+            doc.name,
+          );
         }
         if (doc.filename) {
-          formData.append(`additional_documents[${index}][filename]`, doc.filename);
+          formData.append(
+            `additional_documents[${index}][filename]`,
+            doc.filename,
+          );
         }
       });
     }
@@ -1188,7 +1368,9 @@ const EditEmployee = () => {
     console.log("=== FINAL FORM DATA TO BE SENT ===");
     for (let pair of formData.entries()) {
       if (pair[1] instanceof File) {
-        console.log(`${pair[0]}: [FILE] ${pair[1].name} (${(pair[1].size / 1024).toFixed(2)} KB)`);
+        console.log(
+          `${pair[0]}: [FILE] ${pair[1].name} (${(pair[1].size / 1024).toFixed(2)} KB)`,
+        );
       } else {
         console.log(`${pair[0]}: ${pair[1]}`);
       }
@@ -2091,13 +2273,16 @@ const EditEmployee = () => {
                         <input
                           type="text"
                           value={manualEmployeeId}
-                          onChange={(e) => setManualEmployeeId(e.target.value.toUpperCase())}
+                          onChange={(e) =>
+                            setManualEmployeeId(e.target.value.toUpperCase())
+                          }
                           placeholder="Enter Employee ID (e.g., EMP001, STAFF-001)"
                           className="w-full px-3 md:px-4 py-2 md:py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm md:text-base text-gray-800 focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-500/20"
                         />
                         <p className="text-xs text-gray-400 mt-1">
                           <i className="fas fa-info-circle mr-1"></i>
-                          You can enter any unique ID format (e.g., EMP001, STAFF-2024-001)
+                          You can enter any unique ID format (e.g., EMP001,
+                          STAFF-2024-001)
                         </p>
                       </div>
                     ) : (
@@ -2109,7 +2294,9 @@ const EditEmployee = () => {
                           <input
                             type="text"
                             value={idPrefix}
-                            onChange={(e) => setIdPrefix(e.target.value.toUpperCase())}
+                            onChange={(e) =>
+                              setIdPrefix(e.target.value.toUpperCase())
+                            }
                             placeholder="e.g., EMP, STAFF, ENG"
                             className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-green-500"
                           />
@@ -2149,14 +2336,50 @@ const EditEmployee = () => {
                                 Available placeholders:
                               </p>
                               <div className="grid grid-cols-2 gap-1">
-                                <span><code className="bg-gray-100 px-1">prefix</code> - Your prefix</span>
-                                <span><code className="bg-gray-100 px-1">year</code> - Joining year</span>
-                                <span><code className="bg-gray-100 px-1">month</code> - Joining month</span>
-                                <span><code className="bg-gray-100 px-1">day</code> - Joining day</span>
-                                <span><code className="bg-gray-100 px-1">dob_ddmm</code> - DOB (DDMM)</span>
-                                <span><code className="bg-gray-100 px-1">timestamp</code> - Unix timestamp</span>
-                                <span><code className="bg-gray-100 px-1">random</code> - Random string</span>
-                                <span><code className="bg-gray-100 px-1">sequence</code> - Sequence number</span>
+                                <span>
+                                  <code className="bg-gray-100 px-1">
+                                    prefix
+                                  </code>{" "}
+                                  - Your prefix
+                                </span>
+                                <span>
+                                  <code className="bg-gray-100 px-1">year</code>{" "}
+                                  - Joining year
+                                </span>
+                                <span>
+                                  <code className="bg-gray-100 px-1">
+                                    month
+                                  </code>{" "}
+                                  - Joining month
+                                </span>
+                                <span>
+                                  <code className="bg-gray-100 px-1">day</code>{" "}
+                                  - Joining day
+                                </span>
+                                <span>
+                                  <code className="bg-gray-100 px-1">
+                                    dob_ddmm
+                                  </code>{" "}
+                                  - DOB (DDMM)
+                                </span>
+                                <span>
+                                  <code className="bg-gray-100 px-1">
+                                    timestamp
+                                  </code>{" "}
+                                  - Unix timestamp
+                                </span>
+                                <span>
+                                  <code className="bg-gray-100 px-1">
+                                    random
+                                  </code>{" "}
+                                  - Random string
+                                </span>
+                                <span>
+                                  <code className="bg-gray-100 px-1">
+                                    sequence
+                                  </code>{" "}
+                                  - Sequence number
+                                </span>
                               </div>
                             </div>
                           </div>
@@ -2181,7 +2404,8 @@ const EditEmployee = () => {
                           <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
                             <p className="text-xs text-yellow-700">
                               <i className="fas fa-info-circle mr-1"></i>
-                              Please enter DOB and Joining Date to see ID preview
+                              Please enter DOB and Joining Date to see ID
+                              preview
                             </p>
                           </div>
                         )}
@@ -2210,10 +2434,14 @@ const EditEmployee = () => {
                     <Controller
                       name="dob"
                       control={control}
-                      rules={{ required: "Date of Birth is required" }}
+                      rules={{
+                        required: "Date of Birth is required",
+                        validate: validateDob,
+                      }}
                       render={({ field }) => (
                         <>
                           <DateInput
+                            type="dob"
                             {...field}
                             placeholder="dd/mm/yyyy"
                             error={!!errors.dob}
@@ -2236,10 +2464,15 @@ const EditEmployee = () => {
                     <Controller
                       name="joining_date"
                       control={control}
-                      rules={{ required: "Joining Date is required" }}
+                      rules={{
+                        required: "Joining Date is required",
+                        validate: (value) =>
+                          validateJoiningDate(value, watchDob),
+                      }}
                       render={({ field }) => (
                         <>
                           <DateInput
+                            type="general"
                             {...field}
                             placeholder="dd/mm/yyyy"
                             error={!!errors.joining_date}
@@ -2488,9 +2721,9 @@ const EditEmployee = () => {
                         <button
                           type="button"
                           onClick={() => {
-                            const input = document.createElement('input');
-                            input.type = 'file';
-                            input.accept = 'image/*,.pdf';
+                            const input = document.createElement("input");
+                            input.type = "file";
+                            input.accept = "image/*,.pdf";
                             input.onchange = (e) => {
                               const file = e.target.files[0];
                               if (file) {
@@ -2509,22 +2742,32 @@ const EditEmployee = () => {
                       {/* Display existing additional documents */}
                       {existingAdditionalDocuments.length > 0 && (
                         <div className="mb-4">
-                          <p className="text-xs font-semibold text-gray-600 mb-2">Existing Documents:</p>
+                          <p className="text-xs font-semibold text-gray-600 mb-2">
+                            Existing Documents:
+                          </p>
                           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                             {existingAdditionalDocuments.map((doc, index) => (
-                              <div key={`existing-${index}`} className="border border-gray-200 rounded-lg p-3 bg-gray-50">
+                              <div
+                                key={`existing-${index}`}
+                                className="border border-gray-200 rounded-lg p-3 bg-gray-50"
+                              >
                                 <div className="flex items-start justify-between">
                                   <div className="flex-1">
                                     <p className="text-sm font-semibold text-gray-700 truncate">
                                       {doc.document_name}
                                     </p>
                                     <p className="text-xs text-gray-500 mt-1">
-                                      {doc.filename || 'Document'}
+                                      {doc.filename || "Document"}
                                     </p>
                                   </div>
                                   <button
                                     type="button"
-                                    onClick={() => handleRemoveAdditionalDocument(index, true)}
+                                    onClick={() =>
+                                      handleRemoveAdditionalDocument(
+                                        index,
+                                        true,
+                                      )
+                                    }
                                     className="text-red-500 hover:text-red-600 ml-2"
                                   >
                                     <i className="fas fa-trash"></i>
@@ -2537,43 +2780,63 @@ const EditEmployee = () => {
                       )}
 
                       {/* Display new additional documents */}
-                      {additionalDocuments.filter(doc => !doc.isExisting).length > 0 && (
+                      {additionalDocuments.filter((doc) => !doc.isExisting)
+                        .length > 0 && (
                         <div className="mt-4">
-                          <p className="text-xs font-semibold text-gray-600 mb-2">New Documents:</p>
+                          <p className="text-xs font-semibold text-gray-600 mb-2">
+                            New Documents:
+                          </p>
                           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                            {additionalDocuments.filter(doc => !doc.isExisting).map((doc, index) => {
-                              // Find the actual index in the full array
-                              const actualIndex = additionalDocuments.findIndex(d => d === doc);
-                              return (
-                                <div key={`new-${index}`} className="border border-gray-200 rounded-lg p-3 bg-green-50">
-                                  <div className="flex items-start justify-between">
-                                    <div className="flex-1">
-                                      <p className="text-sm font-semibold text-gray-700 truncate">
-                                        {doc.name || 'Untitled'}
-                                      </p>
-                                      <p className="text-xs text-gray-500 mt-1">
-                                        {doc.file?.name || 'New document'}
-                                      </p>
+                            {additionalDocuments
+                              .filter((doc) => !doc.isExisting)
+                              .map((doc, index) => {
+                                // Find the actual index in the full array
+                                const actualIndex =
+                                  additionalDocuments.findIndex(
+                                    (d) => d === doc,
+                                  );
+                                return (
+                                  <div
+                                    key={`new-${index}`}
+                                    className="border border-gray-200 rounded-lg p-3 bg-green-50"
+                                  >
+                                    <div className="flex items-start justify-between">
+                                      <div className="flex-1">
+                                        <p className="text-sm font-semibold text-gray-700 truncate">
+                                          {doc.name || "Untitled"}
+                                        </p>
+                                        <p className="text-xs text-gray-500 mt-1">
+                                          {doc.file?.name || "New document"}
+                                        </p>
+                                      </div>
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          handleRemoveAdditionalDocument(
+                                            actualIndex,
+                                            false,
+                                          )
+                                        }
+                                        className="text-red-500 hover:text-red-600 ml-2"
+                                      >
+                                        <i className="fas fa-trash"></i>
+                                      </button>
                                     </div>
-                                    <button
-                                      type="button"
-                                      onClick={() => handleRemoveAdditionalDocument(actualIndex, false)}
-                                      className="text-red-500 hover:text-red-600 ml-2"
-                                    >
-                                      <i className="fas fa-trash"></i>
-                                    </button>
+                                    {doc.preview && doc.preview !== "pdf" && (
+                                      <img
+                                        src={doc.preview}
+                                        alt={doc.name}
+                                        className="mt-2 h-16 w-16 object-cover rounded-lg"
+                                      />
+                                    )}
+                                    {doc.preview === "pdf" && (
+                                      <div className="mt-2 h-16 w-16 bg-red-100 rounded-lg flex items-center justify-center">
+                                        <i className="fas fa-file-pdf text-red-500 text-2xl"></i>
+                                      </div>
+                                    )}
                                   </div>
-                                  {doc.preview && doc.preview !== "pdf" && (
-                                    <img src={doc.preview} alt={doc.name} className="mt-2 h-16 w-16 object-cover rounded-lg" />
-                                  )}
-                                  {doc.preview === "pdf" && (
-                                    <div className="mt-2 h-16 w-16 bg-red-100 rounded-lg flex items-center justify-center">
-                                      <i className="fas fa-file-pdf text-red-500 text-2xl"></i>
-                                    </div>
-                                  )}
-                                </div>
-                              );
-                            })}
+                                );
+                              })}
                           </div>
                         </div>
                       )}
@@ -2820,7 +3083,8 @@ const EditEmployee = () => {
                 </div>
                 <div className="space-y-6">
                   {/* Labor Section */}
-                  {selectedCompanyDetails?.raw?.trade_license === "mainland" && (
+                  {selectedCompanyDetails?.raw?.trade_license ===
+                    "mainland" && (
                     <div className="border border-gray-200 rounded-lg p-4">
                       <h4 className="text-sm font-semibold text-gray-700 mb-4">
                         Labor Details
@@ -3114,7 +3378,8 @@ const EditEmployee = () => {
                           label="Visa Page Copy"
                           icon="fas fa-file-contract"
                         />
-                        {selectedCompanyDetails?.raw?.trade_license === "mainland" && (
+                        {selectedCompanyDetails?.raw?.trade_license ===
+                          "mainland" && (
                           <>
                             <DocumentUpload
                               fieldKey="labor_card"

@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { showToast } from "../common/Toast";
 import OffboardingHeader from "./OffboardingHeader";
+import OffboardingProgressBox from "./OffboardingProgressBox";
 import { fetchEmployeeById } from "../../store/slices/employeeSlice";
 import { fetchOffboardingById, updateVisaStatus } from "../../store/slices/offboardingSlice";
 import { fetchChecklists, createChecklist, updateChecklist, deleteChecklist, updateChecklistStatus, clearError } from "../../store/slices/checklistSlice";
@@ -259,7 +260,7 @@ useEffect(() => {
       showToast("Visa status updated successfully", "success");
       
       setTimeout(() => {
-        navigate(`/admin/employees/offboarding-checklist?id=${offboardingId || localStorage.getItem("offboarding_id")}`);
+        navigate(`/admin/employees/exit-interview?id=${offboardingId || localStorage.getItem("offboarding_id")}`);
       }, 1000);
     } catch (error) {
       console.error("Update visa status error:", error);
@@ -298,6 +299,7 @@ useEffect(() => {
       <div className="max-w-5xl mx-auto space-y-6">
 
         <OffboardingHeader currentStep={2} />
+        <OffboardingProgressBox currentStep={2} />
 
         {/* Warning Banner */}
         <div className="bg-amber-50 dark:bg-amber-950/30 border-l-4 border-amber-500 p-4 rounded-r-lg flex items-start gap-3 shadow-sm">

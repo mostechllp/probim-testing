@@ -185,8 +185,8 @@ export const updateVisaStatus = createAsyncThunk(
 
       console.log("Visa status updated:", response.data);
 
-      if (response.data && response.data.status === "success") {
-        return response.data.data;
+      if (response.data && (response.data.status === "success" || response.data.success === true)) {
+        return response.data.data ? { id, ...response.data.data } : { id };
       } else {
         return rejectWithValue(
           response.data?.message || "Failed to update visa status",
@@ -213,8 +213,8 @@ export const updateChecklist = createAsyncThunk(
 
       console.log("Checklist updated:", response.data);
 
-      if (response.data && response.data.status === "success") {
-        return response.data.data;
+      if (response.data && (response.data.status === "success" || response.data.success === true)) {
+        return response.data.data ? { id, ...response.data.data } : { id };
       } else {
         return rejectWithValue(
           response.data?.message || "Failed to update checklist",
@@ -241,8 +241,8 @@ export const updateAssets = createAsyncThunk(
 
       console.log("Assets updated:", response.data);
 
-      if (response.data && response.data.status === "success") {
-        return response.data.data;
+      if (response.data && (response.data.status === "success" || response.data.success === true)) {
+        return response.data.data ? { id, ...response.data.data } : { id };
       } else {
         return rejectWithValue(
           response.data?.message || "Failed to update assets",
@@ -269,8 +269,8 @@ export const submitInterview = createAsyncThunk(
 
       console.log("Interview submitted:", response.data);
 
-      if (response.data && response.data.status === "success") {
-        return response.data.data;
+      if (response.data && (response.data.status === "success" || response.data.success === true)) {
+        return response.data.data ? { id, ...response.data.data } : { id };
       } else {
         return rejectWithValue(
           response.data?.message || "Failed to submit interview",
@@ -565,6 +565,7 @@ const offboardingSlice = createSlice({
       .addCase(updateVisaStatus.fulfilled, (state, action) => {
         if (
           state.currentOffboarding &&
+          action.payload &&
           state.currentOffboarding.id === action.payload.id
         ) {
           state.currentOffboarding.visa_status = action.payload.visa_status;
@@ -576,6 +577,7 @@ const offboardingSlice = createSlice({
       .addCase(updateChecklist.fulfilled, (state, action) => {
         if (
           state.currentOffboarding &&
+          action.payload &&
           state.currentOffboarding.id === action.payload.id
         ) {
           state.currentOffboarding.checklist = action.payload.checklist;
@@ -588,6 +590,7 @@ const offboardingSlice = createSlice({
       .addCase(updateAssets.fulfilled, (state, action) => {
         if (
           state.currentOffboarding &&
+          action.payload &&
           state.currentOffboarding.id === action.payload.id
         ) {
           state.currentOffboarding.assets = action.payload.assets;

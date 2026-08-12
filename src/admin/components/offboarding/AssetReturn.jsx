@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { showToast } from "../common/Toast";
 import OffboardingHeader from "./OffboardingHeader";
+import OffboardingProgressBox from "./OffboardingProgressBox";
 import {
   fetchOffboardingById,
   updateAssets,
@@ -211,10 +212,10 @@ const AssetReturn = () => {
       // Refresh progress after skipping
       await dispatch(fetchOffboardingProgress(offboardingIdValue));
       
-      showToast("Assets step skipped. Proceeding to Exit Interview.", "success");
+      showToast("Assets step skipped. Proceeding to Final Settlement.", "success");
       
       // Navigate to next step
-      navigate(`/admin/employees/exit-interview?id=${offboardingIdValue}`);
+      navigate(`/admin/employees/final-settlement?id=${offboardingIdValue}`);
       
     } catch (error) {
       console.error("Skip step error:", error);
@@ -224,8 +225,8 @@ const AssetReturn = () => {
     }
   };
 
-  const handleProceedToInterview = () => {
-    navigate(`/admin/employees/exit-interview?id=${offboardingId || localStorage.getItem("offboarding_id")}`);
+  const handleProceedToSettlement = () => {
+    navigate(`/admin/employees/final-settlement?id=${offboardingId || localStorage.getItem("offboarding_id")}`);
   };
 
   // Calculate progress from API
@@ -263,6 +264,9 @@ const AssetReturn = () => {
 
         {/* SaaS Offboarding Header */}
         <OffboardingHeader currentStep={4} />
+        
+        {/* Progress Box */}
+        <OffboardingProgressBox currentStep={4} />
 
         {/* Main Content Card */}
         <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700/80 rounded-2xl shadow-soft p-6 sm:p-8 space-y-8">
@@ -302,54 +306,7 @@ const AssetReturn = () => {
             </div>
           </div>
 
-          {/* Overall Progress Section */}
-          <div className="space-y-4 p-4 bg-gray-50 dark:bg-gray-900/30 rounded-xl">
-            <div className="flex justify-between items-center">
-              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                Offboarding Progress
-              </h3>
-              <span className="text-sm font-bold text-green-600 dark:text-green-400">
-                {apiProgressPercentage}%
-              </span>
-            </div>
-            <div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-              <div 
-                className="h-full bg-green-500 transition-all duration-500"
-                style={{ width: `${apiProgressPercentage}%` }}
-              />
-            </div>
-            <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400">
-              <span>Completed Steps: {completedStepsFromApi}</span>
-              <span>Total Steps: {totalStepsFromApi}</span>
-            </div>
-            
-            {/* Steps Status */}
-            {currentProgress && currentProgress.steps && currentProgress.steps.length > 0 && (
-              <div className="mt-2 pt-2 border-t border-gray-200 dark:border-gray-700">
-                <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">
-                  Step Status
-                </h4>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                  {currentProgress.steps.map((step, index) => (
-                    <div key={index} className="flex items-center gap-1.5">
-                      <div className={`w-1.5 h-1.5 rounded-full ${
-                        step.status === "completed"
-                          ? "bg-green-500"
-                          : step.status === "in_progress"
-                          ? "bg-blue-500 animate-pulse"
-                          : step.status === "skipped"
-                          ? "bg-gray-400"
-                          : "bg-gray-300 dark:bg-gray-600"
-                      }`} />
-                      <span className="text-xs text-gray-600 dark:text-gray-400">
-                        {step.name}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
+
 
           {/* Asset Progress - Only show if there are assets */}
           {!hasNoAssets && assets.length > 0 && (
@@ -384,7 +341,7 @@ const AssetReturn = () => {
                     This employee doesn't have any company assets assigned to them.
                   </p>
                   <p className="text-gray-400 dark:text-gray-500 text-xs mt-2">
-                    You can skip this step and proceed to the Exit Interview.
+                    You can skip this step and proceed to the Final Settlement.
                   </p>
                 </div>
               </div>
@@ -409,10 +366,10 @@ const AssetReturn = () => {
                 </button>
                 
                 <button
-                  onClick={handleProceedToInterview}
+                  onClick={handleProceedToSettlement}
                   className="px-6 py-2.5 rounded-full font-semibold bg-green-500 text-white hover:bg-green-600 transition-all flex items-center justify-center gap-2 shadow-sm hover:shadow-md"
                 >
-                  Proceed to Exit Interview
+                  Proceed to Final Settlement
                   <ArrowRight size={18} />
                 </button>
               </div>
@@ -502,10 +459,10 @@ const AssetReturn = () => {
                 </div>
                 
                 <button
-                  onClick={handleProceedToInterview}
+                  onClick={handleProceedToSettlement}
                   className="px-6 py-2.5 rounded-full font-semibold bg-green-500 text-white hover:bg-green-600 transition-all flex items-center justify-center gap-2 shadow-sm hover:shadow-md"
                 >
-                  Proceed to Exit Interview
+                  Proceed to Final Settlement
                   <ArrowRight size={18} />
                 </button>
               </div>

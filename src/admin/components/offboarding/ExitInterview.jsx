@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { showToast } from "../common/Toast";
 import OffboardingHeader from "./OffboardingHeader";
+import OffboardingProgressBox from "./OffboardingProgressBox";
 import { fetchOffboardingById, submitInterview, saveOffboardingDraft, fetchOffboardingProgress } from "../../store/slices/offboardingSlice";
 import { fetchEmployeeById } from "../../store/slices/employeeSlice";
 
@@ -141,7 +142,7 @@ const ExitInterview = () => {
       showToast("Exit interview submitted successfully", "success");
       
       setTimeout(() => {
-        navigate(`/admin/employees/final-settlement?id=${offboardingId || localStorage.getItem("offboarding_id")}`);
+        navigate(`/admin/employees/asset-return?id=${offboardingId || localStorage.getItem("offboarding_id")}`);
       }, 1500);
     } catch (error) {
       console.error("Submit interview error:", error);
@@ -223,7 +224,7 @@ const ExitInterview = () => {
     return (
       <div className="min-h-screen bg-gray-50/30 dark:bg-gray-900/40 p-4 sm:p-6 lg:p-8">
         <div className="max-w-5xl mx-auto space-y-6">
-          <OffboardingHeader currentStep={5} />
+          <OffboardingHeader currentStep={3} />
           <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700/80 rounded-2xl shadow-soft p-12">
             <div className="flex flex-col items-center justify-center gap-4">
               <div className="w-12 h-12 border-4 border-green-500 border-t-transparent rounded-full animate-spin"></div>
@@ -240,7 +241,10 @@ const ExitInterview = () => {
       <div className="max-w-5xl mx-auto space-y-6">
 
         {/* SaaS Offboarding Header */}
-        <OffboardingHeader currentStep={5} />
+        <OffboardingHeader currentStep={3} />
+        
+        {/* Progress Box */}
+        <OffboardingProgressBox currentStep={3} />
 
         {/* Main Content Card */}
         <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700/80 rounded-2xl shadow-soft p-6 sm:p-8 space-y-8">
@@ -274,52 +278,7 @@ const ExitInterview = () => {
             </div>
           </div>
 
-          {/* Overall Progress Section */}
-          <div className="space-y-4 p-4 bg-gray-50 dark:bg-gray-900/30 rounded-xl">
-            <div className="flex justify-between items-center">
-              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                Offboarding Progress
-              </h3>
-              <span className="text-sm font-bold text-green-600 dark:text-green-400">
-                {apiProgressPercentage}%
-              </span>
-            </div>
-            <div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-              <div 
-                className="h-full bg-green-500 transition-all duration-500"
-                style={{ width: `${apiProgressPercentage}%` }}
-              />
-            </div>
-            <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400">
-              <span>Completed Steps: {completedStepsFromApi}</span>
-              <span>Total Steps: {totalStepsFromApi}</span>
-            </div>
-            
-            {/* Steps Status */}
-            {currentProgress && currentProgress.steps && currentProgress.steps.length > 0 && (
-              <div className="mt-2 pt-2 border-t border-gray-200 dark:border-gray-700">
-                <h4 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-2">
-                  Step Status
-                </h4>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                  {currentProgress.steps.map((step, index) => (
-                    <div key={index} className="flex items-center gap-1.5">
-                      <div className={`w-1.5 h-1.5 rounded-full ${
-                        step.status === "completed"
-                          ? "bg-green-500"
-                          : step.status === "in_progress"
-                          ? "bg-blue-500 animate-pulse"
-                          : "bg-gray-300 dark:bg-gray-600"
-                      }`} />
-                      <span className="text-xs text-gray-600 dark:text-gray-400">
-                        {step.name}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
+
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-8">
@@ -327,7 +286,7 @@ const ExitInterview = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
               
               {/* Interview Details Section */}
-              <div className="space-y-6 md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-6 bg-gray-50/50 dark:bg-gray-900/50 p-5 rounded-xl border border-gray-100 dark:border-gray-700/50">
+              <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-6 bg-gray-50/50 dark:bg-gray-900/50 p-5 rounded-xl border border-gray-100 dark:border-gray-700/50 items-start">
                 <div className="space-y-1.5">
                   <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
                     Interviewer
@@ -369,6 +328,12 @@ const ExitInterview = () => {
               </div>
 
               {/* Core Feedback Section */}
+              <div className="md:col-span-2 mt-4 mb-2">
+                <h3 className="text-lg font-bold text-gray-800 dark:text-gray-200 border-b border-gray-100 dark:border-gray-700 pb-2">
+                  Employee Feedback
+                </h3>
+              </div>
+
               <div className="space-y-1.5">
                 <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
                   Overall satisfaction

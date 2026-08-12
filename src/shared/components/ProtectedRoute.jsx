@@ -1,15 +1,61 @@
 import { Navigate, Outlet } from "react-router-dom";
 import { useSelector } from "react-redux";
 import Loader from "../../admin/components/common/Loader";
+import { clearAllTokens } from "../../utils/apiClient"; // Import the function
 
 const ProtectedRoute = ({ requiredType, requiredPermission, children }) => {
   const { isAuthenticated, loading, user } = useSelector((state) => state.auth);
+
+ // ProtectedRoute.jsx - Update validation
+
+const validateTokenConsistency = () => {
+  // Check all possible token keys
+  const tokenKeys = ['admin-token', 'hr-token', 'employee-token', 'auth-token'];
+  let foundToken = null;
+  let foundType = null;
+  
+  for (const key of tokenKeys) {
+    const token = localStorage.getItem(key);
+    if (token && token !== 'null' && token !== 'undefined') {
+      foundToken = token;
+      if (key !== 'auth-token') {
+        foundType = key.replace('-token', '');
+      }
+      break;
+    }
+  }
+  
+  // If no token found, validation fails
+  if (!foundToken) {
+    return false;
+  }
+  
+  // If user is loaded, check type matches
+  if (user?.type) {
+    const tokenKey = `${user.type}-token`;
+    const hasCorrectToken = localStorage.getItem(tokenKey);
+    
+    // If user type doesn't match the found token type
+    if (foundType && user.type !== foundType) {
+      // Try to migrate: if we have the correct token type
+      if (hasCorrectToken) {
+        localStorage.setItem('active-user-type', user.type);
+        return true;
+      }
+      return false;
+    }
+  }
+  
+  return true;
+};
 
   if (loading) {
     return <Loader fullScreen />;
   }
 
-  if (!isAuthenticated) {
+  if (!isAuthenticated || !validateTokenConsistency()) {
+    // Use clearAllTokens to properly clear everything
+    clearAllTokens();
     return <Navigate to="/login" replace />;
   }
 
@@ -28,7 +74,6 @@ const ProtectedRoute = ({ requiredType, requiredPermission, children }) => {
     if (isAdmin || isHR) {
       return "/admin/dashboard";
     }
-    // Managers, Team Leads, and Employees go to employee dashboard
     return "/employee/dashboard";
   };
 
@@ -49,7 +94,6 @@ const ProtectedRoute = ({ requiredType, requiredPermission, children }) => {
       hasRequiredType = user?.type === requiredType;
     }
 
-    // If user doesn't have required type, redirect to their dashboard
     if (!hasRequiredType) {
       const redirectPath = getUserDashboard();
       return <Navigate to={redirectPath} replace />;
@@ -62,7 +106,7 @@ const ProtectedRoute = ({ requiredType, requiredPermission, children }) => {
     const hasPermission = 
       permissions[requiredPermission]?.read === true || 
       permissions.all === true ||
-      isAdmin; // Admin always has all permissions
+      isAdmin;
     
     if (!hasPermission) {
       const redirectPath = getUserDashboard();

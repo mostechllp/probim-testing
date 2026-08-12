@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { showToast } from "../common/Toast";
 import OffboardingHeader from "./OffboardingHeader";
+import OffboardingProgressBox from "./OffboardingProgressBox";
 import { fetchOffboardingById, updateSettlement, fetchOffboardingProgress } from "../../store/slices/offboardingSlice";
 import { fetchEmployeeById } from "../../store/slices/employeeSlice";
 import ConfirmModal from "../common/ConfirmModal";
@@ -416,7 +417,10 @@ const FinalSettlement = () => {
       <div className="max-w-5xl mx-auto space-y-6">
 
         {/* SaaS Offboarding Header */}
-        <OffboardingHeader currentStep={6} />
+        <OffboardingHeader currentStep={5} />
+        
+        {/* Progress Box */}
+        <OffboardingProgressBox currentStep={5} />
 
         {/* Main Content Card */}
         <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700/80 rounded-2xl shadow-soft p-6 sm:p-8 space-y-8">
@@ -451,27 +455,7 @@ const FinalSettlement = () => {
             </div>
           </div>
 
-          {/* Overall Progress Section */}
-          <div className="space-y-4 p-4 bg-gray-50 dark:bg-gray-900/30 rounded-xl">
-            <div className="flex justify-between items-center">
-              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                Offboarding Progress
-              </h3>
-              <span className="text-sm font-bold text-green-600 dark:text-green-400">
-                {apiProgressPercentage}%
-              </span>
-            </div>
-            <div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-              <div 
-                className="h-full bg-green-500 transition-all duration-500"
-                style={{ width: `${apiProgressPercentage}%` }}
-              />
-            </div>
-            <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400">
-              <span>Completed Steps: {completedStepsFromApi}</span>
-              <span>Total Steps: {totalStepsFromApi}</span>
-            </div>
-          </div>
+
 
           {/* Salary Components Section */}
           <section className="space-y-4">

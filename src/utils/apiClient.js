@@ -19,13 +19,12 @@ export const getStorageUrl = (path) => {
 };
 
 // ---- Token storage helpers -------------------------------------------
-// Same three login flows as before, but funneled through one place so a
-// refresh always writes back to the exact key it was read from.
-const TOKEN_KEYS = ['employee-token', 'auth-token', 'hr-token'];
+// IMPORTANT: Include ALL token types
+const TOKEN_KEYS = ['admin-token', 'employee-token', 'auth-token', 'hr-token'];
 
 const isEmptyToken = (value) => !value || value === 'null' || value === 'undefined';
 
-const getActiveTokenKey = () =>
+export const getActiveTokenKey = () =>
   TOKEN_KEYS.find((key) => !isEmptyToken(localStorage.getItem(key)));
 
 const getToken = () => {
@@ -39,6 +38,8 @@ const persistToken = (newToken) => {
 };
 
 const clearAuthAndRedirect = () => {
+  // Clear ALL token types
+  localStorage.removeItem('admin-token');
   localStorage.removeItem('auth-token');
   localStorage.removeItem('user-type');
   localStorage.removeItem('user-data');
@@ -49,10 +50,10 @@ const clearAuthAndRedirect = () => {
   localStorage.removeItem('remember-me');
   localStorage.removeItem('remembered-email');
   localStorage.removeItem('userType');
-  // Let the app react (router redirect, toast, etc.) instead of forcing a
-  // hard navigation from inside the API layer.
+  localStorage.removeItem('active-user-type');
+  
+  // Dispatch event for the app to handle
   window.dispatchEvent(new CustomEvent('auth-expired'));
-  // window.location.href = '/Mostech-HRMS/';
 };
 
 // ---- JWT helpers (no extra dependency needed) --------------------------
@@ -74,14 +75,11 @@ const decodeJwt = (token) => {
 
 const isExpiringSoon = (token, bufferSeconds = 30) => {
   const payload = decodeJwt(token);
-  if (!payload?.exp) return false; // can't read exp, don't block the request
+  if (!payload?.exp) return false;
   return Date.now() >= payload.exp * 1000 - bufferSeconds * 1000;
 };
 
 // ---- Shared refresh logic ------------------------------------------------
-// Both the proactive (before-request) and reactive (on-401) paths call this.
-// Only one network call to /auth/refresh is ever in flight at a time; every
-// other caller just awaits the same promise instead of firing its own.
 let refreshPromise = null;
 
 const doRefresh = async () => {
@@ -131,6 +129,42 @@ const refreshAccessToken = () => {
   return refreshPromise;
 };
 
+// Get token based on user type
+export const getAuthToken = (userType) => {
+  if (userType) {
+    return localStorage.getItem(`${userType}-token`);
+  }
+  // Fallback to active user type
+  const activeType = localStorage.getItem('active-user-type');
+  if (activeType) {
+    return localStorage.getItem(`${activeType}-token`);
+  }
+  // Last resort: check all tokens
+  return getToken();
+};
+
+// Clear all tokens
+export const clearAllTokens = () => {
+  ['admin-token', 'hr-token', 'employee-token', 'auth-token'].forEach(key => {
+    localStorage.removeItem(key);
+  });
+  localStorage.removeItem('active-user-type');
+  localStorage.removeItem('user-type');
+  delete apiClient.defaults.headers.common.Authorization;
+  console.log('🧹 All tokens cleared');
+};
+
+// Set token with user type
+export const setAuthToken = (token, userType) => {
+  if (!token || !userType) return;
+  
+  const key = `${userType}-token`;
+  localStorage.setItem(key, token);
+  localStorage.setItem('active-user-type', userType);
+  apiClient.defaults.headers.common.Authorization = `Bearer ${token}`;
+  console.log(`🔑 Token set for ${userType}`);
+};
+
 // ---- Request interceptor: refresh BEFORE the token actually expires ------
 apiClient.interceptors.request.use(
   async (config) => {
@@ -161,8 +195,7 @@ apiClient.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// ---- Response interceptor: fallback for what proactive refresh can't
-// catch (clock skew, app reopened after the token already expired) --------
+// ---- Response interceptor: fallback for what proactive refresh can't catch --------
 apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {

@@ -5,11 +5,11 @@ import { useNavigate, useLocation } from "react-router-dom";
 const STEPS = [
   { id: 1, label: "Initiation", subtitle: "Start Process", path: "/admin/employees/offboarding-initiation" },
   { id: 2, label: "Visa Cancel", subtitle: "Visa Processing", path: "/admin/employees/visa-cancellation" },
-  { id: 3, label: "Checklist", subtitle: "Verification", path: "/admin/employees/offboarding-checklist" },
-  { id: 4, label: "Interview", subtitle: "Exit Session", path: "/admin/employees/exit-interview" },
-  { id: 5, label: "Assets", subtitle: "Asset Return", path: "/admin/employees/asset-return" },
-  { id: 6, label: "Settlement", subtitle: "Final Payment", path: "/admin/employees/final-settlement" },
-  { id: 7, label: "Letters", subtitle: "Clearance", path: "/admin/employees/letters-and-clearance" },
+  { id: 3, label: "Interview", subtitle: "Exit Session", path: "/admin/employees/exit-interview" },
+  { id: 4, label: "Assets", subtitle: "Asset Return", path: "/admin/employees/asset-return" },
+  { id: 5, label: "Settlement", subtitle: "Final Payment", path: "/admin/employees/final-settlement" },
+  { id: 6, label: "Letters", subtitle: "Clearance", path: "/admin/employees/letters-and-clearance" },
+  { id: 7, label: "Checklist", subtitle: "Verification", path: "/admin/employees/offboarding-checklist" },
 ];
 
 const OffboardingHeader = ({ currentStep }) => {

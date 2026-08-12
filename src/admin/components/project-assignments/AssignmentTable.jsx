@@ -439,6 +439,25 @@ const AssignmentTable = ({
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerEmployee, setDrawerEmployee] = useState(null);
 
+  // Sort options for dropdown
+  const sortOptions = [
+    { value: "employeeName_asc", label: "Name (A-Z)" },
+    { value: "employeeName_desc", label: "Name (Z-A)" },
+    { value: "projectCount_asc", label: "Fewest Projects" },
+    { value: "projectCount_desc", label: "Most Projects" },
+  ];
+
+  const handleSortChange = (e) => {
+    const [field, direction] = e.target.value.split("_");
+    setSortField(field);
+    setSortDirection(direction);
+  };
+
+  // Get current sort value for dropdown
+  const getCurrentSortValue = () => {
+    return `${sortField}_${sortDirection}`;
+  };
+
   // In AssignmentTable.jsx - fullAssignments mapping
   const fullAssignments = useMemo(() => {
     if (!assignments || !Array.isArray(assignments)) {
@@ -644,24 +663,44 @@ const AssignmentTable = ({
           </span>
         </div>
 
-        {/* Global Filter Input */}
-        <div className="relative w-full md:w-80">
-          <input
-            type="text"
-            placeholder="Search employee, ID or assigned projects..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 text-xs rounded-xl border border-gray-250 dark:border-gray-600 bg-gray-55 dark:bg-gray-750 text-gray-800 dark:text-gray-200 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 focus:bg-white dark:focus:bg-gray-800 transition-all placeholder:text-gray-400"
-          />
-          <i className="fas fa-search absolute left-3 top-3 text-gray-400 text-xs"></i>
-          {searchTerm && (
-            <button
-              onClick={() => setSearchTerm("")}
-              className="absolute right-3 top-2.5 text-gray-400 hover:text-red-500"
+        {/* Sort Dropdown and Search */}
+        <div className="flex items-center gap-3 w-full md:w-auto">
+          {/* Sort Dropdown */}
+          <div className="relative">
+            <select
+              value={getCurrentSortValue()}
+              onChange={handleSortChange}
+              className="pl-9 pr-8 py-2 text-xs rounded-xl border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700/30 text-gray-700 dark:text-gray-300 font-medium focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 focus:bg-white dark:focus:bg-gray-800 transition-all appearance-none cursor-pointer min-w-[140px]"
             >
-              <i className="fas fa-times text-xs"></i>
-            </button>
-          )}
+              {sortOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            <i className="fas fa-sort absolute left-3 top-2.5 text-gray-400 text-xs"></i>
+            <i className="fas fa-chevron-down absolute right-3 top-2.5 text-gray-400 text-[10px] pointer-events-none"></i>
+          </div>
+
+          {/* Global Filter Input */}
+          <div className="relative w-full md:w-64">
+            <input
+              type="text"
+              placeholder="Search employee, ID or projects..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-9 pr-4 py-2 text-xs rounded-xl border border-gray-250 dark:border-gray-600 bg-gray-55 dark:bg-gray-750 text-gray-800 dark:text-gray-200 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 focus:bg-white dark:focus:bg-gray-800 transition-all placeholder:text-gray-400"
+            />
+            <i className="fas fa-search absolute left-3 top-3 text-gray-400 text-xs"></i>
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm("")}
+                className="absolute right-3 top-2.5 text-gray-400 hover:text-red-500"
+              >
+                <i className="fas fa-times text-xs"></i>
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -692,8 +731,16 @@ const AssignmentTable = ({
                   ></i>
                 )}
               </th>
-              <th className="px-6 py-4 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider select-none whitespace-nowrap">
+              <th
+                onClick={() => handleSort("projectCount")}
+                className="px-6 py-4 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider cursor-pointer hover:bg-gray-100/50 dark:hover:bg-gray-700/30 select-none whitespace-nowrap transition-colors"
+              >
                 Assigned {PROJECT_MODULE_NAME}s
+                {sortField === "projectCount" && (
+                  <i
+                    className={`fas fa-sort-amount-${sortDirection === "asc" ? "up" : "down"} text-green-500 ml-1.5`}
+                  ></i>
+                )}
               </th>
               <th className="px-6 py-4 text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider select-none text-right whitespace-nowrap">
                 Actions
@@ -796,12 +843,17 @@ const AssignmentTable = ({
                     </span>
                   </td>
 
-                  {/* Assigned Tags List */}
+                  {/* Assigned Tags List with Count */}
                   <td className="px-6 py-4">
-                    <ProjectTags
-                      projectIds={assign.projectIds}
-                      projectsList={projects}
-                    />
+                    <div className="flex items-center gap-2">
+                      <ProjectTags
+                        projectIds={assign.projectIds}
+                        projectsList={projects}
+                      />
+                      <span className="text-xs text-gray-400 font-medium ml-1">
+                        ({assign.projectCount})
+                      </span>
+                    </div>
                   </td>
 
                   {/* Actions Column */}

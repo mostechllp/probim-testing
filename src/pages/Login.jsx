@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { clearError, loginUser, setRememberMe, requestPasswordReset, resetPassword } from "../store/slices/authSlice";
 import { showToast } from "../components/common/Toast";
 import { useAppTheme } from "../context/ThemeContext";
+import apiClient, { clearAllTokens } from "../utils/apiClient";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -18,16 +19,124 @@ const Login = () => {
   const [isResetting, setIsResetting] = useState(false);
   const [isRequestingCode, setIsRequestingCode] = useState(false);
   const [codeSent, setCodeSent] = useState(false);
-  const [resetStep, setResetStep] = useState(1); // 1 = request code, 2 = enter code & new password
+  const [resetStep, setResetStep] = useState(1);
 
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const { loading, error, isAuthenticated, userType } = useSelector(
+  const { loading, error, isAuthenticated, userType, user } = useSelector(
     (state) => state.auth
   );
   
   const { primaryColor } = useAppTheme();
 
+  // --- Token Cleanup on Mount ---
+  useEffect(() => {
+    // Check for stale tokens
+    const hasAdminToken = localStorage.getItem('admin-token');
+    const hasHrToken = localStorage.getItem('hr-token');
+    const hasEmployeeToken = localStorage.getItem('employee-token');
+    const activeType = localStorage.getItem('active-user-type');
+    
+    console.log('🔑 Tokens found:', { 
+      admin: !!hasAdminToken, 
+      hr: !!hasHrToken, 
+      employee: !!hasEmployeeToken,
+      activeType 
+    });
+    
+    // If there are tokens but no active type, clear everything
+    if ((hasAdminToken || hasHrToken || hasEmployeeToken) && !activeType) {
+      clearAllTokens();
+      localStorage.removeItem('remember-me');
+      localStorage.removeItem('remembered-email');
+      localStorage.removeItem('user-type');
+    }
+  }, []);
+
+  // Load remembered email if exists
+  useEffect(() => {
+    const remembered = localStorage.getItem("remember-me") === "true";
+    const savedEmail = localStorage.getItem("remembered-email");
+    if (remembered && savedEmail) {
+      setEmail(savedEmail);
+      setRememberMeState(true);
+    }
+  }, []);
+
+  // Redirect based on user type after successful login
+  useEffect(() => {
+    console.log('🔄 Redirect effect triggered:', { isAuthenticated, userType, user });
+    
+    if (isAuthenticated && userType) {
+      // Check if token exists for this user type
+      const tokenKey = `${userType}-token`;
+      const tokenExists = localStorage.getItem(tokenKey);
+      const activeType = localStorage.getItem('active-user-type');
+      
+      console.log('🔍 Token check:', { tokenKey, tokenExists, activeType });
+      
+      if (!tokenExists || (activeType && activeType !== userType)) {
+        console.warn('⚠️ Token mismatch or missing, clearing and redirecting to login');
+        clearAllTokens();
+        localStorage.removeItem('user-type');
+        navigate('/login', { replace: true });
+        return;
+      }
+      
+      const redirectPath = userType === "admin" ? "/admin/dashboard" : "/employee/dashboard";
+      console.log(`✅ Redirecting to: ${redirectPath}`);
+      navigate(redirectPath, { replace: true });
+    }
+  }, [isAuthenticated, userType, user, navigate]);
+
+  // Show error toast if login fails
+  useEffect(() => {
+    if (error) {
+      showToast(error, "error");
+      dispatch(clearError());
+    }
+  }, [error, dispatch]);
+
+
+const handleSubmit = async (e) => {
+  e.preventDefault();
+
+  if (!email || !password) {
+    showToast("Please fill in all fields", "error");
+    return;
+  }
+
+  // Clear all existing tokens before login
+  clearAllTokens();
+  localStorage.removeItem('user-type');
+  localStorage.removeItem('active-user-type');
+  
+  // Store remember me preference
+  dispatch(setRememberMe(rememberMe));
+  
+  try {
+    console.log('📤 Attempting login for:', email);
+    const result = await dispatch(loginUser({ email, password })).unwrap();
+    
+    console.log('📥 Login response:', result);
+    
+    // The loginUser thunk already handles token storage
+    // No need to store tokens again here
+    
+    // Force navigation
+    const userType = result.user?.type;
+    if (userType) {
+      const redirectPath = userType === "admin" ? "/admin/dashboard" : "/employee/dashboard";
+      setTimeout(() => {
+        navigate(redirectPath, { replace: true });
+      }, 100);
+    }
+    
+  } catch (error) {
+    console.log('❌ Login failed:', error);
+  }
+};
+  
   const adjustColor = (color, percent) => {
     let r, g, b;
     if (color.startsWith('#')) {
@@ -46,44 +155,6 @@ const Login = () => {
   };
 
   const darkerColor = adjustColor(primaryColor, -15);
-
-  // Load remembered email if exists
-  useEffect(() => {
-    const remembered = localStorage.getItem("remember-me") === "true";
-    const savedEmail = localStorage.getItem("remembered-email");
-    if (remembered && savedEmail) {
-      setEmail(savedEmail);
-      setRememberMeState(true);
-    }
-  }, []);
-
-  // Redirect based on user type after successful login
-  useEffect(() => {
-    if (isAuthenticated && userType) {
-      const redirectPath = userType === "admin" ? "/admin/dashboard" : "/employee/dashboard";
-      navigate(redirectPath, { replace: true });
-    }
-  }, [isAuthenticated, userType, navigate]);
-
-  // Show error toast if login fails
-  useEffect(() => {
-    if (error) {
-      showToast(error, "error");
-      dispatch(clearError());
-    }
-  }, [error, dispatch]);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-
-    if (!email || !password) {
-      showToast("Please fill in all fields", "error");
-      return;
-    }
-
-    dispatch(setRememberMe(rememberMe));
-    await dispatch(loginUser({ email, password }));
-  };
 
   const handleForgotPassword = () => {
     setResetEmail(email || "");
@@ -151,7 +222,6 @@ const Login = () => {
     }
   };
 
-  // Close modal on ESC key
   useEffect(() => {
     const handleEsc = (event) => {
       if (event.key === 'Escape' && showForgotPassword) {
@@ -164,7 +234,9 @@ const Login = () => {
     return () => document.removeEventListener('keydown', handleEsc);
   }, [showForgotPassword]);
 
+  // ... (JSX remains the same)
   return (
+    // Your existing JSX here...
     <div className="min-h-screen flex">
       {/* Left Side - Branding */}
       <div 

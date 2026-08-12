@@ -12,6 +12,7 @@ import ProtectedRoute from "./shared/components/ProtectedRoute";
 import Login from "./pages/Login";
 import { ThemeProvider } from "./context/ThemeContext";
 import NotFound from "./pages/NotFound";
+import apiClient from "./utils/apiClient";
 
 // Lazy load layouts with prefetch
 const AdminLayout = lazy(() => import("./shared/layouts/AdminLayout"));
@@ -191,6 +192,41 @@ function App() {
     }, 500);
     return () => clearTimeout(timer);
   }, []);
+  // In App.jsx - add this after the other useEffects
+
+useEffect(() => {
+  // Session recovery on app load
+  const recoverSession = () => {
+    const tokenKeys = ['admin-token', 'hr-token', 'employee-token', 'auth-token'];
+    let foundToken = null;
+    let foundType = null;
+    
+    for (const key of tokenKeys) {
+      const token = localStorage.getItem(key);
+      if (token && token !== 'null' && token !== 'undefined') {
+        foundToken = token;
+        if (key !== 'auth-token') {
+          foundType = key.replace('-token', '');
+        }
+        break;
+      }
+    }
+    
+    if (foundToken) {
+      // Set active user type if not set
+      if (!localStorage.getItem('active-user-type') && foundType) {
+        localStorage.setItem('active-user-type', foundType);
+        localStorage.setItem('user-type', foundType);
+      }
+      
+      // Set authorization header
+      apiClient.defaults.headers.common.Authorization = `Bearer ${foundToken}`;
+      console.log(`🔄 Session recovered with token type: ${foundType || 'unknown'}`);
+    }
+  };
+  
+  recoverSession();
+}, []);
 
   // Show only one loader during initial auth check
   if (authLoading && initialLoad) {

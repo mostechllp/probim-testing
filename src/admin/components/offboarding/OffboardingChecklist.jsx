@@ -18,6 +18,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { showToast } from "../common/Toast";
 import OffboardingHeader from "./OffboardingHeader";
+import OffboardingProgressBox from "./OffboardingProgressBox";
 import { fetchOffboardingById, fetchOffboardingProgress } from "../../store/slices/offboardingSlice";
 import { fetchEmployeeById } from "../../store/slices/employeeSlice";
 import {
@@ -131,13 +132,13 @@ const OffboardingChecklist = () => {
   // Filter out visa-related categories
   useEffect(() => {
     if (
-      categories.length > 0 &&
-      checklists.length >= 0 &&
       !categoriesLoading &&
       !checklistLoading
     ) {
+      const safeCategories = categories || [];
+      const safeChecklists = checklists || [];
       // Filter out categories that are visa-related
-      const filteredCategories = categories.filter((category) => {
+      const filteredCategories = safeCategories.filter((category) => {
         const name = category.name?.toLowerCase() || "";
         // Exclude visa cancellation, visa, cancellation related categories
         return !name.includes("visa") && !name.includes("cancellation");
@@ -147,7 +148,7 @@ const OffboardingChecklist = () => {
         id: category.id,
         title: category.name,
         icon: getCategoryIcon(category.name),
-        tasks: checklists
+        tasks: safeChecklists
           .filter((task) => task.category_id === category.id)
           .map((task) => ({
             id: task.id,
@@ -370,12 +371,10 @@ const OffboardingChecklist = () => {
     setIsSubmitting(true);
 
     try {
-      showToast("Checklist progress saved successfully", "success");
+      showToast("Offboarding completed successfully!", "success");
 
       setTimeout(() => {
-        navigate(
-          `/admin/employees/asset-return?id=${offboardingId || localStorage.getItem("offboarding_id")}`,
-        );
+        navigate("/admin/employees/offboarding");
       }, 1000);
     } catch (error) {
       console.error("Save checklist error:", error);
@@ -420,7 +419,7 @@ const OffboardingChecklist = () => {
     return (
       <div className="min-h-screen bg-gray-50/30 dark:bg-gray-900/40 p-4 sm:p-6 lg:p-8">
         <div className="max-w-5xl mx-auto space-y-6">
-          <OffboardingHeader currentStep={3} />
+          <OffboardingHeader currentStep={7} />
           <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700/80 rounded-2xl shadow-soft p-12">
             <div className="flex flex-col items-center justify-center gap-4">
               <div className="w-12 h-12 border-4 border-green-500 border-t-transparent rounded-full animate-spin"></div>
@@ -437,7 +436,8 @@ const OffboardingChecklist = () => {
   return (
     <div className="min-h-screen bg-gray-50/30 dark:bg-gray-900/40 p-4 sm:p-6 lg:p-8">
       <div className="max-w-5xl mx-auto space-y-6">
-        <OffboardingHeader currentStep={3} />
+        <OffboardingHeader currentStep={7} />
+        <OffboardingProgressBox currentStep={7} />
 
         <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700/80 rounded-2xl shadow-soft p-6 sm:p-8 space-y-8">
           {/* Header Title with Progress Summary */}
@@ -474,51 +474,7 @@ const OffboardingChecklist = () => {
               </div>
             </div>
 
-            {/* Overall Progress Bar from API */}
-            <div className="space-y-2">
-              <div className="flex justify-between text-xs font-bold">
-                <span className="text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                  Overall Offboarding Progress
-                </span>
-                <span className="text-green-600 dark:text-green-400">
-                  {displayProgressPercentage}%
-                </span>
-              </div>
-              <div className="w-full h-2.5 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-green-500 dark:bg-green-600 transition-all duration-500 ease-out"
-                  style={{ width: `${displayProgressPercentage}%` }}
-                ></div>
-              </div>
-            </div>
 
-            {/* Steps Status from API */}
-            {currentProgress && currentProgress.steps && currentProgress.steps.length > 0 && (
-              <div className="mt-4 p-4 bg-gray-50 dark:bg-gray-900/30 rounded-xl">
-                <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">
-                  Offboarding Steps Status
-                </h3>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                  {currentProgress.steps.map((step, index) => (
-                    <div key={index} className="flex items-center gap-2">
-                      <div className={`w-2 h-2 rounded-full ${
-                        step.status === "completed"
-                          ? "bg-green-500"
-                          : step.status === "in_progress"
-                          ? "bg-blue-500 animate-pulse"
-                          : "bg-gray-300 dark:bg-gray-600"
-                      }`} />
-                      <span className="text-xs text-gray-600 dark:text-gray-400">
-                        {step.name}
-                      </span>
-                      {step.status === "completed" && (
-                        <CheckCircle2 size={12} className="text-green-500" />
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
 
           {/* Checklist Sections */}
@@ -685,7 +641,7 @@ const OffboardingChecklist = () => {
                 ) : (
                   <>
                     <Save size={18} />
-                    Save checklist
+                    Complete Offboarding
                   </>
                 )}
               </button>

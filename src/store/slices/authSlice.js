@@ -2,6 +2,8 @@ import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import apiClient from "../../utils/apiClient"; 
 
 // Update the loginUser thunk
+// authSlice.js - Update the loginUser thunk
+
 export const loginUser = createAsyncThunk(
   "auth/login",
   async ({ email, password }, { rejectWithValue }) => {
@@ -13,20 +15,16 @@ export const loginUser = createAsyncThunk(
 
       const data = response.data.data;
       const { access_token, user } = data;
-
-      // Store unified token
-      localStorage.setItem("auth-token", access_token);
+      
+      // Store token with type-specific key (matches apiClient)
+      const tokenKey = `${user.type}-token`;
+      localStorage.setItem(tokenKey, access_token);
+      localStorage.setItem("active-user-type", user.type);
       localStorage.setItem("user-type", user.type);
       localStorage.setItem("user-data", JSON.stringify(user));
 
-      // Store role-specific tokens for backward compatibility
-      if (user.type === "admin") {
-        localStorage.setItem("hr-token", access_token);
-        localStorage.setItem("hr-user", JSON.stringify(user));
-      } else if (user.type === "employee") {
-        localStorage.setItem("employee-token", access_token);
-        localStorage.setItem("employee-user", JSON.stringify(user));
-      }
+      // Also store as auth-token for backward compatibility
+      localStorage.setItem("auth-token", access_token);
 
       // Store remember me info if checked
       if (typeof window !== 'undefined') {
@@ -43,6 +41,124 @@ export const loginUser = createAsyncThunk(
     }
   }
 );
+
+// Update logoutUser to clear all token types
+export const logoutUser = createAsyncThunk("auth/logout", async () => {
+  // Clear all token types
+  ['admin-token', 'hr-token', 'employee-token', 'auth-token'].forEach(key => {
+    localStorage.removeItem(key);
+  });
+  localStorage.removeItem("user-type");
+  localStorage.removeItem("user-data");
+  localStorage.removeItem("active-user-type");
+  localStorage.removeItem("remember-me");
+  localStorage.removeItem("remembered-email");
+  localStorage.removeItem("hr-user");
+  localStorage.removeItem("employee-user");
+  return null;
+});
+
+// Update initializeAuth to check all token types
+export const initializeAuth = createAsyncThunk(
+  "auth/initialize",
+  async (_, { rejectWithValue }) => {
+    // Check for any token
+    const tokenKeys = ['admin-token', 'hr-token', 'employee-token', 'auth-token'];
+    let token = null;
+    let userType = null;
+    
+    for (const key of tokenKeys) {
+      const t = localStorage.getItem(key);
+      if (t && t !== 'null' && t !== 'undefined') {
+        token = t;
+        if (key !== 'auth-token') {
+          userType = key.replace('-token', '');
+        }
+        break;
+      }
+    }
+    
+    if (!token) {
+      return rejectWithValue("No token");
+    }
+
+    try {
+      const response = await apiClient.get("/auth/me");
+      const userData = response.data.data;
+      
+      // Ensure token is stored with proper key
+      const type = userData.user?.type || userType || 'admin';
+      const tokenKey = `${type}-token`;
+      localStorage.setItem(tokenKey, token);
+      localStorage.setItem("active-user-type", type);
+      localStorage.setItem("user-type", type);
+      localStorage.setItem("user-data", JSON.stringify(userData));
+      
+      return userData;
+    } catch {
+      // Token is invalid/expired — clear everything
+      ['admin-token', 'hr-token', 'employee-token', 'auth-token'].forEach(key => {
+        localStorage.removeItem(key);
+      });
+      localStorage.removeItem("user-type");
+      localStorage.removeItem("user-data");
+      localStorage.removeItem("active-user-type");
+      localStorage.removeItem("hr-user");
+      localStorage.removeItem("employee-user");
+      return rejectWithValue("Invalid token");
+    }
+  }
+);
+
+// Update getUserFromStorage to check all token types
+const getUserFromStorage = () => {
+  const userData = localStorage.getItem("user-data");
+  if (userData) {
+    const user = JSON.parse(userData);
+    return {
+      ...user,
+      name: user.employee?.name || user.username || user.name,
+    };
+  }
+  return null;
+};
+
+// Update initialState to check all token types
+const getTokenFromStorage = () => {
+  const tokenKeys = ['admin-token', 'hr-token', 'employee-token', 'auth-token'];
+  for (const key of tokenKeys) {
+    const token = localStorage.getItem(key);
+    if (token && token !== 'null' && token !== 'undefined') {
+      return token;
+    }
+  }
+  return null;
+};
+
+const getUserTypeFromStorage = () => {
+  const type = localStorage.getItem("user-type");
+  if (type) return type;
+  
+  // Try to infer from token type
+  const tokenKeys = ['admin-token', 'hr-token', 'employee-token'];
+  for (const key of tokenKeys) {
+    if (localStorage.getItem(key)) {
+      return key.replace('-token', '');
+    }
+  }
+  return null;
+};
+
+const initialState = {
+  user: getUserFromStorage(),
+  token: getTokenFromStorage(),
+  userType: getUserTypeFromStorage(),
+  isAuthenticated: !!getTokenFromStorage(),
+  loading: false,
+  error: null,
+  profileUpdateLoading: false,
+  profileUpdateError: null,
+};
 
 // ─── Request Password Reset (Step 1) ──────────────────────────────────────
 export const requestPasswordReset = createAsyncThunk(
@@ -108,43 +224,7 @@ export const resetPassword = createAsyncThunk(
   }
 );
 
-export const logoutUser = createAsyncThunk("auth/logout", async () => {
-  // Clear all storage
-  localStorage.removeItem("auth-token");
-  localStorage.removeItem("user-type");
-  localStorage.removeItem("user-data");
-  localStorage.removeItem("hr-token");
-  localStorage.removeItem("hr-user");
-  localStorage.removeItem("employee-token");
-  localStorage.removeItem("employee-user");
-  localStorage.removeItem("remember-me");
-  localStorage.removeItem("remembered-email");
 
-  return null;
-});
-
-export const initializeAuth = createAsyncThunk(
-  "auth/initialize",
-  async (_, { rejectWithValue }) => {
-    const token = localStorage.getItem("auth-token");
-    if (!token) return rejectWithValue("No token");
-
-    try {
-      const response = await apiClient.get("/auth/me"); // or whatever your verify endpoint is
-      return response.data.data;
-    } catch {
-      // Token is invalid/expired — clear everything
-      localStorage.removeItem("auth-token");
-      localStorage.removeItem("user-type");
-      localStorage.removeItem("user-data");
-      localStorage.removeItem("hr-token");
-      localStorage.removeItem("hr-user");
-      localStorage.removeItem("employee-token");
-      localStorage.removeItem("employee-user");
-      return rejectWithValue("Invalid token");
-    }
-  }
-);
 
 // Update user profile
 export const updateUserProfile = createAsyncThunk(
@@ -224,28 +304,6 @@ export const fetchCurrentUser = createAsyncThunk(
   }
 );
 
-const getUserFromStorage = () => {
-  const userData = localStorage.getItem("user-data");
-  if (userData) {
-    const user = JSON.parse(userData);
-    return {
-      ...user,
-      name: user.employee?.name || user.username || user.name,
-    };
-  }
-  return null;
-};
-
-const initialState = {
-  user: getUserFromStorage(),
-  token: localStorage.getItem("auth-token") || null,
-  userType: localStorage.getItem("user-type") || null,
-  isAuthenticated: !!localStorage.getItem("auth-token"),
-  loading: false,
-  error: null,
-  profileUpdateLoading: false,
-  profileUpdateError: null,
-};
 
 const authSlice = createSlice({
   name: "auth",

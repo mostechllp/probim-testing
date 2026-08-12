@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
+import { useNavigate, useLocation, useSearchParams, useParams } from "react-router-dom";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -15,6 +15,7 @@ import { useDispatch, useSelector } from "react-redux";
 import DateInput from "../common/DateInput";
 import { showToast } from "../common/Toast";
 import OffboardingHeader from "./OffboardingHeader";
+import OffboardingProgressBox from "./OffboardingProgressBox";
 import { fetchEmployees } from "../../store/slices/employeeSlice";
 import { fetchDepartments } from "../../store/slices/departmentSlice";
 import { fetchDesignations } from "../../store/slices/designationSlice";
@@ -62,10 +63,15 @@ const offboardingSchema = z.object({
 const OffboardingInitiation = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
+  const { id: paramId } = useParams();
   const location = useLocation();
   const [searchParams] = useSearchParams();
-  const offboardingId = searchParams.get("id");
-  const isEditMode = location.state?.isEdit || offboardingId;
+  
+  // Try to get ID from various sources (params, state, query, or localStorage)
+  const offboardingId = paramId || location.state?.id || searchParams.get('id') || localStorage.getItem("offboarding_id");
+
+  // Determine if we're in edit mode based on URL, state, or localStorage
+  const isEditMode = !!offboardingId || !!location.state?.offboardingData || !!location.state?.isEdit;
 
   const dropdownRef = useRef(null);
   const managerDropdownRef = useRef(null);
@@ -164,7 +170,12 @@ const OffboardingInitiation = () => {
             fetchOffboardingById(offboardingId),
           ).unwrap();
           if (result) {
-            populateFormWithData(result);
+            let currentEmployees = employees;
+            if (!currentEmployees || currentEmployees.length === 0) {
+              const empPayload = await dispatch(fetchEmployees()).unwrap();
+              currentEmployees = empPayload?.data?.data || empPayload?.data || [];
+            }
+            populateFormWithData(result, currentEmployees);
             // Fetch progress to show current step info
             await dispatch(fetchOffboardingProgress(offboardingId));
           }
@@ -186,10 +197,29 @@ const OffboardingInitiation = () => {
 
   // Helper function to populate form with existing data
   // Helper function to populate form with existing data
-  const populateFormWithData = (data) => {
+  const populateFormWithData = (data, currentEmployees = employees) => {
+    console.log("========== populateFormWithData RECEIVED DATA ==========", data);
 
     // Extract employee info from nested object
-    const employeeData = data.employee || {};
+    let employeeData = data.employee || {};
+    let foundFullEmployee = null;
+    
+    // The backend API might not return department, designation, or reporting_manager in the offboarding details response.
+    // Try to find the full employee record from Redux state to get these details!
+    if (currentEmployees && currentEmployees.length > 0) {
+      console.log("Found currentEmployees, length:", currentEmployees.length);
+      foundFullEmployee = currentEmployees.find(emp => emp.id === employeeData.id || emp.id === data.employee_id || String(emp.employee_id) === String(data.employee_id) || String(emp.user_id) === String(employeeData.user_id));
+      if (foundFullEmployee) {
+        console.log("Matched fullEmployee:", foundFullEmployee);
+        employeeData = { ...foundFullEmployee, ...employeeData }; // Merge, preferring any specific data returned by the API if present
+      } else {
+        console.log("Could not match employeeData.id:", employeeData.id, "in currentEmployees.");
+      }
+    } else {
+      console.log("currentEmployees is empty or undefined!");
+    }
+    
+    console.log("Final employeeData:", employeeData);
 
     // Set form values based on actual API response structure
     setValue("employeeId", employeeData.employee_id || data.employee_id || "", {
@@ -210,13 +240,17 @@ const OffboardingInitiation = () => {
 
     // Department from employee or direct
     const departmentName =
-      employeeData.department?.name || data.department || "";
-    setValue("department", departmentName, { shouldValidate: true });
+      employeeData.department?.name || employeeData.department || foundFullEmployee?.department?.name || foundFullEmployee?.department || data.department?.name || data.department || "";
+    const finalDepartment = typeof departmentName === 'object' ? departmentName?.name || "" : departmentName;
+    console.log("Resolved Department:", finalDepartment);
+    setValue("department", finalDepartment, { shouldValidate: true });
 
     // Designation from employee or direct
     const designationName =
-      employeeData.designation?.name || data.designation || "";
-    setValue("designation", designationName, { shouldValidate: true });
+      employeeData.designation?.name || employeeData.designation || foundFullEmployee?.designation?.name || foundFullEmployee?.designation || data.designation?.name || data.designation || "";
+    const finalDesignation = typeof designationName === 'object' ? designationName?.name || "" : designationName;
+    console.log("Resolved Designation:", finalDesignation);
+    setValue("designation", finalDesignation, { shouldValidate: true });
 
     // Email from employee or direct
     const emailAddress =
@@ -224,9 +258,25 @@ const OffboardingInitiation = () => {
     setValue("email", emailAddress, { shouldValidate: true });
 
     // Reporting manager (might not be in this response, keep from data or leave empty)
+    let reportingManagerName = data.reporting_manager?.name || data.reporting_manager?.full_name || data.reporting_manager?.first_name ? `${data.reporting_manager.first_name} ${data.reporting_manager.last_name || ''}`.trim() : data.reporting_manager || data.reportingManager?.name || data.reportingManager || employeeData.reporting_manager?.name || employeeData.reporting_manager || employeeData.reportingManager?.name || employeeData.reportingManager || "";
+    if (typeof reportingManagerName === 'object') {
+      reportingManagerName = reportingManagerName?.name || reportingManagerName?.full_name || reportingManagerName?.first_name ? `${reportingManagerName.first_name} ${reportingManagerName.last_name || ''}`.trim() : "";
+    }
+    
+    // If the backend only returned the ID (e.g., reporting_manager_id: 41) but no object, look it up in the employees list!
+    if (!reportingManagerName && (data.reporting_manager_id || employeeData.reporting_manager_id)) {
+      const managerId = data.reporting_manager_id || employeeData.reporting_manager_id;
+      if (currentEmployees && currentEmployees.length > 0) {
+        const foundManager = currentEmployees.find(emp => String(emp.id) === String(managerId) || String(emp.employee_id) === String(managerId));
+        if (foundManager) {
+          reportingManagerName = foundManager.name || foundManager.full_name || `${foundManager.first_name || ''} ${foundManager.last_name || ''}`.trim();
+        }
+      }
+    }
+    console.log("Resolved Reporting Manager:", reportingManagerName);
     setValue(
       "reportingManager",
-      data.reporting_manager || data.reportingManager || "",
+      reportingManagerName,
       { shouldValidate: true },
     );
     setValue(
@@ -279,7 +329,7 @@ const OffboardingInitiation = () => {
 
     // Set search query values for display
     if (employeeName) setSearchQuery(employeeName);
-    if (data.reporting_manager) setManagerSearchQuery(data.reporting_manager);
+    if (reportingManagerName) setManagerSearchQuery(reportingManagerName);
 
     showToast("Offboarding data loaded successfully", "success");
   };
@@ -443,12 +493,12 @@ const OffboardingInitiation = () => {
 
   // Handle manager selection
   const handleSelectManager = (manager) => {
-    setValue("reportingManager", manager.name, { shouldValidate: true });
-    // The backend might expect the string EMP- identifier instead of the numeric user_id
-    setValue("reportingManagerId", manager.employee_id || manager.id, { shouldValidate: true });
-    setManagerSearchQuery(manager.name);
+    setValue("reportingManager", manager.name || manager.full_name || `${manager.first_name || ''} ${manager.last_name || ''}`.trim(), { shouldValidate: true });
+    // The backend expects the numeric table ID (e.g., 46) NOT the string EMP- identifier!
+    setValue("reportingManagerId", manager.id, { shouldValidate: true });
+    setManagerSearchQuery(manager.name || manager.full_name || `${manager.first_name || ''} ${manager.last_name || ''}`.trim());
     setShowManagerDropdown(false);
-    showToast(`Reporting manager ${manager.name} selected`, "success");
+    showToast(`Reporting manager selected`, "success");
   };
 
   // Handle validation errors when form submit is attempted
@@ -701,6 +751,9 @@ const OffboardingInitiation = () => {
       <div className="max-w-5xl mx-auto space-y-6">
         {/* SaaS Offboarding Header */}
         <OffboardingHeader currentStep={1} />
+        
+        {/* Progress Box */}
+        <OffboardingProgressBox currentStep={1} />
 
         {/* Form Container Card */}
         <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700/80 rounded-2xl shadow-soft p-6 sm:p-8">

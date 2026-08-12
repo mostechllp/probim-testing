@@ -533,6 +533,10 @@ const OffboardingDashboard = () => {
                   className={`px-3 md:px-4 py-1.5 md:py-2 rounded-lg ${card.buttonClass} font-semibold text-xs md:text-sm flex items-center gap-1 md:gap-2 transition-all group-hover:gap-2 md:group-hover:gap-3`}
                   onClick={(e) => {
                     e.stopPropagation();
+                    if (card.path === "/admin/employees/offboarding-initiation") {
+                      localStorage.removeItem("offboarding_id");
+                      localStorage.removeItem("offboarding_draft");
+                    }
                     navigate(card.path);
                   }}
                 >
@@ -553,7 +557,11 @@ const OffboardingDashboard = () => {
             Recent Offboarding Requests
           </h2>
           <button
-            onClick={() => navigate("/admin/employees/offboarding-initiation")}
+            onClick={() => {
+              localStorage.removeItem("offboarding_id");
+              localStorage.removeItem("offboarding_draft");
+              navigate("/admin/employees/offboarding-initiation");
+            }}
             className="text-xs md:text-sm font-semibold text-green-600 dark:text-green-400 hover:text-green-700 flex items-center gap-1"
           >
             View all

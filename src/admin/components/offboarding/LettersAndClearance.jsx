@@ -4,9 +4,10 @@ import { showToast } from "../common/Toast";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import OffboardingHeader from "./OffboardingHeader";
-import { fetchOffboardingById, generateLetters, fetchOffboardingProgress } from "../../store/slices/offboardingSlice";
+import OffboardingProgressBox from "./OffboardingProgressBox";
+import { fetchOffboardingById, generateLetters, fetchOffboardingProgress, updateOffboarding } from "../../store/slices/offboardingSlice";
 import { fetchEmployeeById } from "../../store/slices/employeeSlice";
-import apiClient from "../../../utils/apiClient";
+import apiClient, { getStorageUrl } from "../../../utils/apiClient";
 
 const LettersAndClearance = () => {
   const navigate = useNavigate();
@@ -27,10 +28,19 @@ const LettersAndClearance = () => {
   // Letters to generate section
   const [lettersToGenerate, setLettersToGenerate] = useState([
     {
+      id: "resignation_acceptance",
+      title: "Resignation Acceptance",
+      description: "Official acceptance of the employee's resignation",
+      type: "resignation_acceptance",
+      required: true,
+      generated: false,
+      file_path: null
+    },
+    {
       id: "relieving_letter",
       title: "Relieving Letter",
       description: "Official confirmation of employment end date and role",
-      type: "relieving",
+      type: "relieving_letter",
       required: true,
       generated: false,
       file_path: null
@@ -39,16 +49,25 @@ const LettersAndClearance = () => {
       id: "experience_letter",
       title: "Experience Certificate",
       description: "Detailed record of employment period, role, and responsibilities",
-      type: "experience",
+      type: "experience_letter",
       required: true,
       generated: false,
       file_path: null
     },
     {
-      id: "settlement_payslip",
-      title: "Full & Final Settlement Payslip",
+      id: "noc",
+      title: "No-Dues Certificate",
+      description: "Clearance certificate confirming no pending dues",
+      type: "noc",
+      required: true,
+      generated: false,
+      file_path: null
+    },
+    {
+      id: "final_settlement",
+      title: "Final Settlement",
       description: "Final salary breakdown including all settlements",
-      type: "settlement",
+      type: "final_settlement",
       required: true,
       generated: false,
       file_path: null
@@ -57,6 +76,16 @@ const LettersAndClearance = () => {
 
   // Upload documents section (proof of signatures, receipts, etc.)
   const [uploadDocuments, setUploadDocuments] = useState([
+    {
+      id: "signed_resignation_acceptance",
+      title: "Signed Resignation Acceptance",
+      document_type: "signed_resignation_acceptance",
+      status: "Pending",
+      file: null,
+      file_name: "",
+      uploaded_at: null,
+      required: true
+    },
     {
       id: "signed_relieving",
       title: "Signed Relieving Letter",
@@ -78,8 +107,18 @@ const LettersAndClearance = () => {
       required: true
     },
     {
+      id: "signed_noc",
+      title: "Signed No-Dues Certificate",
+      document_type: "signed_noc",
+      status: "Pending",
+      file: null,
+      file_name: "",
+      uploaded_at: null,
+      required: true
+    },
+    {
       id: "signed_settlement",
-      title: "Signed Settlement Acknowledgment",
+      title: "Signed Final Settlement",
       document_type: "signed_settlement",
       status: "Pending",
       file: null,
@@ -117,13 +156,37 @@ const LettersAndClearance = () => {
       }
       
       // Load generated letters from API if available
-      if (currentOffboarding.generated_letters) {
-        setLettersToGenerate(currentOffboarding.generated_letters);
+      const apiLetters = currentOffboarding.letters || currentOffboarding.generated_letters || currentOffboarding.offboarding_letters || [];
+      if (apiLetters && Array.isArray(apiLetters) && apiLetters.length > 0) {
+        setLettersToGenerate(prev => prev.map(l => {
+          const apiLetter = apiLetters.find(al => al.letter_type === l.type || al.type === l.type);
+          if (apiLetter && (apiLetter.status === 'generated' || apiLetter.status === 'success' || apiLetter.document_path || apiLetter.document_url || apiLetter.file_path)) {
+            return {
+              ...l,
+              generated: true,
+              file_path: apiLetter.document_url || apiLetter.document_path || apiLetter.file_path || apiLetter.url
+            };
+          }
+          return l;
+        }));
       }
       
       // Load uploaded documents from API if available
-      if (currentOffboarding.uploaded_documents) {
-        setUploadDocuments(currentOffboarding.uploaded_documents);
+      const apiDocs = currentOffboarding.uploaded_documents || currentOffboarding.documents || currentOffboarding.proof_documents || apiLetters || [];
+      if (apiDocs && Array.isArray(apiDocs) && apiDocs.length > 0) {
+        setUploadDocuments(prev => prev.map(d => {
+          const apiDoc = apiDocs.find(ad => ad.document_type === d.document_type || ad.letter_type === d.document_type);
+          if (apiDoc && (apiDoc.status === 'Uploaded' || apiDoc.status === 'uploaded' || apiDoc.file_path || apiDoc.document_path || apiDoc.document_url)) {
+            return {
+              ...d,
+              status: "Uploaded",
+              file_name: apiDoc.file_name || apiDoc.title || "Uploaded Document",
+              file_path: apiDoc.document_url || apiDoc.document_path || apiDoc.file_path || apiDoc.url,
+              uploaded_at: apiDoc.uploaded_at || apiDoc.updated_at || apiDoc.created_at
+            };
+          }
+          return d;
+        }));
       }
       
       setLoading(false);
@@ -145,25 +208,63 @@ const LettersAndClearance = () => {
   const completedStepsFromApi = currentProgress?.completed_steps || 0;
   const totalStepsFromApi = currentProgress?.total_steps || 7;
 
+  // Extract file path robustly from response
+  const extractPathFromResponse = (resData, type) => {
+    if (!resData) return null;
+    
+    // Direct string match if files object exists at root
+    if (resData.files && resData.files[type]) return resData.files[type];
+    
+    if (resData.data) {
+      // Data object has type as key
+      if (typeof resData.data[type] === 'string') return resData.data[type];
+      
+      // Data object has files object
+      if (resData.data.files && typeof resData.data.files[type] === 'string') return resData.data.files[type];
+      
+      // Data is an array of letters
+      if (Array.isArray(resData.data)) {
+        const letterObj = resData.data.find(l => l.type === type || l.letter_type === type);
+        if (letterObj && letterObj.file_path) return letterObj.file_path;
+        if (letterObj && letterObj.document_url) return letterObj.document_url;
+        if (letterObj && letterObj.document_path) return letterObj.document_path;
+        if (letterObj && letterObj.url) return letterObj.url;
+      }
+      
+      // Data is a single letter object
+      if (typeof resData.data === 'object' && !Array.isArray(resData.data)) {
+        if (resData.data.file_path) return resData.data.file_path;
+        if (resData.data.document_url) return resData.data.document_url;
+        if (resData.data.document_path) return resData.data.document_path;
+        if (resData.data.url) return resData.data.url;
+      }
+    }
+    
+    return null;
+  };
+
   // Generate individual letter
   const handleGenerateLetter = async (letter) => {
     setGeneratingLetter(letter.id);
     
     try {
+      const actualOffboardingId = offboardingId || localStorage.getItem("offboarding_id");
+
       const payload = {
         letter_type: letter.type,
         employee_id: currentOffboarding?.employee_id,
         employee_name: employeeName,
-        offboarding_id: offboardingId
+        offboarding_id: actualOffboardingId,
+        status: "generated"
       };
       
-      const response = await apiClient.post("/admin/offboarding/generate-letter", payload);
+      const response = await apiClient.post(`/admin/offboarding/${actualOffboardingId}/letters`, payload, { params: payload });
       
-      if (response.data.status === "success") {
+      if (response.data.status === "success" || response.status === 200) {
         // Update local state
         setLettersToGenerate(lettersToGenerate.map(l => 
           l.id === letter.id 
-            ? { ...l, generated: true, file_path: response.data.file_path }
+            ? { ...l, generated: true, file_path: extractPathFromResponse(response.data, letter.type) || response.data.document_url || response.data.document_path || response.data.file_path || response.data.url || response.data.data?.file_path || response.data.data?.url }
             : l
         ));
         showToast(`${letter.title} generated successfully`, "success");
@@ -183,26 +284,43 @@ const LettersAndClearance = () => {
     setIsGenerating(true);
     
     try {
-      const payload = {
-        letter_types: lettersToGenerate.map(l => l.type),
-        employee_id: currentOffboarding?.employee_id,
-        employee_name: employeeName,
-        offboarding_id: offboardingId
-      };
+      const actualOffboardingId = offboardingId || localStorage.getItem("offboarding_id");
+
+      const updatedLetters = [...lettersToGenerate];
+      let successCount = 0;
       
-      const response = await apiClient.post("/admin/offboarding/generate-all-letters", payload);
+      for (let i = 0; i < updatedLetters.length; i++) {
+        const letter = updatedLetters[i];
+        if (letter.generated || letter.isCustom) continue;
+
+        const payload = {
+          letter_type: letter.type,
+          employee_id: currentOffboarding?.employee_id,
+          employee_name: employeeName,
+          offboarding_id: actualOffboardingId,
+          status: "generated"
+        };
+        
+        try {
+          const response = await apiClient.post(`/admin/offboarding/${actualOffboardingId}/letters`, payload, { params: payload });
+          if (response.data.status === "success") {
+            updatedLetters[i] = {
+              ...letter,
+              generated: true,
+              file_path: extractPathFromResponse(response.data, letter.type) || response.data.document_url || response.data.document_path || response.data.file_path || response.data.url
+            };
+            successCount++;
+          }
+        } catch (e) {
+          console.error(`Failed to generate ${letter.title}:`, e);
+        }
+      }
       
-      if (response.data.status === "success") {
-        // Update local state with all generated letters
-        const updatedLetters = lettersToGenerate.map(letter => ({
-          ...letter,
-          generated: true,
-          file_path: response.data.files[letter.type]
-        }));
-        setLettersToGenerate(updatedLetters);
-        showToast("All letters generated successfully", "success");
+      setLettersToGenerate(updatedLetters);
+      if (successCount > 0) {
+        showToast(`Successfully generated ${successCount} letters`, "success");
       } else {
-        showToast(response.data.message || "Failed to generate letters", "error");
+        showToast("No new letters were generated", "info");
       }
     } catch (error) {
       console.error("Generate all letters error:", error);
@@ -214,10 +332,42 @@ const LettersAndClearance = () => {
 
   // Download generated letter
   const handleDownloadLetter = async (letter) => {
-    if (letter.file_path) {
-      window.open(letter.file_path, '_blank');
-    } else {
+    if (!letter.file_path) {
       showToast("No file available for download", "info");
+      return;
+    }
+
+    try {
+      const fileUrl = getStorageUrl(letter.file_path);
+      
+      // Fetch the file as a blob to force download
+      const response = await fetch(fileUrl);
+      if (!response.ok) throw new Error("Network response was not ok");
+      
+      const blob = await response.blob();
+      
+      // Create a temporary URL for the blob
+      const blobUrl = window.URL.createObjectURL(blob);
+      
+      // Create a temporary anchor element and trigger download
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      
+      // Extract filename from the URL or use a fallback
+      const fileNameMatch = fileUrl.match(/\/([^\/?#]+)[^\/]*$/);
+      const fileName = fileNameMatch ? fileNameMatch[1] : `${letter.title.replace(/\s+/g, '_')}.pdf`;
+      
+      link.setAttribute('download', fileName);
+      document.body.appendChild(link);
+      link.click();
+      
+      // Clean up
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (error) {
+      console.error("Download failed, falling back to new tab:", error);
+      // Fallback to opening in a new tab if fetch fails (e.g. CORS issues)
+      window.open(getStorageUrl(letter.file_path), '_blank');
     }
   };
 
@@ -303,11 +453,12 @@ const LettersAndClearance = () => {
 
     try {
       const formData = new FormData();
-      formData.append('document', file);
-      formData.append('document_type', uploadDocuments.find(d => d.id === docId)?.document_type || 'custom');
+      formData.append('file', file);
+      formData.append('letter_type', uploadDocuments.find(d => d.id === docId)?.document_type || 'custom');
       formData.append('title', uploadDocuments.find(d => d.id === docId)?.title || 'Document');
 
-      const response = await apiClient.post(`/admin/offboarding/${offboardingId}/upload-proof`, formData, {
+      const actualOffboardingId = offboardingId || localStorage.getItem("offboarding_id");
+      const response = await apiClient.post(`/admin/offboarding/${actualOffboardingId}/letters/upload`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
 
@@ -361,24 +512,16 @@ const LettersAndClearance = () => {
     setIsGenerating(true);
     
     try {
-      const payload = {
-        generated_letters: lettersToGenerate,
-        uploaded_documents: uploadDocuments,
-        submitted_at: new Date().toISOString(),
-        status: "completed"
-      };
-
-      const result = await dispatch(generateLetters({ 
-        id: offboardingId || localStorage.getItem("offboarding_id"), 
-        lettersData: payload 
-      })).unwrap();
+      // The letters are already generated (via POST /admin/offboarding/{id}/letters)
+      // The documents are already uploaded (via POST /admin/offboarding/{id}/letters/upload)
+      // The backend already has this state, so we simply refresh the progress and navigate.
       
       await dispatch(fetchOffboardingProgress(offboardingId || localStorage.getItem("offboarding_id")));
       
-      showToast("Offboarding process completed successfully!", "success");
+      showToast("Letters completed. Proceeding to Checklist.", "success");
       
       setTimeout(() => {
-        navigate("/admin/employees/offboarding");
+        navigate("/admin/employees/offboarding-checklist?id=" + (offboardingId || localStorage.getItem("offboarding_id")));
       }, 2000);
     } catch (error) {
       console.error("Submit error:", error);
@@ -403,7 +546,7 @@ const LettersAndClearance = () => {
     return (
       <div className="min-h-screen bg-gray-50/30 dark:bg-gray-900/40 p-4 sm:p-6 lg:p-8">
         <div className="max-w-5xl mx-auto space-y-6">
-          <OffboardingHeader currentStep={7} />
+          <OffboardingHeader currentStep={6} />
           <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700/80 rounded-2xl shadow-soft p-12">
             <div className="flex flex-col items-center justify-center gap-4">
               <div className="w-12 h-12 border-4 border-green-500 border-t-transparent rounded-full animate-spin"></div>
@@ -419,7 +562,10 @@ const LettersAndClearance = () => {
     <div className="min-h-screen bg-gray-50/30 dark:bg-gray-900/40 p-4 sm:p-6 lg:p-8">
       <div className="max-w-5xl mx-auto space-y-6">
         {/* SaaS Offboarding Header */}
-        <OffboardingHeader currentStep={7} />
+        <OffboardingHeader currentStep={6} />
+        
+        {/* Progress Box */}
+        <OffboardingProgressBox currentStep={6} />
 
         {/* Main Card */}
         <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700/80 rounded-2xl shadow-soft p-6 sm:p-8">
@@ -446,27 +592,6 @@ const LettersAndClearance = () => {
             )}
           </div>
 
-          {/* Overall Progress Section */}
-          <div className="space-y-4 p-4 bg-gray-50 dark:bg-gray-900/30 rounded-xl mb-6">
-            <div className="flex justify-between items-center">
-              <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
-                Offboarding Progress
-              </h3>
-              <span className="text-sm font-bold text-green-600 dark:text-green-400">
-                {apiProgressPercentage}%
-              </span>
-            </div>
-            <div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-              <div 
-                className="h-full bg-green-500 transition-all duration-500"
-                style={{ width: `${apiProgressPercentage}%` }}
-              />
-            </div>
-            <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400">
-              <span>Completed Steps: {completedStepsFromApi}</span>
-              <span>Total Steps: {totalStepsFromApi}</span>
-            </div>
-          </div>
 
           {/* SECTION 1: Generate Letters */}
           <div className="mb-8">
@@ -481,12 +606,6 @@ const LettersAndClearance = () => {
                 </p>
               </div>
               <div className="flex gap-2">
-                <button
-                  onClick={handleAddCustomLetter}
-                  className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:border-green-500 hover:text-green-500 transition-colors flex items-center gap-1"
-                >
-                  <Plus size={14} /> Add Custom Letter
-                </button>
                 <button
                   onClick={handleGenerateAllLetters}
                   disabled={isGenerating || allLettersGenerated}
@@ -611,12 +730,6 @@ const LettersAndClearance = () => {
                   Upload signed copies and acknowledgment receipts
                 </p>
               </div>
-              <button
-                onClick={handleAddCustomUpload}
-                className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg hover:border-green-500 hover:text-green-500 transition-colors flex items-center gap-1"
-              >
-                <Plus size={14} /> Add Document
-              </button>
             </div>
 
             <div className="space-y-3">
@@ -809,7 +922,7 @@ const LettersAndClearance = () => {
               ) : (
                 <>
                   <Check className="w-4 h-4" />
-                  Complete Offboarding
+                  Proceed to Checklist Verification
                 </>
               )}
             </button>

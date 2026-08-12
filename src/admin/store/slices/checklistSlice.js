@@ -127,7 +127,7 @@ export const updateChecklistStatus = createAsyncThunk(
   async ({ checklistId, status }, { rejectWithValue }) => {
     try {
       const response = await apiClient.patch(
-        `/admin/checklists/${checklistId}/status`,
+        `/admin/checklists/item/${checklistId}/status`,
         { status },
       );
       console.log("Checklist status updated:", response.data);

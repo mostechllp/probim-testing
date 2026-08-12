@@ -118,23 +118,24 @@ export const formatDateDisplay = (dateString) => {
 // Helper function to get avatar URL
 const getAvatarUrl = (avatarPath) => {
   if (!avatarPath) return null;
-  
-  if (avatarPath.startsWith('http://') || avatarPath.startsWith('https://')) {
+
+  if (avatarPath.startsWith("http://") || avatarPath.startsWith("https://")) {
     return avatarPath;
   }
-  
-  const baseUrl = import.meta.env.VITE_API_URL?.replace("/api", "") || window.location.origin;
-  
-  if (avatarPath.startsWith('avatars/')) {
+
+  const baseUrl =
+    import.meta.env.VITE_API_URL?.replace("/api", "") || window.location.origin;
+
+  if (avatarPath.startsWith("avatars/")) {
     return `${baseUrl}/storage/${avatarPath}`;
   }
-  if (avatarPath.startsWith('storage/')) {
+  if (avatarPath.startsWith("storage/")) {
     return `${baseUrl}/${avatarPath}`;
   }
-  if (avatarPath.startsWith('/storage/')) {
+  if (avatarPath.startsWith("/storage/")) {
     return `${baseUrl}${avatarPath}`;
   }
-  
+
   return `${baseUrl}/storage/${avatarPath}`;
 };
 
@@ -193,7 +194,11 @@ const Dashboard = () => {
 
   // Admin dashboard data
   const { employees } = useSelector((state) => state.employees || {});
-  const { stats: adminStats, charts, loading: adminLoading } = useSelector(
+  const {
+    stats: adminStats,
+    charts,
+    loading: adminLoading,
+  } = useSelector(
     (state) => state.dashboard || { stats: {}, charts: {}, loading: false },
   );
   const { projects: allProjects, loading: allProjectsLoading } = useSelector(
@@ -204,10 +209,14 @@ const Dashboard = () => {
   );
 
   // Use custom error handler
-  const { error, handleError, clearError, withErrorHandling } = useErrorHandler();
+  const { error, handleError, clearError, withErrorHandling } =
+    useErrorHandler();
 
   // Check if user is HR or HR Manager
-  const isHR = user?.role?.name === "HR Manager" || user?.role?.name === "HR" || user?.type === "hr";
+  const isHR =
+    user?.role?.name === "HR Manager" ||
+    user?.role?.name === "HR" ||
+    user?.type === "hr";
   const isAdmin = user?.type === "admin";
 
   // Show admin graphs if user is HR or Admin
@@ -250,22 +259,22 @@ const Dashboard = () => {
   // Check for dark mode
   useEffect(() => {
     const checkDarkMode = () => {
-      const isDark = document.documentElement.classList.contains('dark');
+      const isDark = document.documentElement.classList.contains("dark");
       setIsDarkMode(isDark);
     };
-    
+
     checkDarkMode();
-    
+
     // Observe changes to dark mode class
     const observer = new MutationObserver(() => {
       checkDarkMode();
     });
-    
+
     observer.observe(document.documentElement, {
       attributes: true,
-      attributeFilter: ['class'],
+      attributeFilter: ["class"],
     });
-    
+
     return () => observer.disconnect();
   }, []);
 
@@ -276,8 +285,8 @@ const Dashboard = () => {
   };
 
   // Get employee avatar URL
-  const employeeAvatar = dashboardData?.employee?.avatar 
-    ? getAvatarUrl(dashboardData.employee.avatar) 
+  const employeeAvatar = dashboardData?.employee?.avatar
+    ? getAvatarUrl(dashboardData.employee.avatar)
     : null;
 
   // Get employee name
@@ -303,8 +312,8 @@ const Dashboard = () => {
           await dispatch(fetchDashboardData()).unwrap();
         },
         {
-          onLogin: () => window.location.href = '/login'
-        }
+          onLogin: () => (window.location.href = "/login"),
+        },
       );
     };
     fetchData();
@@ -352,7 +361,11 @@ const Dashboard = () => {
   const handlePunch = async () => {
     if (!isActuallyPunchedIn) {
       if (!canPunch) {
-        showToastMessage("You cannot punch in at this time", "error", "Outside Working Hours");
+        showToastMessage(
+          "You cannot punch in at this time",
+          "error",
+          "Outside Working Hours",
+        );
         return;
       }
       setPunchType("punch-in");
@@ -366,81 +379,86 @@ const Dashboard = () => {
   // Handle location confirmation
   // In Dashboard.jsx, update the handleLocationConfirm function
 
-const handleLocationConfirm = async (locationData) => {
-  setShowLocationModal(false);
-  setIsSubmitting(true);
+  const handleLocationConfirm = async (locationData) => {
+    setShowLocationModal(false);
+    setIsSubmitting(true);
 
-  if (punchType === "punch-in") {
-    try {
-      await withErrorHandling(
-        async () => {
-          const result = await dispatch(punchIn({ location: locationData })).unwrap();
-          showToastMessage("Punched in successfully!", "success", "Success");
-          await dispatch(fetchDashboardData()).unwrap();
-          return result;
-        },
-        {
-          // Custom error handler for punch-in specific errors
-          onError: (err) => {
-            // Extract error message from various formats
-            let errorMsg = '';
-            if (typeof err === 'string') {
-              errorMsg = err;
-            } else if (err?.payload?.message) {
-              errorMsg = err.payload.message;
-            } else if (err?.message) {
-              errorMsg = err.message;
-            } else if (err?.response?.data?.message) {
-              errorMsg = err.response.data.message;
-            } else {
-              errorMsg = String(err);
-            }
-            
-            // Check for pending punch-out error
-            if (errorMsg.includes("pending punch-out") || 
+    if (punchType === "punch-in") {
+      try {
+        await withErrorHandling(
+          async () => {
+            const result = await dispatch(
+              punchIn({ location: locationData }),
+            ).unwrap();
+            showToastMessage("Punched in successfully!", "success", "Success");
+            await dispatch(fetchDashboardData()).unwrap();
+            return result;
+          },
+          {
+            // Custom error handler for punch-in specific errors
+            onError: (err) => {
+              // Extract error message from various formats
+              let errorMsg = "";
+              if (typeof err === "string") {
+                errorMsg = err;
+              } else if (err?.payload?.message) {
+                errorMsg = err.payload.message;
+              } else if (err?.message) {
+                errorMsg = err.message;
+              } else if (err?.response?.data?.message) {
+                errorMsg = err.response.data.message;
+              } else {
+                errorMsg = String(err);
+              }
+
+              // Check for pending punch-out error
+              if (
+                errorMsg.includes("pending punch-out") ||
                 errorMsg.includes("punch out for that day") ||
-                errorMsg.includes("Please punch out first")) {
-              clearError();
-              const match = errorMsg.match(/for (\d{4}-\d{2}-\d{2})/);
-              const date = match ? match[1] : "that day";
-              setPendingPunchOutDate(date);
-              setShowPendingErrorModal(true);
-              return true; // Indicates error was handled
-            }
-            
-            // Check for late punch-in with HR approval
-            if (errorMsg.includes("Punch-in blocked") || 
+                errorMsg.includes("Please punch out first")
+              ) {
+                clearError();
+                const match = errorMsg.match(/for (\d{4}-\d{2}-\d{2})/);
+                const date = match ? match[1] : "that day";
+                setPendingPunchOutDate(date);
+                setShowPendingErrorModal(true);
+                return true; // Indicates error was handled
+              }
+
+              // Check for late punch-in with HR approval
+              if (
+                errorMsg.includes("Punch-in blocked") ||
                 errorMsg.includes("pending HR approval") ||
-                errorMsg.includes("late check-in request")) {
-              // This will be displayed by the ErrorToast
-              // Return false to let the error handler show the toast
-              return false;
-            }
-            
-            return false; // Let the error handler show the toast
-          }
-        }
-      );
-    } catch (err) {
-      // Error is already handled by withErrorHandling
-      console.error("Punch in error:", err);
-    }
-  } else if (punchOutData) {
-    const isPastDatePunchOut = punchType === "punch-out-then-punchin";
-    await withErrorHandling(
-      async () => {
+                errorMsg.includes("late check-in request")
+              ) {
+                // This will be displayed by the ErrorToast
+                // Return false to let the error handler show the toast
+                return false;
+              }
+
+              return false; // Let the error handler show the toast
+            },
+          },
+        );
+      } catch (err) {
+        // Error is already handled by withErrorHandling
+        console.error("Punch in error:", err);
+      }
+    } else if (punchOutData) {
+      const isPastDatePunchOut = punchType === "punch-out-then-punchin";
+      await withErrorHandling(async () => {
         const result = await dispatch(
           punchOut({
             ...punchOutData,
             location: locationData,
-          })
+          }),
         ).unwrap();
         showToastMessage(
           isPastDatePunchOut
             ? `Punched out for ${pendingPunchOutDate}! Now punch in for today.`
             : "Punched out successfully!",
           "success",
-          "Success"
+          "Success",
         );
         setShowPunchOutModal(false);
         setPunchOutData(null);
@@ -454,18 +472,17 @@ const handleLocationConfirm = async (locationData) => {
           setPendingPunchOutDate("");
         }
         return result;
-      }
-    );
-  }
+      });
+    }
 
-  setIsSubmitting(false);
-};
+    setIsSubmitting(false);
+  };
 
   const handlePunchOutSubmit = async (data) => {
     setPunchOutData({
-    ...data,
-    punch_out_time: data.punch_out_time || null,
-  });
+      ...data,
+      punch_out_time: data.punch_out_time || null,
+    });
     setShowPunchOutModal(false);
     setPunchType(pendingPunchOutDate ? "punch-out-then-punchin" : "punch-out");
     setShowLocationModal(true);
@@ -621,7 +638,9 @@ const handleLocationConfirm = async (locationData) => {
 
   // Admin dashboard calculations
   const totalEmployees = employees?.length || 0;
-  const activeProjects = allProjects.filter((p) => p.status === "Active").length;
+  const activeProjects = allProjects.filter(
+    (p) => p.status === "Active",
+  ).length;
   const totalAssignments = assignments.length;
   const totalTaggedEmployees = assignments.reduce(
     (sum, a) => sum + (a.projectIds?.length || 0),
@@ -688,7 +707,7 @@ const handleLocationConfirm = async (locationData) => {
             Allocated
           </div>
         </div>
-        
+
         <div className="bg-orange-50 dark:bg-orange-900/20 rounded-xl p-3 text-center border border-orange-200 dark:border-orange-800">
           <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">
             {leaveStats.total_taken || 0}
@@ -697,7 +716,7 @@ const handleLocationConfirm = async (locationData) => {
             Taken
           </div>
         </div>
-        
+
         <div className="bg-green-50 dark:bg-green-900/20 rounded-xl p-3 text-center border border-green-200 dark:border-green-800">
           <div className="text-2xl font-bold text-green-600 dark:text-green-400">
             {leaveStats.balance || 0}
@@ -711,7 +730,9 @@ const handleLocationConfirm = async (locationData) => {
       {/* Recent Leave Requests - Optional, shown when there are pending requests */}
       {recentLeaves.length > 0 && (
         <div className="mt-3 pt-3 border-t border-[var(--border)]">
-          <div className="text-xs text-[var(--muted)] mb-2">Recent Requests</div>
+          <div className="text-xs text-[var(--muted)] mb-2">
+            Recent Requests
+          </div>
           <div className="space-y-1.5">
             {recentLeaves.slice(0, 2).map((leave, index) => (
               <div
@@ -719,7 +740,9 @@ const handleLocationConfirm = async (locationData) => {
                 className="flex items-center justify-between text-xs p-2 bg-[var(--surface2)] rounded-lg"
               >
                 <div className="flex items-center gap-2">
-                  <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${getLeaveStatusColor(leave.status)}`}>
+                  <span
+                    className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${getLeaveStatusColor(leave.status)}`}
+                  >
                     {leave.status || "Pending"}
                   </span>
                   <span className="text-[var(--text)] truncate max-w-[100px]">
@@ -788,10 +811,12 @@ const handleLocationConfirm = async (locationData) => {
             Total Projects
           </div>
         </div>
-        
+
         <div className="bg-green-50 dark:bg-green-900/20 rounded-xl p-4 text-center border border-green-200 dark:border-green-800">
           <div className="text-3xl font-bold text-green-600 dark:text-green-400">
-            {stats.activeProjects || employeeProjects.filter(p => p.status === "Active").length || 0}
+            {stats.activeProjects ||
+              employeeProjects.filter((p) => p.status === "Active").length ||
+              0}
           </div>
           <div className="text-xs text-green-600/80 dark:text-green-400/80 font-medium mt-0.5">
             Active Projects
@@ -810,15 +835,22 @@ const handleLocationConfirm = async (locationData) => {
                 onClick={() => setSelectedProject(project)}
               >
                 <div className="flex items-center gap-2 min-w-0">
-                  <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
-                    project.status === "Active" ? "bg-green-500" : 
-                    project.status === "Completed" ? "bg-blue-500" : "bg-gray-400"
-                  }`}></span>
+                  <span
+                    className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+                      project.status === "Active"
+                        ? "bg-green-500"
+                        : project.status === "Completed"
+                          ? "bg-blue-500"
+                          : "bg-gray-400"
+                    }`}
+                  ></span>
                   <span className="text-[var(--text)] truncate max-w-[120px]">
                     {project.name}
                   </span>
                 </div>
-                <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${getPriorityColor(project.priority)}`}>
+                <span
+                  className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${getPriorityColor(project.priority)}`}
+                >
                   {project.priority || "Medium"}
                 </span>
               </div>
@@ -954,16 +986,18 @@ const handleLocationConfirm = async (locationData) => {
   return (
     <div className="space-y-3 px-4 md:px-6 lg:px-8 pb-8">
       {/* Welcome Banner - Compact */}
-      <div className={`welcome-banner rounded-xl p-4 flex flex-col md:flex-row justify-between items-center gap-3 shadow-lg ${getWelcomeBannerGradient(isDarkMode)}`}>
+      <div
+        className={`welcome-banner rounded-xl p-4 flex flex-col md:flex-row justify-between items-center gap-3 shadow-lg ${getWelcomeBannerGradient(isDarkMode)}`}
+      >
         <div className="welcome-left flex items-center gap-3">
           <div className="w-12 h-12 rounded-xl overflow-hidden border-2 border-white shadow-lg bg-white flex items-center justify-center flex-shrink-0">
             {employeeAvatar ? (
-              <img 
-                src={employeeAvatar} 
+              <img
+                src={employeeAvatar}
                 alt={getEmployeeName()}
                 className="w-full h-full object-cover"
                 onError={(e) => {
-                  e.target.style.display = 'none';
+                  e.target.style.display = "none";
                   e.target.parentElement.innerHTML = `<i class="fas fa-user text-green-600 text-2xl"></i>`;
                 }}
               />
@@ -972,19 +1006,27 @@ const handleLocationConfirm = async (locationData) => {
             )}
           </div>
           <div className="welcome-text">
-            <h2 className={`text-base md:text-lg font-bold ${isDarkMode ? 'text-white' : 'text-white'}`}>
+            <h2
+              className={`text-base md:text-lg font-bold ${isDarkMode ? "text-white" : "text-white"}`}
+            >
               Welcome, {getEmployeeName()}! 👋
             </h2>
-            <p className={`${isDarkMode ? 'text-gray-300' : 'text-white/90'} text-xs`}>
+            <p
+              className={`${isDarkMode ? "text-gray-300" : "text-white/90"} text-xs`}
+            >
               {getEmployeeRole()}
             </p>
           </div>
         </div>
         <div className="datetime-info text-center md:text-right">
-          <div className={`text-xl md:text-2xl font-bold ${isDarkMode ? 'text-white' : 'text-white'}`}>
+          <div
+            className={`text-xl md:text-2xl font-bold ${isDarkMode ? "text-white" : "text-white"}`}
+          >
             {currentTime}
           </div>
-          <div className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-white/80'}`}>
+          <div
+            className={`text-xs ${isDarkMode ? "text-gray-400" : "text-white/80"}`}
+          >
             {currentDate}
           </div>
         </div>
@@ -997,20 +1039,30 @@ const handleLocationConfirm = async (locationData) => {
       <div className="punch-card bg-[var(--surface)] border border-[var(--border)] rounded-xl p-3 flex flex-col md:flex-row justify-between items-center gap-3 mb-4">
         <div className="punch-stats flex gap-6 md:gap-8 flex-wrap justify-center">
           <div className="punch-item text-center">
-            <div className="punch-label text-[10px] text-[var(--muted)]">Date</div>
+            <div className="punch-label text-[10px] text-[var(--muted)]">
+              Date
+            </div>
             <div className="punch-value text-sm font-semibold text-[var(--text)]">
-              {currentDate.split(',')[0]}
+              {currentDate.split(",")[0]}
             </div>
           </div>
           <div className="punch-item text-center">
-            <div className="punch-label text-[10px] text-[var(--muted)]">Punch In</div>
-            <div className={`punch-value text-xl font-bold ${isActuallyPunchedIn ? "text-green-500" : "text-[var(--text)]"}`}>
+            <div className="punch-label text-[10px] text-[var(--muted)]">
+              Punch In
+            </div>
+            <div
+              className={`punch-value text-xl font-bold ${isActuallyPunchedIn ? "text-green-500" : "text-[var(--text)]"}`}
+            >
               {formatPunchTime(displayPunchTime)}
             </div>
           </div>
           <div className="punch-item text-center">
-            <div className="punch-label text-[10px] text-[var(--muted)]">Status</div>
-            <div className={`punch-value text-base font-bold ${statusDisplay.color}`}>
+            <div className="punch-label text-[10px] text-[var(--muted)]">
+              Status
+            </div>
+            <div
+              className={`punch-value text-base font-bold ${statusDisplay.color}`}
+            >
               {statusDisplay.text}
               {isActuallyPunchedIn && (
                 <span className="ml-1.5 text-xs animate-pulse">●</span>
@@ -1037,11 +1089,11 @@ const handleLocationConfirm = async (locationData) => {
       {/* ─── ADMIN/HR GRAPHS ──────────────────────────────────────────────── */}
       {showAdminGraphs && (
         <>
-          {/* ─── ROW 1: Overview (4 columns instead of 8) ────────────────────── */}
-          <div className="section-label text-[10px] font-medium uppercase tracking-wider text-gray-400 dark:text-gray-500 mt-2 mb-1">
+          {/* ─── ROW 1: Overview (4 columns) ────────────────────── */}
+          <div className="section-label text-[10px] font-medium uppercase tracking-wider text-gray-400 dark:text-gray-500 mt-2 mb-2">
             Overview
           </div>
-          <div className="stats-grid grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
             <StatsCard
               title="Total Employees"
               value={totalEmployees}
@@ -1055,24 +1107,24 @@ const handleLocationConfirm = async (locationData) => {
               value={punchedInToday}
               icon="fas fa-fingerprint"
               color="blue"
-              route="/attendances"
-              onClick={() => handleNavigate("/attendances")}
+              route="/attendance"
+              onClick={() => handleNavigate("/attendance")}
             />
             <StatsCard
               title="Late"
               value={lateArrivals}
               icon="fas fa-clock"
               color="amber"
-              route="/attendances"
-              onClick={() => handleNavigate("/attendances")}
+              route="/attendance"
+              onClick={() => handleNavigate("/attendance")}
             />
             <StatsCard
               title="Absent"
               value={absentToday}
               icon="fas fa-user-slash"
               color="red"
-              route="/attendances"
-              onClick={() => handleNavigate("/attendances")}
+              route="/attendance"
+              onClick={() => handleNavigate("/attendance")}
             />
           </div>
 
@@ -1113,47 +1165,47 @@ const handleLocationConfirm = async (locationData) => {
           </div>
 
           {/* ─── ROW 3: Project Charts ────────────────────────────────────────── */}
-          <div className="section-label text-[10px] font-medium uppercase tracking-wider text-gray-400 dark:text-gray-500 mt-2 mb-1">
+          <div className="section-label text-[10px] font-medium uppercase tracking-wider text-gray-400 dark:text-gray-500 mt-4 mb-2">
             Project Overview
           </div>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-4">
-            <div className="h-[200px]">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+            <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-3 min-h-[220px]">
               <ProjectAllocationChart data={allocationData} />
             </div>
-            <div className="h-[200px]">
+            <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-3 min-h-[220px]">
               <ProjectHoursChart data={hoursData} onBarClick={handleBarClick} />
             </div>
           </div>
 
           {/* ─── ROW 4: Attendance Analytics ──────────────────────────────────── */}
-          <div className="section-label text-[10px] font-medium uppercase tracking-wider text-gray-400 dark:text-gray-500 mt-2 mb-1">
+          <div className="section-label text-[10px] font-medium uppercase tracking-wider text-gray-400 dark:text-gray-500 mt-4 mb-2">
             Attendance Analytics
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
-            <div className="h-[180px]">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+            <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-3 min-h-[200px]">
               <WeeklyAttendanceChart data={charts?.weekly_attendance} />
             </div>
-            <div className="h-[180px]">
+            <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-3 min-h-[200px]">
               <TodayStatusChart data={charts?.today_status} />
             </div>
-            <div className="h-[180px]">
+            <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-3 min-h-[200px]">
               <AvgPunchTimeCard data={charts?.avg_punch_time} />
             </div>
           </div>
 
           {/* ─── ROW 5: Punch Activity ────────────────────────────────────────── */}
-          <div className="section-label text-[10px] font-medium uppercase tracking-wider text-gray-400 dark:text-gray-500 mt-2 mb-1">
+          <div className="section-label text-[10px] font-medium uppercase tracking-wider text-gray-400 dark:text-gray-500 mt-4 mb-2">
             Today's Activity
           </div>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 mb-4">
-            <div className="h-[180px]">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+            <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-3 min-h-[200px]">
               <RecentPunchesList
                 punches={charts?.recent_punches || []}
                 employees={employees}
                 compact
               />
             </div>
-            <div className="h-[180px]">
+            <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-3 min-h-[200px]">
               <PunchDistributionChart data={charts?.punch_distribution || []} />
             </div>
           </div>
@@ -1222,7 +1274,9 @@ const handleLocationConfirm = async (locationData) => {
 
                   <div className="flex items-center gap-2 text-[10px] text-[var(--muted)]">
                     <i className="fas fa-user-tie text-green-500"></i>
-                    <span className="truncate">{project.managerName || "N/A"}</span>
+                    <span className="truncate">
+                      {project.managerName || "N/A"}
+                    </span>
                   </div>
 
                   <div className="mt-1.5 pt-1.5 border-t border-[var(--border)] flex justify-between items-center">
@@ -1232,7 +1286,7 @@ const handleLocationConfirm = async (locationData) => {
                       {project.status || "Active"}
                     </span>
                     <span className="text-[10px] text-[var(--muted)]">
-                      {project.assignedDate?.split('-')[0] || ""}
+                      {project.assignedDate?.split("-")[0] || ""}
                     </span>
                   </div>
                 </div>
@@ -1277,7 +1331,8 @@ const handleLocationConfirm = async (locationData) => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                   <div className="bg-[var(--surface2)] rounded-lg p-3">
                     <label className="text-xs text-[var(--muted)] flex items-center gap-1 mb-2">
-                      <i className="fas fa-user-tie text-green-500"></i> Project Manager
+                      <i className="fas fa-user-tie text-green-500"></i> Project
+                      Manager
                     </label>
                     <p className="text-sm font-semibold text-[var(--text)]">
                       {selectedProject.managerName}
@@ -1321,7 +1376,8 @@ const handleLocationConfirm = async (locationData) => {
 
                   <div className="bg-[var(--surface2)] rounded-lg p-3 md:col-span-2">
                     <label className="text-xs text-[var(--muted)] flex items-center gap-1 mb-2">
-                      <i className="fas fa-calendar-alt text-purple-500"></i> Assigned On
+                      <i className="fas fa-calendar-alt text-purple-500"></i>{" "}
+                      Assigned On
                     </label>
                     <p className="text-sm font-semibold text-[var(--text)]">
                       {selectedProject.assignedDate}
@@ -1346,21 +1402,29 @@ const handleLocationConfirm = async (locationData) => {
                 {dashboardData.attendance_history.length} records
               </span>
             </div>
-            
+
             <div className="w-full overflow-auto max-h-[200px]">
               <div className="min-w-[500px]">
                 <table className="w-full text-xs">
                   <thead className="sticky top-0 bg-[var(--surface)] z-10">
                     <tr className="border-b border-[var(--border)]">
-                      <th className="text-left py-2 px-2 text-[var(--muted)] font-semibold">Date</th>
-                      <th className="text-left py-2 px-2 text-[var(--muted)] font-semibold">In</th>
-                      <th className="text-left py-2 px-2 text-[var(--muted)] font-semibold">Location</th>
-                      <th className="text-left py-2 px-2 text-[var(--muted)] font-semibold">Out</th>
+                      <th className="text-left py-2 px-2 text-[var(--muted)] font-semibold">
+                        Date
+                      </th>
+                      <th className="text-left py-2 px-2 text-[var(--muted)] font-semibold">
+                        In
+                      </th>
+                      <th className="text-left py-2 px-2 text-[var(--muted)] font-semibold">
+                        Location
+                      </th>
+                      <th className="text-left py-2 px-2 text-[var(--muted)] font-semibold">
+                        Out
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
-                    {dashboardData.attendance_history
-                      .map((attendance, index) => {
+                    {dashboardData.attendance_history.map(
+                      (attendance, index) => {
                         const locationAddress = attendance.punch_in_address;
 
                         return (
@@ -1372,28 +1436,35 @@ const handleLocationConfirm = async (locationData) => {
                               {attendance.log_date}
                             </td>
                             <td className="py-3 px-2 text-[var(--text)] whitespace-nowrap">
-                              {attendance.punch_in ? formatPunchTime(attendance.punch_in) : "-"}
+                              {attendance.punch_in
+                                ? formatPunchTime(attendance.punch_in)
+                                : "-"}
                             </td>
                             <td className="py-3 px-2">
                               {locationAddress ? (
                                 <div className="text-[10px] text-[var(--muted)] flex items-start gap-1">
                                   <i className="fas fa-map-marker-alt text-green-500 text-[10px] mt-0.5 flex-shrink-0"></i>
                                   <span className="break-words">
-                                    {locationAddress.length > 40 
-                                      ? locationAddress.substring(0, 40) + "..." 
+                                    {locationAddress.length > 40
+                                      ? locationAddress.substring(0, 40) + "..."
                                       : locationAddress}
                                   </span>
                                 </div>
                               ) : (
-                                <span className="text-[10px] text-[var(--muted)]">-</span>
+                                <span className="text-[10px] text-[var(--muted)]">
+                                  -
+                                </span>
                               )}
                             </td>
                             <td className="py-3 px-2 text-[var(--text)] whitespace-nowrap">
-                              {attendance.punch_out ? formatPunchTime(attendance.punch_out) : "-"}
+                              {attendance.punch_out
+                                ? formatPunchTime(attendance.punch_out)
+                                : "-"}
                             </td>
                           </tr>
                         );
-                      })}
+                      },
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -1432,11 +1503,18 @@ const handleLocationConfirm = async (locationData) => {
               <div className="w-16 h-16 bg-red-100 dark:bg-red-900/30 text-red-500 rounded-full flex items-center justify-center text-3xl mb-4">
                 <i className="fas fa-exclamation-triangle"></i>
               </div>
-              <h3 className="text-xl font-bold text-[var(--text)] mb-2">Pending Punch Out</h3>
+              <h3 className="text-xl font-bold text-[var(--text)] mb-2">
+                Pending Punch Out
+              </h3>
               <p className="text-[var(--text-secondary)] mb-6 text-sm">
-                You didn't punch out on <span className="font-bold text-[var(--text)]">{pendingPunchOutDate}</span>. You have to complete the previous day's punch out. After that you can punch in for today.
+                You didn't punch out on{" "}
+                <span className="font-bold text-[var(--text)]">
+                  {pendingPunchOutDate}
+                </span>
+                . You have to complete the previous day's punch out. After that
+                you can punch in for today.
               </p>
-              
+
               <div className="flex w-full gap-3">
                 <button
                   onClick={() => {
@@ -1471,11 +1549,13 @@ const handleLocationConfirm = async (locationData) => {
               <div className="w-16 h-16 bg-orange-100 dark:bg-orange-900/30 text-orange-500 rounded-full flex items-center justify-center text-3xl mb-4">
                 <i className="fas fa-exclamation-circle"></i>
               </div>
-              <h3 className="text-xl font-bold text-[var(--text)] mb-2">Punch-In Blocked</h3>
+              <h3 className="text-xl font-bold text-[var(--text)] mb-2">
+                Punch-In Blocked
+              </h3>
               <p className="text-[var(--text-secondary)] mb-6 text-sm">
                 {blockedErrorMessage}
               </p>
-              
+
               <div className="flex w-full">
                 <button
                   onClick={() => setShowBlockedErrorModal(false)}
@@ -1493,36 +1573,39 @@ const handleLocationConfirm = async (locationData) => {
 
       {/* Error Toast */}
       {error && (
-  <ErrorToast
-    error={error}
-    onClose={clearError}
-    onAction={(actionType) => {
-      if (actionType === 'login') {
-        window.location.href = '/login';
-      } else if (actionType === 'retry') {
-        window.location.reload();
-      } else if (actionType === 'contact') {
-        window.location.href = 'mailto:support@company.com';
-      } else if (actionType === 'punch_out') {
-        setShowPunchOutModal(true);
-        clearError();
-      } else if (actionType === 'wait') {
-        clearError();
-        // Optionally show a message that they're waiting
-        showToastMessage("We'll notify you when HR approves your request", "info");
-      }
-      clearError();
-    }}
-  />
-)}
+        <ErrorToast
+          error={error}
+          onClose={clearError}
+          onAction={(actionType) => {
+            if (actionType === "login") {
+              window.location.href = "/login";
+            } else if (actionType === "retry") {
+              window.location.reload();
+            } else if (actionType === "contact") {
+              window.location.href = "mailto:support@company.com";
+            } else if (actionType === "punch_out") {
+              setShowPunchOutModal(true);
+              clearError();
+            } else if (actionType === "wait") {
+              clearError();
+              // Optionally show a message that they're waiting
+              showToastMessage(
+                "We'll notify you when HR approves your request",
+                "info",
+              );
+            }
+            clearError();
+          }}
+        />
+      )}
 
       {/* Success Toast */}
       {toast && (
         <ErrorToast
-          error={{ 
-            type: toast.type, 
-            title: toast.title || 'Success', 
-            message: toast.message 
+          error={{
+            type: toast.type,
+            title: toast.title || "Success",
+            message: toast.message,
           }}
           onClose={() => setToast(null)}
         />
