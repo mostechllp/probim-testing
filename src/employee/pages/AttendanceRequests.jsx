@@ -21,6 +21,8 @@ const AttendanceRequests = () => {
     loading = false,
     error = null,
   } = useSelector((state) => state.EmpAttendanceType || {});
+
+  const safeRequests = Array.isArray(requests) ? requests : [];
   
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
@@ -117,7 +119,7 @@ const AttendanceRequests = () => {
   };
 
   const getFilteredRequests = () => {
-    let filtered = [...requests];
+    let filtered = [...safeRequests];
     
     if (localFilter.status !== "all") {
       filtered = filtered.filter(
@@ -224,10 +226,10 @@ const AttendanceRequests = () => {
   };
 
   const stats = {
-    total: requests.length,
-    pending: requests.filter(r => r.status?.toLowerCase() === "pending").length,
-    approved: requests.filter(r => r.status?.toLowerCase() === "approved").length,
-    rejected: requests.filter(r => r.status?.toLowerCase() === "rejected").length,
+    total: safeRequests.length,
+    pending: safeRequests.filter(r => r.status?.toLowerCase() === "pending").length,
+    approved: safeRequests.filter(r => r.status?.toLowerCase() === "approved").length,
+    rejected: safeRequests.filter(r => r.status?.toLowerCase() === "rejected").length,
   };
 
   // Clear all modal states and reset dropdown
@@ -291,7 +293,7 @@ const AttendanceRequests = () => {
   };
 
   // Show loading state
-  if (loading && requests.length === 0) {
+  if (loading && safeRequests.length === 0) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">

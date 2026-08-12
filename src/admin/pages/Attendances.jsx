@@ -110,7 +110,9 @@ const Attendances = () => {
   // Get unique employees for filter
   const uniqueEmployeesMap = new Map();
 
-  records.forEach((record) => {
+   const safeRecords = Array.isArray(records) ? records : [];
+
+  safeRecords.forEach((record) => {
     let name = record.name || record.employee_name || record.employeeName;
     if (!name && record.user) {
       if (record.user.employee) {
@@ -169,7 +171,7 @@ const Attendances = () => {
   useEffect(() => {
     if (pendingDate && pendingDayModal) {
       const dateStr = formatDateToDDMMYYYY(pendingDate);
-      const dayRecords = records.filter((r) => {
+      const dayRecords = safeRecords.filter((r) => {
         const recordDate = r.date || r.log_date || r.attendance_date;
         return (
           recordDate === dateStr || formatDateToDDMMYYYY(recordDate) === dateStr
@@ -187,7 +189,7 @@ const Attendances = () => {
         setPendingDate(null);
       }
     }
-  }, [records, pendingDate, pendingDayModal]);
+  }, [safeRecords, pendingDate, pendingDayModal]);
 
   const formatStatus = (status) => {
   if (!status) return "";
@@ -219,7 +221,7 @@ const Attendances = () => {
   const dateStrApi = `${year}-${month}-${day}`;
 
   // Find records for this date
-  const dayRecords = records.filter((r) => {
+  const dayRecords = safeRecords.filter((r) => {
     const recordDate = r.date || r.log_date || r.attendance_date;
 
     if (!recordDate) return false;
@@ -417,20 +419,20 @@ const Attendances = () => {
       tileContent: tileContentFn,
       tileClassName: tileClassNameFn,
     };
-  }, [records]);
+  }, [safeRecords]);
 
   // Add this useEffect in the component to debug
   useEffect(() => {
-    console.log("All records:", records);
+    console.log("All records:", safeRecords);
     console.log(
       "Records with Holiday status:",
-      records.filter(
+      safeRecords.filter(
         (r) =>
           r.status?.toLowerCase() === "holiday" ||
           r.attendance_status?.toLowerCase() === "holiday",
       ),
     );
-  }, [records]);
+  }, [safeRecords]);
 
   const getEmployeeAvatarUrl = (record, employees) => {
     if (!employees || !employees.length) return null;
@@ -581,7 +583,7 @@ const Attendances = () => {
       return;
     }
 
-    const dayRecords = records.filter((r) => {
+    const dayRecords = safeRecords.filter((r) => {
       const recordDate = r.date || r.log_date || r.attendance_date;
       return (
         recordDate === dateStr || formatDateToDDMMYYYY(recordDate) === dateStr
@@ -600,7 +602,7 @@ const Attendances = () => {
   const handleMonthClick = () => {
     const year = selectedMonth.getFullYear();
     const month = String(selectedMonth.getMonth() + 1).padStart(2, "0");
-    const monthRecords = records.filter((r) => {
+    const monthRecords = safeRecords.filter((r) => {
       const dateStr = r.date || r.log_date || r.attendance_date;
       if (!dateStr) return false;
 
@@ -704,7 +706,7 @@ const Attendances = () => {
   const punchOutCount = stats?.punchedOutToday || stats?.punched_out_today || 0;
 
   const todayStr = formatDateToDDMMYYYY(new Date());
-  const todayRecords = records.filter((r) => {
+  const todayRecords = safeRecords.filter((r) => {
     const recordDate = r.date || r.log_date || r.attendance_date;
     return (
       recordDate === todayStr || formatDateToDDMMYYYY(recordDate) === todayStr
@@ -1083,7 +1085,7 @@ const Attendances = () => {
         </div>
 
         {/* RESTYLED CALENDAR - CLASSIC IMAGE STYLE */}
-        {loading && records.length === 0 ? (
+        {loading && safeRecords.length === 0 ? (
           <div className="p-8 text-center">
             <i className="fas fa-spinner fa-spin text-2xl text-green-500 mb-2"></i>
             <p className="text-xs text-gray-500 dark:text-gray-400">
@@ -1602,7 +1604,7 @@ const Attendances = () => {
             </style>
             <Calendar
               className="attendance-calendar"
-              key={records.length}
+              key={safeRecords.length}
               ref={calendarRef}
               value={null}
               activeStartDate={selectedMonth}
