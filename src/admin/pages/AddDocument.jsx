@@ -1,5 +1,5 @@
-import  { useState, useRef, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useState, useRef, useEffect } from "react";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { showToast } from "../../components/common/Toast";
 import {
@@ -13,7 +13,14 @@ import AddFolderModal from "../components/documents/AddFolderModal";
 
 const AddDocument = () => {
     const navigate = useNavigate();
+    const location = useLocation();
     const dispatch = useDispatch();
+    
+    // Determine if we're in admin or employee route
+    const isAdminRoute = location.pathname.startsWith('/admin');
+    const basePath = isAdminRoute ? '/admin' : '/employee';
+    const documentsPath = isAdminRoute ? '/admin/agreements' : '/employee/my-documents';
+    
     const {
         shareableUsers = [],
         folders = [],
@@ -193,29 +200,44 @@ const AddDocument = () => {
                 "success",
             );
             setTimeout(() => {
-                navigate("/admin/agreements");
+                navigate(documentsPath);
             }, 1200);
         } else {
             showToast(result.payload || "Failed to upload document", "error");
         }
     };
 
+    // Get the appropriate breadcrumb links
+    const getBreadcrumbLinks = () => {
+        if (isAdminRoute) {
+            return [
+                { label: 'Documents', path: '/admin/agreements' },
+                { label: 'Upload Document', path: null }
+            ];
+        } else {
+            return [
+                { label: 'My Documents', path: '/employee/my-documents' },
+                { label: 'Upload Document', path: null }
+            ];
+        }
+    };
+
+    const breadcrumbs = getBreadcrumbLinks();
+
     return (
-        // Remove the outer div with Sidebar and flex layout
-        // Just return the main content directly
         <div className="w-full overflow-x-hidden">
             <div className="max-w-4xl mx-auto w-full">
                 {/* Breadcrumbs */}
                 <div className="flex items-center gap-2 text-xs md:text-sm mb-4 md:mb-6 flex-wrap">
                     <Link
-                        to="/admin/agreements"
+                        to={breadcrumbs[0].path}
                         className="text-green-500 hover:text-green-600 font-medium"
                     >
-                        Documents
+                        {breadcrumbs[0].label}
                     </Link>
                     <i className="fas fa-chevron-right text-gray-400 text-[10px] md:text-xs"></i>
                     <span className="text-gray-500 dark:text-gray-400">
-                        Upload Document
+                        {breadcrumbs[1].label}
                     </span>
                 </div>
 
@@ -499,7 +521,7 @@ const AddDocument = () => {
                         {/* Form Actions */}
                         <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 pt-4 md:pt-6 border-t border-gray-200 dark:border-gray-700">
                             <Link
-                                to="/admin/agreements"
+                                to={documentsPath}
                                 className="px-4 md:px-6 py-2 md:py-2.5 rounded-full font-semibold bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition-all flex items-center justify-center gap-2 text-sm md:text-base"
                             >
                                 <i className="fas fa-times text-xs md:text-sm"></i>

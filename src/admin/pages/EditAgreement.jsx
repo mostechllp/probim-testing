@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useLocation } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { showToast } from "../../components/common/Toast";
 import {
@@ -19,6 +19,13 @@ const EditAgreement = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const { id } = useParams();
+  const location = useLocation();
+  
+  // Determine if we're in admin or employee route
+  const isAdminRoute = location.pathname.startsWith('/admin');
+  const documentsPath = isAdminRoute ? '/admin/agreements' : '/employee/agreements';
+  const editPath = isAdminRoute ? `/admin/agreements/edit-agreement/${id}` : `/employee/agreements/edit-document/${id}`;
+  
   const {
     shareableUsers = [],
     folders = [],
@@ -349,7 +356,7 @@ const EditAgreement = () => {
         "success",
       );
       setTimeout(() => {
-        navigate("/admin/agreements");
+        navigate(documentsPath);
       }, 1200);
     } else {
       const errorPayload = result.payload;
@@ -394,6 +401,23 @@ const EditAgreement = () => {
   const triggerFileInput = () => {
     fileInputRef.current.click();
   };
+
+  // Get breadcrumb links based on route
+  const getBreadcrumbs = () => {
+    if (isAdminRoute) {
+      return [
+        { label: 'Agreements', path: '/admin/agreements' },
+        { label: 'Edit Agreement', path: null }
+      ];
+    } else {
+      return [
+        { label: 'My Documents', path: '/employee/agreements' },
+        { label: 'Edit Document', path: null }
+      ];
+    }
+  };
+
+  const breadcrumbs = getBreadcrumbs();
 
   if (loading && !currentDocument) {
     return (
@@ -462,27 +486,33 @@ const EditAgreement = () => {
   const currentFileName = getCurrentFileName();
   const fileIcon = getFileIcon(currentFileName);
 
+  // Get page title based on route
+  const pageTitle = isAdminRoute ? 'Edit Agreement' : 'Edit Document';
+  const pageIcon = isAdminRoute ? 'fa-edit' : 'fa-edit';
+
   return (
     <div className="w-full overflow-x-hidden px-4 md:px-6">
       {/* Breadcrumbs */}
       <div className="flex items-center gap-2 text-xs md:text-sm mb-4 md:mb-6 flex-wrap">
         <Link
-          to="/admin/agreements"
+          to={breadcrumbs[0].path}
           className="text-green-500 hover:text-green-600 font-medium"
         >
-          Agreements
+          {breadcrumbs[0].label}
         </Link>
         <i className="fas fa-chevron-right text-gray-400 text-[10px] md:text-xs"></i>
-        <span className="text-gray-500 dark:text-gray-400">Edit Agreement</span>
+        <span className="text-gray-500 dark:text-gray-400">
+          {breadcrumbs[1].label}
+        </span>
       </div>
 
       {/* Page Header */}
       <div className="mb-4 md:mb-6">
         <h2 className="text-xl md:text-3xl font-bold bg-gradient-to-r from-gray-800 to-green-600 dark:from-gray-200 dark:to-green-400 bg-clip-text text-transparent">
-          <i className="fas fa-edit mr-2"></i> Edit Agreement
+          <i className={`fas ${pageIcon} mr-2`}></i> {pageTitle}
         </h2>
         <p className="text-xs md:text-sm text-gray-500 dark:text-gray-400 mt-1">
-          Update agreement details
+          Update {isAdminRoute ? 'agreement' : 'document'} details
         </p>
       </div>
 
@@ -509,7 +539,7 @@ const EditAgreement = () => {
                       {currentFileName}
                     </div>
                     <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                      Agreement Name:{" "}
+                      {isAdminRoute ? 'Agreement' : 'Document'} Name:{" "}
                       <span className="font-semibold text-green-600 dark:text-green-400">
                         {formData.name || "Not set"}
                       </span>
@@ -594,15 +624,15 @@ const EditAgreement = () => {
             <div className="flex items-center gap-2 pb-3 border-b-2 border-green-100 dark:border-green-900/30 mb-4 md:mb-6">
               <i className="fas fa-info-circle text-green-500 text-base md:text-lg"></i>
               <h3 className="text-base md:text-lg font-bold text-gray-800 dark:text-gray-200">
-                Agreement Details
+                {isAdminRoute ? 'Agreement' : 'Document'} Details
               </h3>
             </div>
 
             <div className="space-y-4 md:space-y-5">
               <div>
                 <label className="block text-xs md:text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1 md:mb-2">
-                  <i className="fas fa-tag text-green-500 mr-1"></i> Agreement
-                  Name <span className="text-red-500">*</span>
+                  <i className="fas fa-tag text-green-500 mr-1"></i>{" "}
+                  {isAdminRoute ? 'Agreement' : 'Document'} Name <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -610,7 +640,7 @@ const EditAgreement = () => {
                   value={formData.name}
                   onChange={handleChange}
                   className="w-full px-3 md:px-4 py-2 md:py-3 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm md:text-base text-gray-800 dark:text-gray-200 transition-all focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-500/20"
-                  placeholder="Enter agreement name"
+                  placeholder={`Enter ${isAdminRoute ? 'agreement' : 'document'} name`}
                   required
                 />
                 {autoUpdateName && replaceFile && (
@@ -852,7 +882,7 @@ const EditAgreement = () => {
           {/* Form Actions */}
           <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 pt-4 md:pt-6 border-t border-gray-200 dark:border-gray-700">
             <Link
-              to="/admin/agreements"
+              to={documentsPath}
               className="px-4 md:px-6 py-2 md:py-2.5 rounded-full font-semibold bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition-all flex items-center justify-center gap-2 text-sm md:text-base"
             >
               <i className="fas fa-times text-xs md:text-sm"></i>
@@ -871,7 +901,7 @@ const EditAgreement = () => {
               ) : (
                 <>
                   <i className="fas fa-save text-xs md:text-sm"></i>{" "}
-                  <span>Update Agreement</span>
+                  <span>{isAdminRoute ? 'Update Agreement' : 'Update Document'}</span>
                 </>
               )}
             </button>
