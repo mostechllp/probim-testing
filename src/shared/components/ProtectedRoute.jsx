@@ -84,9 +84,11 @@ const ProtectedRoute = ({ requiredType, requiredPermission, children }) => {
     let hasRequiredType = false;
 
     if (requiredType === "admin") {
+      // ONLY admin can access admin routes
       hasRequiredType = isAdmin;
     } else if (requiredType === "employee") {
-      hasRequiredType = isEmployee || isManager || isTeamLead;
+      // Everyone except admin can access employee routes
+      hasRequiredType = !isAdmin;
     } else if (requiredType === "hr") {
       hasRequiredType = isHR;
     } else {
@@ -94,16 +96,18 @@ const ProtectedRoute = ({ requiredType, requiredPermission, children }) => {
     }
 
     if (!hasRequiredType) {
-  console.log("🚨 PROTECTED ROUTE TYPE FAILURE", {
-    currentPath: window.location.pathname,
-    requiredType,
-    userType: user?.type,
-    user,
-    activeType: localStorage.getItem("active-user-type"),
-  });
+      const redirectPath = isAdmin ? "/admin/dashboard" : "/employee/dashboard";
 
-  return <Navigate to="/admin/dashboard" replace />;
-}
+      console.log("🚨 PROTECTED ROUTE TYPE FAILURE", {
+        currentPath: window.location.pathname,
+        requiredType,
+        userType: user?.type,
+        redirectPath,
+        activeType: localStorage.getItem("active-user-type"),
+      });
+
+      return <Navigate to={redirectPath} replace />;
+    }
   }
 
   // Check permission if required
