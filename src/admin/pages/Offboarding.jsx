@@ -265,6 +265,7 @@ const OffboardingDashboard = () => {
       stats: "Start new process",
       buttonText: "Initiate Now",
     },
+    /*
     {
       id: "categories",
       title: "Checklist Categories",
@@ -280,6 +281,7 @@ const OffboardingDashboard = () => {
       stats: `${categories?.length || 0} categories`,
       buttonText: "Manage Categories",
     },
+    */
   ];
 
   const quickStats = [
@@ -666,13 +668,15 @@ const OffboardingDashboard = () => {
                       </td>
                       <td className="px-3 md:px-4 py-2 md:py-3 text-right">
                         <div className="flex items-center justify-end gap-2">
-                          <button
-                            onClick={() => handleContinue(item)}
-                            title="Continue"
-                            className="p-2 rounded-xl bg-blue-50 text-blue-500 hover:bg-blue-100 hover:text-blue-600 transition-colors flex items-center justify-center"
-                          >
-                            <Play size={16} className="ml-0.5" />
-                          </button>
+                          {item.status !== "completed" && (
+                            <button
+                              onClick={() => handleContinue(item)}
+                              title="Continue"
+                              className="p-2 rounded-xl bg-blue-50 text-blue-500 hover:bg-blue-100 hover:text-blue-600 transition-colors flex items-center justify-center"
+                            >
+                              <Play size={16} className="ml-0.5" />
+                            </button>
+                          )}
                           <button
                             onClick={() => handleDeleteClick(item)}
                             title="Delete"

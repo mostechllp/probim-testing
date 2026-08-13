@@ -32,6 +32,7 @@ const AssetReturn = () => {
   const [showReturnDateModal, setShowReturnDateModal] = useState(false);
   const [currentAssetForReturn, setCurrentAssetForReturn] = useState(null);
   const [returnDate, setReturnDate] = useState(new Date().toISOString().split('T')[0]);
+  const [returnCondition, setReturnCondition] = useState("");
   // Redux state
   const { currentOffboarding, loading: offboardingLoading, currentProgress } = useSelector((state) => state.offboarding);
   const { currentEmployee } = useSelector((state) => state.employees);
@@ -101,9 +102,9 @@ const AssetReturn = () => {
               year: 'numeric'
             }) 
           : "Not specified",
-        status: (item.status?.toLowerCase() === 'returned' || item.status?.toLowerCase() === 'revoked' || item.returned_date || item.asset?.status?.toLowerCase() === 'returned' || item.asset?.status?.toLowerCase() === 'revoked') ? "Returned" : "Pending",
+        status: (item.status?.toLowerCase() === 'returned' || item.status?.toLowerCase() === 'revoked' || item.assignment_status?.toLowerCase() === 'returned' || item.returned_date || item.asset?.status?.toLowerCase() === 'returned' || item.asset?.status?.toLowerCase() === 'revoked') ? "Returned" : "Pending",
         returnedDate: item.returned_date || null,
-        condition: "",
+        condition: item.return_condition || "",
         assignmentId: item.assignment_id,
         assetData: item.asset,
         assignmentData: item
@@ -120,6 +121,7 @@ const AssetReturn = () => {
   const handleRevokeClick = (id) => {
     setCurrentAssetForReturn(id);
     setReturnDate(new Date().toISOString().split('T')[0]);
+    setReturnCondition("");
     setShowReturnDateModal(true);
   };
 
@@ -128,12 +130,17 @@ const AssetReturn = () => {
     
     setIsSubmitting(true);
     try {
-      await apiClient.post(`/admin/assets/${currentAssetForReturn}/revoke`, {
-        status: 'Returned',
+      const payload = {
         returned_date: returnDate
-      });
+      };
       
-      setAssets(assets.map(a => a.id === currentAssetForReturn ? { ...a, status: 'Returned', returnedDate: returnDate } : a));
+      if (returnCondition) {
+        payload.return_condition = returnCondition;
+      }
+      
+      await apiClient.post(`/admin/assets/${currentAssetForReturn}/revoke`, payload);
+      
+      setAssets(assets.map(a => a.id === currentAssetForReturn ? { ...a, status: 'Returned', returnedDate: returnDate, condition: returnCondition } : a));
       showToast("Asset revoked successfully", "success");
     } catch (error) {
       console.error("Failed to revoke asset:", error);
@@ -170,17 +177,9 @@ const AssetReturn = () => {
         assigned_date: newAsset.issuedOn || new Date().toISOString().split('T')[0]
       });
       
-      const newAssetObj = {
-        id: createdAssetId,
-        name: newAsset.name,
-        assetId: createdAssetId,
-        issuedOn: newAsset.issuedOn || new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
-        status: "Pending",
-        condition: "",
-        isManual: true
-      };
+      // Fetch the latest assets to ensure UI is perfectly in sync with the backend
+      dispatch(fetchEmployeeAssets(employeeId));
       
-      setAssets([...assets, newAssetObj]);
       setShowAddModal(false);
       setNewAsset({ name: "", assetId: "", issuedOn: "" });
       showToast("Asset added successfully", "success");
@@ -232,8 +231,24 @@ const AssetReturn = () => {
     }
   };
 
-  const handleProceedToSettlement = () => {
-    navigate(`/admin/employees/final-settlement?id=${offboardingId || localStorage.getItem("offboarding_id")}`);
+  const handleProceedToSettlement = async () => {
+    setIsSubmitting(true);
+    const offboardingIdValue = offboardingId || localStorage.getItem("offboarding_id");
+    
+    try {
+      await apiClient.post(`/admin/offboarding/${offboardingIdValue}/assets`, {
+        assets_status: "completed",
+        updated_at: new Date().toISOString()
+      });
+
+      await dispatch(fetchOffboardingProgress(offboardingIdValue));
+      navigate(`/admin/employees/final-settlement?id=${offboardingIdValue}`);
+    } catch (error) {
+      console.error("Proceed error:", error);
+      showToast(error?.response?.data?.message || "Failed to proceed. Please try again.", "error");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // Calculate progress from API
@@ -381,10 +396,20 @@ const AssetReturn = () => {
                 
                 <button
                   onClick={handleProceedToSettlement}
-                  className="px-6 py-2.5 rounded-full font-semibold bg-green-500 text-white hover:bg-green-600 transition-all flex items-center justify-center gap-2 shadow-sm hover:shadow-md"
+                  disabled={isSubmitting}
+                  className="px-6 py-2.5 rounded-full font-semibold bg-green-500 text-white hover:bg-green-600 transition-all flex items-center justify-center gap-2 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Proceed to Final Settlement
-                  <ArrowRight size={18} />
+                  {isSubmitting ? (
+                    <>
+                      <Loader className="w-5 h-5 animate-spin" />
+                      Proceeding...
+                    </>
+                  ) : (
+                    <>
+                      Proceed to Final Settlement
+                      <ArrowRight size={18} />
+                    </>
+                  )}
                 </button>
               </div>
             </div>
@@ -398,8 +423,11 @@ const AssetReturn = () => {
                       <tr>
                         <th scope="col" className="p-4">Asset</th>
                         <th scope="col" className="p-4">Return Date</th>
+                        <th scope="col" className="p-4">Condition</th>
                         <th scope="col" className="p-4">Status</th>
-                        <th scope="col" className="p-4 w-24 text-center">Action</th>
+                        {pendingCount > 0 && (
+                          <th scope="col" className="p-4 w-24 text-center">Action</th>
+                        )}
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200/60 dark:divide-gray-700/60">
@@ -415,22 +443,27 @@ const AssetReturn = () => {
                           <td className="p-4 text-gray-500 dark:text-gray-400 font-medium">
                             {asset.returnedDate ? new Date(asset.returnedDate).toLocaleDateString('en-GB') : "—"}
                           </td>
+                          <td className="p-4 text-gray-500 dark:text-gray-400 font-medium">
+                            {asset.condition || "—"}
+                          </td>
                           <td className="p-4">
                             <span className={`px-2.5 py-1 rounded-md text-xs font-bold inline-flex items-center gap-1 ${asset.status === 'Returned' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' : 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400'}`}>
                               {asset.status === 'Returned' ? <Check size={12} /> : <Loader size={12} className="animate-spin" />}
                               {asset.status}
                             </span>
                            </td>
-                           <td className="p-4 text-center">
-                            {asset.status !== "Returned" && (
-                              <button
-                                onClick={() => handleRevokeClick(asset.id)}
-                                className="px-3 py-1.5 text-xs font-bold text-white bg-blue-500 hover:bg-blue-600 rounded-lg shadow-sm transition-colors"
-                              >
-                                Revoke
-                              </button>
-                            )}
-                           </td>
+                           {pendingCount > 0 && (
+                             <td className="p-4 text-center">
+                              {asset.status !== "Returned" && (
+                                <button
+                                  onClick={() => handleRevokeClick(asset.id)}
+                                  className="px-3 py-1.5 text-xs font-bold text-white bg-red-500 hover:bg-red-600 rounded-lg shadow-sm transition-colors"
+                                >
+                                  Revoke
+                                </button>
+                              )}
+                             </td>
+                           )}
                         </tr>
                       ))}
                     </tbody>
@@ -442,10 +475,20 @@ const AssetReturn = () => {
               <div className="pt-6 border-t border-gray-100 dark:border-gray-700 flex justify-end gap-4">
                 <button
                   onClick={handleProceedToSettlement}
-                  className="px-6 py-2.5 rounded-full font-semibold bg-green-500 text-white hover:bg-green-600 transition-all flex items-center justify-center gap-2 shadow-sm hover:shadow-md"
+                  disabled={isSubmitting}
+                  className="px-6 py-2.5 rounded-full font-semibold bg-green-500 text-white hover:bg-green-600 transition-all flex items-center justify-center gap-2 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Proceed to Final Settlement
-                  <ArrowRight size={18} />
+                  {isSubmitting ? (
+                    <>
+                      <Loader className="w-5 h-5 animate-spin" />
+                      Proceeding...
+                    </>
+                  ) : (
+                    <>
+                      Proceed to Final Settlement
+                      <ArrowRight size={18} />
+                    </>
+                  )}
                 </button>
               </div>
             </>
@@ -494,14 +537,26 @@ const AssetReturn = () => {
                 <X size={20} />
               </button>
             </div>
-            <div className="p-6">
-              <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Return Date *</label>
-              <input
-                type="date"
-                value={returnDate}
-                onChange={(e) => setReturnDate(e.target.value)}
-                className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border rounded-lg text-sm focus:ring-2 focus:ring-green-500 outline-none"
-              />
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Return Date *</label>
+                <input
+                  type="date"
+                  value={returnDate}
+                  onChange={(e) => setReturnDate(e.target.value)}
+                  className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border rounded-lg text-sm focus:ring-2 focus:ring-green-500 outline-none"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase mb-1">Return Condition (Optional)</label>
+                <input
+                  type="text"
+                  placeholder="e.g., Good condition, Minor scratch..."
+                  value={returnCondition}
+                  onChange={(e) => setReturnCondition(e.target.value)}
+                  className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-900 border rounded-lg text-sm focus:ring-2 focus:ring-green-500 outline-none"
+                />
+              </div>
             </div>
             <div className="flex justify-end p-6 border-t border-gray-100 dark:border-gray-700 gap-3">
               <button onClick={() => setShowReturnDateModal(false)} className="px-4 py-2 text-sm font-semibold text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors">Cancel</button>

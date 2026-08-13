@@ -480,10 +480,11 @@ const authSlice = createSlice({
       .addCase(initializeAuth.fulfilled, (state, action) => {
         state.loading = false;
         state.isAuthenticated = true;
-        state.userType = action.payload.user?.type;
+        const resolvedUser = action.payload;
+        state.userType = resolvedUser?.type;
         state.user = {
-          ...action.payload.user,
-          name: action.payload.user?.employee?.name || action.payload.user?.username,
+          ...resolvedUser,
+          name: resolvedUser?.employee?.name || resolvedUser?.username,
         };
       })
       .addCase(initializeAuth.rejected, (state) => {

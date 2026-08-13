@@ -264,7 +264,12 @@ const ExitInterview = () => {
         <OffboardingHeader currentStep={5} />
 
         {/* Progress Box */}
-        <OffboardingProgressBox currentStep={5} />
+        <OffboardingProgressBox 
+          currentStep={5} 
+          apiProgressPercentage={apiProgressPercentage}
+          completedStepsFromApi={completedStepsFromApi}
+          totalStepsFromApi={totalStepsFromApi}
+        />
 
         {/* Main Content Card */}
         <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700/80 rounded-2xl shadow-soft p-6 sm:p-8 space-y-8">

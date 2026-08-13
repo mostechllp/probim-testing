@@ -237,7 +237,7 @@ export const fetchEmployeeAssets = createAsyncThunk(
   "assets/fetchEmployeeAssets",
   async (employeeId, { rejectWithValue }) => {
     try {
-      const response = await apiClient.get(`/employee/assets/${employeeId}`);
+      const response = await apiClient.get(`/admin/assets/employee/${employeeId}`);
       console.log("Employee assets fetched:", response.data);
 
       if (response.data && response.data.success === true) {

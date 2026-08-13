@@ -12,7 +12,12 @@ const STEPS = [
   { id: 7, name: "Checklist" },
 ];
 
-const OffboardingProgressBox = ({ currentStep }) => {
+const OffboardingProgressBox = ({ 
+  currentStep,
+  apiProgressPercentage,
+  completedStepsFromApi,
+  totalStepsFromApi
+}) => {
   const [isVisaRequired, setIsVisaRequired] = useState(true);
   const location = useLocation();
 
@@ -48,6 +53,10 @@ const OffboardingProgressBox = ({ currentStep }) => {
   const completedSteps = Math.min(totalSteps, Math.max(0, adjustedCurrent - 1));
   const progressPercentage = totalSteps > 0 ? Math.round((completedSteps / totalSteps) * 100) : 0;
 
+  const displayProgressPercentage = apiProgressPercentage !== undefined ? apiProgressPercentage : progressPercentage;
+  const displayCompletedSteps = completedStepsFromApi !== undefined ? completedStepsFromApi : completedSteps;
+  const displayTotalSteps = totalStepsFromApi !== undefined ? totalStepsFromApi : totalSteps;
+
   return (
     <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700/80 rounded-2xl shadow-soft p-6 sm:p-8 space-y-6">
       <div className="flex justify-between items-center text-sm font-bold">
@@ -55,20 +64,20 @@ const OffboardingProgressBox = ({ currentStep }) => {
           Offboarding Progress
         </span>
         <span className="text-green-600 dark:text-green-400">
-          {progressPercentage}%
+          {displayProgressPercentage}%
         </span>
       </div>
 
       <div className="w-full h-2.5 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
         <div
           className="h-full bg-green-500 dark:bg-green-600 transition-all duration-500 ease-out"
-          style={{ width: `${progressPercentage}%` }}
+          style={{ width: `${displayProgressPercentage}%` }}
         ></div>
       </div>
 
       <div className="flex justify-between text-xs font-semibold text-gray-500 dark:text-gray-400">
-        <span>Completed Steps: {completedSteps}</span>
-        <span>Total Steps: {totalSteps}</span>
+        <span>Completed Steps: {displayCompletedSteps}</span>
+        <span>Total Steps: {displayTotalSteps}</span>
       </div>
 
       <div className="pt-4 border-t border-gray-100 dark:border-gray-700/50">

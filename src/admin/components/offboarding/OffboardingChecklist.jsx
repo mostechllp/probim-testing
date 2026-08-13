@@ -17,6 +17,7 @@ import OffboardingHeader from "./OffboardingHeader";
 import OffboardingProgressBox from "./OffboardingProgressBox";
 import { fetchOffboardingById, fetchOffboardingProgress, updateOffboarding, completeOffboarding } from "../../store/slices/offboardingSlice";
 import { fetchEmployeeById } from "../../store/slices/employeeSlice";
+import { fetchEmployeeAssets } from "../../store/slices/assetSlice";
 
 const OffboardingChecklist = () => {
   const navigate = useNavigate();
@@ -34,6 +35,7 @@ const OffboardingChecklist = () => {
     (state) => state.offboarding,
   );
   const { currentEmployee } = useSelector((state) => state.employees);
+  const { employeeAssets, loading: assetsLoading } = useSelector((state) => state.assets);
 
   useEffect(() => {
     if (offboardingId) {
@@ -62,6 +64,12 @@ const OffboardingChecklist = () => {
       } else if (currentOffboarding.employee_id) {
         dispatch(fetchEmployeeById(currentOffboarding.employee_id));
       }
+
+      const empId = currentOffboarding.employee_id || localStorage.getItem("offboarding_employee_id");
+      if (empId) {
+        dispatch(fetchEmployeeAssets(empId));
+      }
+
       setLoading(false);
     }
   }, [currentOffboarding, offboardingLoading, dispatch]);
@@ -105,7 +113,17 @@ const OffboardingChecklist = () => {
     
     if (stepNumber === 1) return currentOffboarding.status && currentOffboarding.status !== 'pending';
     
-    if (stepNumber === 2) return currentOffboarding.asset_return_status === 'completed' || currentOffboarding.asset_return_status === 'Completed';
+    if (stepNumber === 2) {
+      if (employeeAssets && employeeAssets.length > 0) {
+        return employeeAssets.every(item => {
+          const status = item.assignment_status?.toLowerCase() || item.status?.toLowerCase() || item.asset?.status?.toLowerCase();
+          return status === 'returned' || status === 'revoked' || item.returned_date;
+        });
+      } else if (employeeAssets && employeeAssets.length === 0) {
+        return true; // No assets means it's completed
+      }
+      return currentOffboarding.asset_return_status === 'completed' || currentOffboarding.asset_return_status === 'Completed';
+    }
     
     if (stepNumber === 3) {
       return currentOffboarding.settlement_status?.toLowerCase() === 'approved' || 
@@ -245,7 +263,14 @@ const OffboardingChecklist = () => {
                 <div>
                   <span className="text-gray-500 dark:text-gray-400 block mb-1">Status</span>
                   <span className="font-medium text-gray-800 dark:text-gray-200">
-                    {currentOffboarding?.asset_return_status === 'completed' ? 'All Assets Returned' : 'Pending / Not Applicable'}
+                    {employeeAssets 
+                      ? (employeeAssets.length === 0 
+                          ? 'Not Applicable' 
+                          : (employeeAssets.every(item => {
+                               const st = item.assignment_status?.toLowerCase() || item.status?.toLowerCase() || item.asset?.status?.toLowerCase();
+                               return st === 'returned' || st === 'revoked' || item.returned_date;
+                             }) ? 'All Assets Returned' : 'Pending'))
+                      : (currentOffboarding?.asset_return_status === 'completed' ? 'All Assets Returned' : 'Pending / Not Applicable')}
                   </span>
                 </div>
               </div>

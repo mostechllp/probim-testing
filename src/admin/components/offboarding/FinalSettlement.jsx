@@ -216,7 +216,7 @@ const FinalSettlement = () => {
               <ReadOnlyInput label="Service Completed" value={`${calculatedData.service_period.years} yr ${calculatedData.service_period.months} mo ${calculatedData.service_period.days} d`} />
               <ReadOnlyInput label="Notice Period (Days)" value={calculatedData.notice_period.notice_period_days} />
               <ReadOnlyInput label="Notice Window" value={`${formatDate(calculatedData.notice_period.notice_start_date)} to ${formatDate(calculatedData.notice_period.notice_end_date)}`} />
-              <ReadOnlyInput label="Days Served / Shortfall" value={`${calculatedData.notice_period.days_served} served / ${calculatedData.notice_period.shortfall_days} shortfall`} />
+              <ReadOnlyInput label="Shortfall / Days Served" value={`${calculatedData.notice_period.shortfall_days} shortfall / ${calculatedData.notice_period.days_served} served`} />
             </div>
 
             <div className="h-px bg-gray-100 dark:bg-gray-700 w-full my-8"></div>
@@ -224,8 +224,8 @@ const FinalSettlement = () => {
             {/* 3. Attendance & Leave */}
             <h2 className="text-sm font-bold text-gray-800 dark:text-gray-200 uppercase tracking-wider mb-4">Attendance & Leave</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <ReadOnlyInput label="Working Days / Days Worked" value={`${calculatedData.attendance.working_days} / ${calculatedData.attendance.days_worked}`} />
-              <ReadOnlyInput label="Leave Allocated / Taken" value={`${calculatedData.leave.leave_allocated} / ${calculatedData.leave.leave_taken}`} />
+              <ReadOnlyInput label="Days Worked / Working Days" value={`${calculatedData.attendance.days_worked} / ${calculatedData.attendance.working_days}`} />
+              <ReadOnlyInput label="Leave Taken / Allocated" value={`${calculatedData.leave.leave_taken} / ${calculatedData.leave.leave_allocated}`} />
               <ReadOnlyInput label="Unpaid Leave Days" value={calculatedData.leave.unpaid_leave_days} />
               <ReadOnlyInput label="Leave Balance" value={`${calculatedData.leave.leave_balance_days} days`} />
               <ReadOnlyInput label="Per Day Salary" value={`${currency} ${calculatedData.salary.per_day_salary.toLocaleString(undefined, {minimumFractionDigits:2})}`} />

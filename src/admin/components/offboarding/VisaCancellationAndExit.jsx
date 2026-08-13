@@ -11,7 +11,7 @@ import { fetchOffboardingById, updateVisaStatus } from "../../store/slices/offbo
 import { fetchChecklists, createChecklist, updateChecklist, deleteChecklist, updateChecklistStatus, clearError } from "../../store/slices/checklistSlice";
 import { fetchChecklistCategories } from "../../store/slices/checklistCategorySlice";
 import ConfirmModal from "../common/ConfirmModal";
-import { getStorageUrl } from "../../../utils/apiClient";
+import apiClient, { getStorageUrl } from "../../../utils/apiClient";
 
 // Assignee options
 const ASSIGNEE_OPTIONS = [
@@ -292,7 +292,11 @@ const VisaCancellationAndExit = () => {
         visaData: formData
       })).unwrap();
 
-      console.log("Visa status updated:", result);
+      // Call the complete API as requested
+      const activeId = offboardingId || localStorage.getItem("offboarding_id");
+      await apiClient.post(`/admin/offboarding/${activeId}/visa-status/complete`);
+
+      console.log("Visa status updated and completed:", result);
       showToast("Visa status updated successfully", "success");
 
       setTimeout(() => {
