@@ -4,12 +4,12 @@ import { useNavigate, useLocation } from "react-router-dom";
 
 const STEPS = [
   { id: 1, label: "Initiation", subtitle: "Start Process", path: "/admin/employees/offboarding-initiation" },
-  { id: 2, label: "Visa Cancel", subtitle: "Visa Processing", path: "/admin/employees/visa-cancellation" },
-  { id: 3, label: "Interview", subtitle: "Exit Session", path: "/admin/employees/exit-interview" },
-  { id: 4, label: "Assets", subtitle: "Asset Return", path: "/admin/employees/asset-return" },
-  { id: 5, label: "Settlement", subtitle: "Final Payment", path: "/admin/employees/final-settlement" },
+  { id: 2, label: "Assets", subtitle: "Asset Return", path: "/admin/employees/asset-return" },
+  { id: 3, label: "Settlement", subtitle: "Final Payment", path: "/admin/employees/final-settlement" },
+  { id: 4, label: "Visa Cancel", subtitle: "Visa Processing", path: "/admin/employees/visa-cancellation" },
+  { id: 5, label: "Interview", subtitle: "Exit Session", path: "/admin/employees/exit-interview" },
   { id: 6, label: "Letters", subtitle: "Clearance", path: "/admin/employees/letters-and-clearance" },
-  { id: 7, label: "Checklist", subtitle: "Verification", path: "/admin/employees/offboarding-checklist" },
+  { id: 7, label: "Final Clearance", subtitle: "Verification", path: "/admin/employees/offboarding-checklist" },
 ];
 
 const OffboardingHeader = ({ currentStep }) => {
@@ -53,7 +53,7 @@ const OffboardingHeader = ({ currentStep }) => {
     if (isVisaRequired) {
       return STEPS;
     } else {
-      return STEPS.filter(step => step.id !== 2);
+      return STEPS.filter(step => step.id !== 4);
     }
   };
   
@@ -61,7 +61,7 @@ const OffboardingHeader = ({ currentStep }) => {
   
   const getAdjustedStepId = (originalStepId) => {
     if (!isVisaRequired) {
-      if (originalStepId > 2) {
+      if (originalStepId > 4) {
         return originalStepId - 1;
       }
     }
@@ -128,7 +128,7 @@ const OffboardingHeader = ({ currentStep }) => {
         {/* Stepper */}
         <div className="flex items-center justify-between w-full">
           {filteredSteps.map((step, index) => {
-            const displayStepNumber = !isVisaRequired && step.id > 2 ? step.id - 1 : step.id;
+            const displayStepNumber = !isVisaRequired && step.id > 4 ? step.id - 1 : step.id;
             const adjustedCurrent = getAdjustedStepId(currentStep);
             const adjustedStep = getAdjustedStepId(step.id);
             const isCompleted = adjustedCurrent > adjustedStep;
@@ -238,7 +238,7 @@ const OffboardingHeader = ({ currentStep }) => {
         {/* Step circles - All steps visible */}
         <div className="flex items-center justify-between">
           {filteredSteps.map((step) => {
-            const displayStepNumber = !isVisaRequired && step.id > 2 ? step.id - 1 : step.id;
+            const displayStepNumber = !isVisaRequired && step.id > 4 ? step.id - 1 : step.id;
             const adjustedCurrent = getAdjustedStepId(currentStep);
             const adjustedStep = getAdjustedStepId(step.id);
             const isCompleted = adjustedCurrent > adjustedStep;

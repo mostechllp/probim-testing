@@ -48,6 +48,7 @@ const offboardingSchema = z.object({
   reportingManagerId: z
     .union([z.string(), z.number()])
     .optional(),
+  resignationDate: z.string().min(1, "Resignation date is required"),
   noticeStartDate: z.string().min(1, "Notice start date is required"),
   noticePeriodDays: z.coerce.number().min(0, "Notice period must be 0 or more"),
   lastWorkingDay: z.string().min(1, "Last working day is required"),
@@ -83,6 +84,8 @@ const OffboardingInitiation = () => {
   const [showProgress, setShowProgress] = useState(false);
   const [loadingData, setLoadingData] = useState(false);
   const [reportingManagers, setReportingManagers] = useState([]);
+  const [offboardingEmployees, setOffboardingEmployees] = useState([]);
+  const [offboardingEmployeesLoading, setOffboardingEmployeesLoading] = useState(true);
 
   // Redux state
   const { employees, loading: employeesLoading } = useSelector(
@@ -114,6 +117,7 @@ const OffboardingInitiation = () => {
       designation: "",
       reportingManager: "",
       reportingManagerId: "",
+      resignationDate: "",
       noticeStartDate: "",
       noticePeriodDays: 30,
       lastWorkingDay: "",
@@ -131,6 +135,26 @@ const OffboardingInitiation = () => {
     dispatch(fetchDepartments());
     dispatch(fetchDesignations());
     
+    // Fetch offboarding employees specifically for this dropdown
+    const fetchOffboardingEmployees = async () => {
+      try {
+        setOffboardingEmployeesLoading(true);
+        const response = await apiClient.get('/admin/offboarding/employees');
+        if (response.data?.status === 'success' && response.data?.data) {
+          setOffboardingEmployees(response.data.data);
+        } else if (Array.isArray(response.data?.data)) {
+          setOffboardingEmployees(response.data.data);
+        } else if (Array.isArray(response.data)) {
+          setOffboardingEmployees(response.data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch offboarding employees:", error);
+      } finally {
+        setOffboardingEmployeesLoading(false);
+      }
+    };
+    fetchOffboardingEmployees();
+
     // Fetch reporting managers
     const fetchManagers = async () => {
       try {
@@ -287,6 +311,11 @@ const OffboardingInitiation = () => {
 
     // Dates
     setValue(
+      "resignationDate",
+      data.resignation_date || data.resignationDate || "",
+      { shouldValidate: true },
+    );
+    setValue(
       "noticeStartDate",
       data.notice_start_date || data.noticeStartDate || "",
       { shouldValidate: true },
@@ -346,7 +375,7 @@ const OffboardingInitiation = () => {
     if (currentProgress && currentProgress.offboarding_id && showProgress) {
       const timer = setTimeout(() => {
         navigate(
-          `/admin/employees/visa-cancellation?id=${currentProgress.offboarding_id}`,
+          `/admin/employees/asset-return?id=${currentProgress.offboarding_id}`,
         );
         setShowProgress(false);
       }, 2000);
@@ -360,7 +389,7 @@ const OffboardingInitiation = () => {
       fallbackTimer = setTimeout(() => {
         const storedId = localStorage.getItem("offboarding_id");
         if (storedId) {
-          navigate(`/admin/employees/visa-cancellation?id=${storedId}`);
+          navigate(`/admin/employees/asset-return?id=${storedId}`);
           setShowProgress(false);
         }
       }, 3000);
@@ -423,12 +452,10 @@ const OffboardingInitiation = () => {
   }, [watchedNoticeStartDate, watchedNoticePeriodDays, setValue]);
 
   // Filter employees based on search query
-  const filteredEmployees = (employees || []).filter((emp) => {
-    const employeeId = emp.raw?.employee_id ? String(emp.raw.employee_id) : "";
-    const employeeName = emp.name ? String(emp.name).toLowerCase() : "";
-    const employeeEmail = emp.raw?.user?.email
-      ? String(emp.raw.user.email).toLowerCase()
-      : "";
+  const filteredEmployees = offboardingEmployees.filter((emp) => {
+    const employeeId = emp.employee_id ? String(emp.employee_id).toLowerCase() : "";
+    const employeeName = emp.full_name ? String(emp.full_name).toLowerCase() : "";
+    const employeeEmail = emp.email ? String(emp.email).toLowerCase() : "";
     const searchLower = searchQuery.toLowerCase();
 
     return (
@@ -454,41 +481,23 @@ const OffboardingInitiation = () => {
 
   // Handle employee selection and auto-populate all form fields
   const handleSelectEmployee = (emp) => {
-    setSearchQuery(emp.name);
+    setSearchQuery(emp.full_name);
     setShowDropdown(false);
 
-    const rawEmployee = emp.raw || {};
-    const userData = rawEmployee.user || {};
-
-    const departmentObj = departments?.find(
-      (dept) => dept.id === userData.department_id,
-    );
-    const departmentName =
-      departmentObj?.name || userData.department?.name || "";
-
-    const designationObj = designations?.find(
-      (des) => des.id === userData.designation_id,
-    );
-    const designationName =
-      designationObj?.name || userData.designation?.name || "";
-
-    setValue("employeeId", rawEmployee.employee_id || String(emp.id), {
+    setValue("employeeId", emp.employee_id || String(emp.id), {
       shouldValidate: true,
     });
-    setValue("employeeName", emp.name, { shouldValidate: true });
-    setValue("department", departmentName, { shouldValidate: true });
-    setValue("designation", designationName, { shouldValidate: true });
-    setValue("nationality", rawEmployee.nationality || "", {
-      shouldValidate: true,
-    });
-    setValue("email", userData.email || "", { shouldValidate: true });
+    setValue("employeeName", emp.full_name, { shouldValidate: true });
+    setValue("department", emp.department || "", { shouldValidate: true });
+    setValue("designation", emp.designation || "", { shouldValidate: true });
+    setValue("email", emp.email || "", { shouldValidate: true });
     setValue("backendEmployeeId", String(emp.id), { shouldValidate: true });
 
-    const visaStatus =
-      rawEmployee.visa_status || rawEmployee.visa_sponsorship || "";
-    setValue("visaSponsorship", visaStatus, { shouldValidate: true });
+    // Handle missing fields from new API (these might not be provided, so clear or keep empty to avoid validation errors if they are not strictly tied to API)
+    setValue("nationality", emp.nationality || "", { shouldValidate: true });
+    setValue("visaSponsorship", emp.visa_sponsorship || emp.visa_status || "", { shouldValidate: true });
 
-    showToast(`Employee ${emp.name} loaded successfully!`, "success");
+    showToast(`Employee ${emp.full_name} loaded successfully!`, "success");
   };
 
   // Handle manager selection
@@ -512,22 +521,17 @@ const OffboardingInitiation = () => {
 
     try {
       const payload = {
-        employee_id: data.backendEmployeeId ? String(data.backendEmployeeId) : "",
-        employee_name: data.employeeName,
-        department: data.department,
-        designation: data.designation,
-        reporting_manager: data.reportingManager,
-        reporting_manager_id: data.reportingManagerId ? String(data.reportingManagerId) : "",
+        employee_id: data.backendEmployeeId ? parseInt(data.backendEmployeeId, 10) : null,
+        reporting_manager_id: data.reportingManagerId ? parseInt(data.reportingManagerId, 10) : null,
         last_working_day: data.lastWorkingDay,
         separation_type: data.separationType.toLowerCase(),
-        notice_period_days: data.noticePeriodDays,
+        resignation_date: data.resignationDate,
+        notice_period_days: data.noticePeriodDays ? parseInt(data.noticePeriodDays, 10) : 0,
         notice_start_date: data.noticeStartDate,
         visa_sponsorship: data.visaSponsorship,
         nationality: data.nationality,
-        email: data.email,
         reason_for_leaving: data.reasonForLeaving,
-        status: "initiated",
-        current_step: "initiation",
+        is_draft: false,
       };
 
       let result;
@@ -592,7 +596,7 @@ const OffboardingInitiation = () => {
         // Only redirect after a short delay for new offboarding
         setTimeout(() => {
           if (result && result.id) {
-            navigate(`/admin/employees/visa-cancellation?id=${result.id}`);
+            navigate(`/admin/employees/asset-return?id=${result.id}`);
           }
         }, 2000);
       }
@@ -818,7 +822,7 @@ const OffboardingInitiation = () => {
                 {/* Dropdown suggestions list */}
                 {showDropdown && !isEditMode && (
                   <div className="absolute z-10 mt-1 w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg max-h-60 overflow-y-auto divide-y divide-gray-100 dark:divide-gray-700">
-                    {employeesLoading ? (
+                    {offboardingEmployeesLoading ? (
                       <div className="p-3 text-center text-xs text-gray-400">
                         Loading employees...
                       </div>
@@ -833,7 +837,7 @@ const OffboardingInitiation = () => {
                           <div className="flex items-center justify-between">
                             <div>
                               <p className="text-sm font-semibold text-gray-900 dark:text-white">
-                                {emp.name}
+                                {emp.full_name}
                               </p>
                               <p className="text-xs text-gray-500 dark:text-gray-400">
                                 {emp.designation} • {emp.department}
@@ -1025,6 +1029,7 @@ const OffboardingInitiation = () => {
                   </p>
                 )}
               </div>
+
               {/* NOTICE START DATE */}
               <div className="space-y-1.5">
                 <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
@@ -1107,9 +1112,32 @@ const OffboardingInitiation = () => {
                   <option value="Retirement">Retirement</option>
                   <option value="Contract End">Contract End</option>
                 </select>
-                {errors.separationType && (
+                  {errors.separationType && (
                   <p className="text-xxs font-bold text-red-500 mt-1">
                     {errors.separationType.message}
+                  </p>
+                )}
+              </div>
+              {/* DYNAMIC DATE BASED ON SEPARATION TYPE */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                  {watch("separationType") ? `${watch("separationType")} Date` : "Date"} <span className="text-red-500">*</span>
+                </label>
+                <Controller
+                  name="resignationDate"
+                  control={control}
+                  render={({ field }) => (
+                    <DateInput
+                      {...field}
+                      placeholder={`Select ${watch("separationType")?.toLowerCase() || "resignation"} date`}
+                      error={!!errors.resignationDate}
+                      className="w-full bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-700"
+                    />
+                  )}
+                />
+                {errors.resignationDate && (
+                  <p className="text-xxs font-bold text-red-500 mt-1">
+                    {errors.resignationDate.message}
                   </p>
                 )}
               </div>

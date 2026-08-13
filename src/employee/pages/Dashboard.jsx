@@ -329,13 +329,6 @@ const Dashboard = () => {
     }
   }, [dispatch, showAdminGraphs]);
 
-  // Separate useEffect to fetch projects when dashboard data loads
-  useEffect(() => {
-    if (dashboardData?.employee?.id) {
-      dispatch(fetchMyProjects(dashboardData.employee.id));
-    }
-  }, [dashboardData]);
-
   // Update date and time
   useEffect(() => {
     const updateDateTime = () => {
@@ -377,8 +370,6 @@ const Dashboard = () => {
   };
 
   // Handle location confirmation
-  // In Dashboard.jsx, update the handleLocationConfirm function
-
   const handleLocationConfirm = async (locationData) => {
     setShowLocationModal(false);
     setIsSubmitting(true);
@@ -395,9 +386,7 @@ const Dashboard = () => {
             return result;
           },
           {
-            // Custom error handler for punch-in specific errors
             onError: (err) => {
-              // Extract error message from various formats
               let errorMsg = "";
               if (typeof err === "string") {
                 errorMsg = err;
@@ -411,7 +400,6 @@ const Dashboard = () => {
                 errorMsg = String(err);
               }
 
-              // Check for pending punch-out error
               if (
                 errorMsg.includes("pending punch-out") ||
                 errorMsg.includes("punch out for that day") ||
@@ -422,26 +410,22 @@ const Dashboard = () => {
                 const date = match ? match[1] : "that day";
                 setPendingPunchOutDate(date);
                 setShowPendingErrorModal(true);
-                return true; // Indicates error was handled
+                return true;
               }
 
-              // Check for late punch-in with HR approval
               if (
                 errorMsg.includes("Punch-in blocked") ||
                 errorMsg.includes("pending HR approval") ||
                 errorMsg.includes("late check-in request")
               ) {
-                // This will be displayed by the ErrorToast
-                // Return false to let the error handler show the toast
                 return false;
               }
 
-              return false; // Let the error handler show the toast
+              return false;
             },
           },
         );
       } catch (err) {
-        // Error is already handled by withErrorHandling
         console.error("Punch in error:", err);
       }
     } else if (punchOutData) {
@@ -677,9 +661,49 @@ const Dashboard = () => {
   const recentLeaves = dashboardData?.recent_leaves || [];
   const leaveStats = dashboardData?.leave_stats || {};
 
-  // ─── NEW COMPACT STATS CARDS ──────────────────────────────────────────
+  // ─── GET PROJECTS FROM DASHBOARD DATA ──────────────────────────────
+  // Extract projects from dashboardData.project_assignments
+  const dashboardProjects = dashboardData?.project_assignments
+    ?.map((item) => ({
+      id: item.project.id,
+      name: item.project.name,
+      description: item.project.description,
+      project_manager_id: item.project.project_manager_id,
+      team_lead_id: item.project.team_lead_id,
+      total_hours: item.project.total_hours,
+      total_cost: item.project.total_cost,
+      currency: item.project.currency,
+      status: item.project.status || "Active",
+      assigned_at: item.assignment.assigned_at,
+      priority: item.project.priority || "Medium",
+      managerName: "N/A", // Will be populated from employees
+      teamLeadName: "N/A", // Will be populated from employees
+    }))
+    .filter(Boolean) || [];
 
-  // Leave Stats Card - matches image style
+  // Get manager and team lead names from employees list
+  const projectsWithNames = dashboardProjects.map((project) => {
+    const manager = employees?.find(
+      (emp) => emp.id === project.project_manager_id || emp.user_id === project.project_manager_id
+    );
+    const teamLead = employees?.find(
+      (emp) => emp.id === project.team_lead_id || emp.user_id === project.team_lead_id
+    );
+
+    return {
+      ...project,
+      managerName: manager
+        ? manager.name || `${manager.first_name || ""} ${manager.last_name || ""}`.trim() || "N/A"
+        : "N/A",
+      teamLeadName: teamLead
+        ? teamLead.name || `${teamLead.first_name || ""} ${teamLead.last_name || ""}`.trim() || "N/A"
+        : "N/A",
+    };
+  });
+
+  // ─── LEAVE & PROJECTS STATS CARDS ──────────────────────────────────────────
+
+  // Leave Stats Card
   const LeaveStatsCard = () => (
     <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-4">
       <div className="flex items-center justify-between mb-3">
@@ -697,7 +721,6 @@ const Dashboard = () => {
         )}
       </div>
 
-      {/* Stats Row - Three columns like the image */}
       <div className="grid grid-cols-3 gap-3">
         <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-3 text-center border border-blue-200 dark:border-blue-800">
           <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
@@ -727,7 +750,6 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* Recent Leave Requests - Optional, shown when there are pending requests */}
       {recentLeaves.length > 0 && (
         <div className="mt-3 pt-3 border-t border-[var(--border)]">
           <div className="text-xs text-[var(--muted)] mb-2">
@@ -766,7 +788,6 @@ const Dashboard = () => {
         </div>
       )}
 
-      {/* No recent leaves message - matches image style */}
       {recentLeaves.length === 0 && (
         <div className="mt-3 pt-3 border-t border-[var(--border)]">
           <div className="text-xs text-[var(--text-secondary)] text-center">
@@ -783,29 +804,23 @@ const Dashboard = () => {
     </div>
   );
 
-  // Projects Stats Card - matches image style
+  // Projects Stats Card - Using projects from dashboard
   const ProjectsStatsCard = () => (
     <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-4">
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-sm font-semibold text-[var(--text)] flex items-center gap-2">
           <i className="fas fa-project-diagram text-blue-500"></i>
-          Project Status
+          My Projects
         </h3>
-        {employeeProjects.length > 0 && (
-          <button
-            onClick={() => navigate("/employee/projects")}
-            className="text-xs text-blue-500 hover:text-blue-600 font-medium"
-          >
-            View All
-          </button>
-        )}
+        <span className="text-xs text-[var(--muted)]">
+          {projectsWithNames.length} projects
+        </span>
       </div>
 
-      {/* Stats Row - Two columns like the image */}
       <div className="grid grid-cols-2 gap-3">
         <div className="bg-purple-50 dark:bg-purple-900/20 rounded-xl p-4 text-center border border-purple-200 dark:border-purple-800">
           <div className="text-3xl font-bold text-purple-600 dark:text-purple-400">
-            {stats.totalProjects || employeeProjects.length || 0}
+            {projectsWithNames.length}
           </div>
           <div className="text-xs text-purple-600/80 dark:text-purple-400/80 font-medium mt-0.5">
             Total Projects
@@ -814,9 +829,7 @@ const Dashboard = () => {
 
         <div className="bg-green-50 dark:bg-green-900/20 rounded-xl p-4 text-center border border-green-200 dark:border-green-800">
           <div className="text-3xl font-bold text-green-600 dark:text-green-400">
-            {stats.activeProjects ||
-              employeeProjects.filter((p) => p.status === "Active").length ||
-              0}
+            {projectsWithNames.filter((p) => p.status === "Active").length}
           </div>
           <div className="text-xs text-green-600/80 dark:text-green-400/80 font-medium mt-0.5">
             Active Projects
@@ -824,17 +837,17 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* Project list preview - shown when there are projects */}
-      {employeeProjects.length > 0 && (
+      {/* Show ALL projects - no View All button */}
+      {projectsWithNames.length > 0 && (
         <div className="mt-3 pt-3 border-t border-[var(--border)]">
-          <div className="space-y-1.5">
-            {employeeProjects.slice(0, 2).map((project) => (
+          <div className="space-y-1.5 max-h-[300px] overflow-y-auto scrollbar-thin">
+            {projectsWithNames.map((project) => (
               <div
                 key={project.id}
                 className="flex items-center justify-between text-xs p-2 bg-[var(--surface2)] rounded-lg cursor-pointer hover:bg-[var(--surface3)] transition-colors"
                 onClick={() => setSelectedProject(project)}
               >
-                <div className="flex items-center gap-2 min-w-0">
+                <div className="flex items-center gap-2 min-w-0 flex-1">
                   <span
                     className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
                       project.status === "Active"
@@ -844,31 +857,22 @@ const Dashboard = () => {
                           : "bg-gray-400"
                     }`}
                   ></span>
-                  <span className="text-[var(--text)] truncate max-w-[120px]">
+                  <span className="text-[var(--text)] truncate max-w-[180px] md:max-w-[200px]">
                     {project.name}
                   </span>
                 </div>
                 <span
-                  className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${getPriorityColor(project.priority)}`}
+                  className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium flex-shrink-0 ml-2 ${getPriorityColor(project.priority)}`}
                 >
                   {project.priority || "Medium"}
                 </span>
               </div>
             ))}
           </div>
-          {employeeProjects.length > 2 && (
-            <button
-              onClick={() => navigate("/employee/projects")}
-              className="text-xs text-blue-500 hover:text-blue-600 font-medium mt-1.5 block"
-            >
-              + {employeeProjects.length - 2} more projects
-            </button>
-          )}
         </div>
       )}
 
-      {/* No projects message */}
-      {employeeProjects.length === 0 && (
+      {projectsWithNames.length === 0 && (
         <div className="mt-3 pt-3 border-t border-[var(--border)]">
           <div className="text-xs text-[var(--text-secondary)] text-center">
             No projects assigned yet
@@ -878,7 +882,7 @@ const Dashboard = () => {
     </div>
   );
 
-  // Render location info - compact
+  // Render location info
   const renderLocationInfo = () => {
     const punchInLocation = normalizeLocation(
       todayAttendance.punch_in_location,
@@ -985,7 +989,7 @@ const Dashboard = () => {
 
   return (
     <div className="space-y-3 px-4 md:px-6 lg:px-8 pb-8">
-      {/* Welcome Banner - Compact */}
+      {/* Welcome Banner */}
       <div
         className={`welcome-banner rounded-xl p-4 flex flex-col md:flex-row justify-between items-center gap-3 shadow-lg ${getWelcomeBannerGradient(isDarkMode)}`}
       >
@@ -1035,7 +1039,7 @@ const Dashboard = () => {
       {/* Location Info */}
       {renderLocationInfo()}
 
-      {/* Punch Card - Compact */}
+      {/* Punch Card */}
       <div className="punch-card bg-[var(--surface)] border border-[var(--border)] rounded-xl p-3 flex flex-col md:flex-row justify-between items-center gap-3 mb-4">
         <div className="punch-stats flex gap-6 md:gap-8 flex-wrap justify-center">
           <div className="punch-item text-center">
@@ -1089,7 +1093,7 @@ const Dashboard = () => {
       {/* ─── ADMIN/HR GRAPHS ──────────────────────────────────────────────── */}
       {showAdminGraphs && (
         <>
-          {/* ─── ROW 1: Overview (4 columns) ────────────────────── */}
+          {/* ─── ROW 1: Overview ────────────────────── */}
           <div className="section-label text-[10px] font-medium uppercase tracking-wider text-gray-400 dark:text-gray-500 mt-2 mb-2">
             Overview
           </div>
@@ -1128,7 +1132,7 @@ const Dashboard = () => {
             />
           </div>
 
-          {/* ─── ROW 2: Projects Stats (4 columns) ───────────────────────────── */}
+          {/* ─── ROW 2: Projects Stats ───────────────────────────── */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
             <StatsCard
               title="Total Projects"
@@ -1226,83 +1230,61 @@ const Dashboard = () => {
         </>
       )}
 
-      {/* ─── EMPLOYEE PROJECTS SECTION ──────────────────────────────────── */}
-      {!showAdminGraphs && employeeProjects.length > 0 && (
+      {/* ─── EMPLOYEE PROJECTS SECTION (Fallback if no admin graphs) ─── */}
+      {!showAdminGraphs && projectsWithNames.length > 0 && (
         <div className="projects-section bg-[var(--surface)] border border-[var(--border)] rounded-xl p-3 mb-4">
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-sm font-semibold text-[var(--text)] flex items-center gap-2">
               <i className="fas fa-project-diagram text-green-500"></i>
               My Projects
               <span className="text-xs text-[var(--muted)] font-normal">
-                ({employeeProjects.length})
+                ({projectsWithNames.length})
               </span>
             </h3>
-            <button
-              onClick={() => navigate("/employee/projects")}
-              className="text-xs text-green-500 hover:text-green-600 font-medium"
-            >
-              View All
-            </button>
           </div>
 
-          {projectsLoading ? (
-            <div className="flex justify-center items-center py-6">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-green-500"></div>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
-              {employeeProjects.slice(0, 4).map((project) => (
-                <div
-                  key={project.id}
-                  className="project-card bg-[var(--surface2)] border border-[var(--border)] rounded-lg p-3 hover:shadow-md transition-all cursor-pointer"
-                  onClick={() => setSelectedProject(project)}
-                >
-                  <div className="flex justify-between items-start mb-1.5">
-                    <h4 className="font-semibold text-[var(--text)] text-sm truncate max-w-[120px]">
-                      {project.name}
-                    </h4>
-                    <span
-                      className={`px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${getPriorityColor(project.priority)}`}
-                    >
-                      {project.priority || "Med"}
-                    </span>
-                  </div>
-
-                  <p className="text-xs text-[var(--text-secondary)] mb-2 line-clamp-1">
-                    {project.description || "No description"}
-                  </p>
-
-                  <div className="flex items-center gap-2 text-[10px] text-[var(--muted)]">
-                    <i className="fas fa-user-tie text-green-500"></i>
-                    <span className="truncate">
-                      {project.managerName || "N/A"}
-                    </span>
-                  </div>
-
-                  <div className="mt-1.5 pt-1.5 border-t border-[var(--border)] flex justify-between items-center">
-                    <span
-                      className={`px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${getStatusColor(project.status)}`}
-                    >
-                      {project.status || "Active"}
-                    </span>
-                    <span className="text-[10px] text-[var(--muted)]">
-                      {project.assignedDate?.split("-")[0] || ""}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-          {employeeProjects.length > 4 && (
-            <div className="text-center mt-2">
-              <button
-                onClick={() => navigate("/employee/projects")}
-                className="text-xs text-green-500 hover:text-green-600 font-medium"
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
+            {projectsWithNames.map((project) => (
+              <div
+                key={project.id}
+                className="project-card bg-[var(--surface2)] border border-[var(--border)] rounded-lg p-3 hover:shadow-md transition-all cursor-pointer"
+                onClick={() => setSelectedProject(project)}
               >
-                + {employeeProjects.length - 4} more projects
-              </button>
-            </div>
-          )}
+                <div className="flex justify-between items-start mb-1.5">
+                  <h4 className="font-semibold text-[var(--text)] text-sm truncate max-w-[120px]">
+                    {project.name}
+                  </h4>
+                  <span
+                    className={`px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${getPriorityColor(project.priority)}`}
+                  >
+                    {project.priority || "Med"}
+                  </span>
+                </div>
+
+                <p className="text-xs text-[var(--text-secondary)] mb-2 line-clamp-1">
+                  {project.description || "No description"}
+                </p>
+
+                <div className="flex items-center gap-2 text-[10px] text-[var(--muted)]">
+                  <i className="fas fa-user-tie text-green-500"></i>
+                  <span className="truncate">
+                    {project.managerName || "N/A"}
+                  </span>
+                </div>
+
+                <div className="mt-1.5 pt-1.5 border-t border-[var(--border)] flex justify-between items-center">
+                  <span
+                    className={`px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${getStatusColor(project.status)}`}
+                  >
+                    {project.status || "Active"}
+                  </span>
+                  <span className="text-[10px] text-[var(--muted)]">
+                    {project.assigned_at?.split("-")[0] || ""}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
@@ -1380,7 +1362,7 @@ const Dashboard = () => {
                       Assigned On
                     </label>
                     <p className="text-sm font-semibold text-[var(--text)]">
-                      {selectedProject.assignedDate}
+                      {formatDateDisplay(selectedProject.assigned_at)}
                     </p>
                   </div>
                 </div>
@@ -1390,7 +1372,7 @@ const Dashboard = () => {
         </div>
       )}
 
-      {/* Recent Activity Section - Compact */}
+      {/* Recent Activity Section */}
       {dashboardData?.attendance_history &&
         dashboardData.attendance_history.length > 0 && (
           <div className="recent-activity mt-6 bg-[var(--surface)] border border-[var(--border)] rounded-xl p-3">
@@ -1588,7 +1570,6 @@ const Dashboard = () => {
               clearError();
             } else if (actionType === "wait") {
               clearError();
-              // Optionally show a message that they're waiting
               showToastMessage(
                 "We'll notify you when HR approves your request",
                 "info",

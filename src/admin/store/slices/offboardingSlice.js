@@ -179,7 +179,7 @@ export const updateVisaStatus = createAsyncThunk(
   async ({ id, visaData }, { rejectWithValue }) => {
     try {
       const response = await apiClient.post(
-        `/admin/offboarding/${id}/visa-status/complete`,
+        `/admin/offboarding/${id}/visa-status`,
         visaData,
       );
 
@@ -392,6 +392,31 @@ export const saveOffboardingDraft = createAsyncThunk(
       );
     }
   },
+);
+
+// Complete Offboarding - POST /admin/offboarding/{id}/complete
+export const completeOffboarding = createAsyncThunk(
+  "offboarding/completeOffboarding",
+  async (id, { rejectWithValue }) => {
+    try {
+      const response = await apiClient.post(`/admin/offboarding/${id}/complete`);
+      
+      console.log("Offboarding completed:", response.data);
+
+      if (response.data && (response.data.status === "success" || response.data.success === true)) {
+        return { id, ...response.data.data };
+      } else {
+        return rejectWithValue(
+          response.data?.message || "Failed to complete offboarding"
+        );
+      }
+    } catch (error) {
+      console.error("Complete offboarding error:", error.response?.data);
+      return rejectWithValue(
+        error.response?.data?.message || "Failed to complete offboarding"
+      );
+    }
+  }
 );
 
 // ----------------------------------------------------

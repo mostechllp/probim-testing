@@ -764,7 +764,7 @@ const LettersAndClearance = () => {
 
                     {/* Upload Button */}
                     <div className="flex items-center gap-2">
-                      <label className={`cursor-pointer ${doc.status === "Uploaded" ? 'opacity-50' : ''}`}>
+                      <label className={`cursor-pointer ${uploading[doc.id] ? 'opacity-50 pointer-events-none' : ''}`}>
                         <div className="flex items-center gap-2 px-3 py-2 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg hover:border-green-500 dark:hover:border-green-500 hover:bg-green-50 dark:hover:bg-green-900/20 transition-all">
                           {uploading[doc.id] ? (
                             <Loader size={16} className="animate-spin text-green-500" />
@@ -784,7 +784,7 @@ const LettersAndClearance = () => {
                               handleFileUpload(doc.id, e.target.files[0]);
                             }
                           }}
-                          disabled={doc.status === "Uploaded" && !uploading[doc.id]}
+                          disabled={uploading[doc.id]}
                         />
                       </label>
 

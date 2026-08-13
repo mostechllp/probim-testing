@@ -4,10 +4,10 @@ import { useLocation } from "react-router-dom";
 
 const STEPS = [
   { id: 1, name: "Initiation" },
-  { id: 2, name: "Visa Cancel" },
-  { id: 3, name: "Interview" },
-  { id: 4, name: "Assets" },
-  { id: 5, name: "Settlement" },
+  { id: 2, name: "Assets" },
+  { id: 3, name: "Settlement" },
+  { id: 4, name: "Visa Cancel" },
+  { id: 5, name: "Interview" },
   { id: 6, name: "Letters" },
   { id: 7, name: "Checklist" },
 ];
@@ -32,11 +32,11 @@ const OffboardingProgressBox = ({ currentStep }) => {
   }, [location.search]);
 
   // Adjust steps based on Visa
-  const displaySteps = isVisaRequired ? STEPS : STEPS.filter(s => s.id !== 2);
+  const displaySteps = isVisaRequired ? STEPS : STEPS.filter(s => s.id !== 4);
   const totalSteps = displaySteps.length;
 
   const getAdjustedStepId = (id) => {
-    if (!isVisaRequired && id > 2) {
+    if (!isVisaRequired && id > 4) {
       return id - 1;
     }
     return id;

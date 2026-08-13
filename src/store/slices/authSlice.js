@@ -1,8 +1,6 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import apiClient from "../../utils/apiClient"; 
 
-// Update the loginUser thunk
-// authSlice.js - Update the loginUser thunk
 
 export const loginUser = createAsyncThunk(
   "auth/login",
@@ -16,15 +14,21 @@ export const loginUser = createAsyncThunk(
       const data = response.data.data;
       const { access_token, user } = data;
       
-      // Store token with type-specific key (matches apiClient)
+      // 🔥 CLEANUP: Remove ALL existing tokens first
+      const tokenKeys = ['admin-token', 'hr-token', 'employee-token', 'auth-token'];
+      tokenKeys.forEach(key => localStorage.removeItem(key));
+      
+      // Remove any stale user data
+      localStorage.removeItem("user-type");
+      localStorage.removeItem("user-data");
+      localStorage.removeItem("active-user-type");
+      
+      // Store ONLY the token for this user type
       const tokenKey = `${user.type}-token`;
       localStorage.setItem(tokenKey, access_token);
       localStorage.setItem("active-user-type", user.type);
       localStorage.setItem("user-type", user.type);
       localStorage.setItem("user-data", JSON.stringify(user));
-
-      // Also store as auth-token for backward compatibility
-      localStorage.setItem("auth-token", access_token);
 
       // Store remember me info if checked
       if (typeof window !== 'undefined') {
@@ -42,12 +46,11 @@ export const loginUser = createAsyncThunk(
   }
 );
 
-// Update logoutUser to clear all token types
 export const logoutUser = createAsyncThunk("auth/logout", async () => {
-  // Clear all token types
-  ['admin-token', 'hr-token', 'employee-token', 'auth-token'].forEach(key => {
-    localStorage.removeItem(key);
-  });
+  // Clear ALL tokens and user data
+  const tokenKeys = ['admin-token', 'hr-token', 'employee-token', 'auth-token'];
+  tokenKeys.forEach(key => localStorage.removeItem(key));
+  
   localStorage.removeItem("user-type");
   localStorage.removeItem("user-data");
   localStorage.removeItem("active-user-type");
@@ -55,26 +58,35 @@ export const logoutUser = createAsyncThunk("auth/logout", async () => {
   localStorage.removeItem("remembered-email");
   localStorage.removeItem("hr-user");
   localStorage.removeItem("employee-user");
+  
+  // Remove any other auth-related items
+  localStorage.removeItem("user");
+  localStorage.removeItem("token");
+  
   return null;
 });
 
-// Update initializeAuth to check all token types
 export const initializeAuth = createAsyncThunk(
   "auth/initialize",
   async (_, { rejectWithValue }) => {
-    // Check for any token
-    const tokenKeys = ['admin-token', 'hr-token', 'employee-token', 'auth-token'];
+    // Get the active user type
+    const activeType = localStorage.getItem("active-user-type");
     let token = null;
-    let userType = null;
     
-    for (const key of tokenKeys) {
-      const t = localStorage.getItem(key);
-      if (t && t !== 'null' && t !== 'undefined') {
-        token = t;
-        if (key !== 'auth-token') {
-          userType = key.replace('-token', '');
+    // Only look for the token that matches the active type
+    if (activeType) {
+      token = localStorage.getItem(`${activeType}-token`);
+    }
+    
+    // If no token found, check all keys as fallback
+    if (!token || token === 'null' || token === 'undefined') {
+      const tokenKeys = ['admin-token', 'hr-token', 'employee-token', 'auth-token'];
+      for (const key of tokenKeys) {
+        const t = localStorage.getItem(key);
+        if (t && t !== 'null' && t !== 'undefined') {
+          token = t;
+          break;
         }
-        break;
       }
     }
     
@@ -85,21 +97,28 @@ export const initializeAuth = createAsyncThunk(
     try {
       const response = await apiClient.get("/auth/me");
       const userData = response.data.data;
+      const userType = userData.user?.type || activeType || 'admin';
       
-      // Ensure token is stored with proper key
-      const type = userData.user?.type || userType || 'admin';
-      const tokenKey = `${type}-token`;
+      // Store token with proper key and clean up others
+      const tokenKey = `${userType}-token`;
       localStorage.setItem(tokenKey, token);
-      localStorage.setItem("active-user-type", type);
-      localStorage.setItem("user-type", type);
+      localStorage.setItem("active-user-type", userType);
+      localStorage.setItem("user-type", userType);
       localStorage.setItem("user-data", JSON.stringify(userData));
+      
+      // Clean up other tokens
+      const tokenKeys = ['admin-token', 'hr-token', 'employee-token', 'auth-token'];
+      tokenKeys.forEach(key => {
+        if (key !== tokenKey && key !== 'auth-token') {
+          localStorage.removeItem(key);
+        }
+      });
       
       return userData;
     } catch {
       // Token is invalid/expired — clear everything
-      ['admin-token', 'hr-token', 'employee-token', 'auth-token'].forEach(key => {
-        localStorage.removeItem(key);
-      });
+      const tokenKeys = ['admin-token', 'hr-token', 'employee-token', 'auth-token'];
+      tokenKeys.forEach(key => localStorage.removeItem(key));
       localStorage.removeItem("user-type");
       localStorage.removeItem("user-data");
       localStorage.removeItem("active-user-type");

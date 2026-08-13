@@ -232,6 +232,47 @@ useEffect(() => {
   recoverSession();
 }, []);
 
+
+useEffect(() => {
+  // Clean up stale/inconsistent tokens on app load
+  const cleanupStaleTokens = () => {
+    const activeType = localStorage.getItem('active-user-type');
+    
+    if (activeType) {
+      const expectedKey = `${activeType}-token`;
+      const hasToken = localStorage.getItem(expectedKey);
+      
+      // If the active type token doesn't exist, clean everything
+      if (!hasToken || hasToken === 'null' || hasToken === 'undefined') {
+        const tokenKeys = ['admin-token', 'hr-token', 'employee-token', 'auth-token'];
+        tokenKeys.forEach(key => localStorage.removeItem(key));
+        localStorage.removeItem('active-user-type');
+        localStorage.removeItem('user-type');
+        localStorage.removeItem('user-data');
+      }
+    }
+    
+    // If there are multiple tokens, keep only the active one
+    const tokenKeys = ['admin-token', 'hr-token', 'employee-token', 'auth-token'];
+    const activeTokenKey = tokenKeys.find(key => {
+      const token = localStorage.getItem(key);
+      return token && token !== 'null' && token !== 'undefined';
+    });
+    
+    // If we found a token and there's an active type mismatch
+    if (activeTokenKey && activeTokenKey !== `${activeType}-token`) {
+      // Remove all other tokens
+      tokenKeys.forEach(key => {
+        if (key !== activeTokenKey && key !== 'auth-token') {
+          localStorage.removeItem(key);
+        }
+      });
+    }
+  };
+  
+  cleanupStaleTokens();
+}, []);
+
   // Show only one loader during initial auth check
   if (authLoading && initialLoad) {
     return <Loader fullScreen />;
