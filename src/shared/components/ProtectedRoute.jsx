@@ -3,127 +3,413 @@ import { useSelector } from "react-redux";
 import Loader from "../../admin/components/common/Loader";
 import { clearAllTokens, getActiveTokenKey } from "../../utils/apiClient";
 
-const ProtectedRoute = ({ requiredType, requiredPermission, children }) => {
-  const { isAuthenticated, loading, user } = useSelector((state) => state.auth);
+// All supported authentication types
+const USER_TYPES = [
+  "admin",
+  "hr",
+  "employee",
+  "manager",
+  "team_lead",
+];
 
-  // Validate token consistency and get the correct token
-  // ProtectedRoute.jsx - Update validation
+// All supported token keys
+const TOKEN_KEYS = [
+  "admin-token",
+  "hr-token",
+  "employee-token",
+  "manager-token",
+  "team_lead-token",
+  "auth-token",
+];
+
+const isValidToken = (token) => {
+  return (
+    token &&
+    token !== "null" &&
+    token !== "undefined" &&
+    typeof token === "string" &&
+    token.trim() !== ""
+  );
+};
+
+const ProtectedRoute = ({
+  requiredType,
+  requiredPermission,
+  children,
+}) => {
+  const {
+    isAuthenticated,
+    loading,
+    user,
+    userType,
+  } = useSelector((state) => state.auth);
+
+  /**
+   * ---------------------------------------------------------
+   * Get active user type
+   * ---------------------------------------------------------
+   *
+   * We prioritize:
+   * 1. Redux user.type
+   * 2. Redux userType
+   * 3. localStorage active-user-type
+   * 4. localStorage user-type
+   */
+  const getActiveUserType = () => {
+    const localActiveType = localStorage.getItem("active-user-type");
+    const localUserType = localStorage.getItem("user-type");
+
+    return (
+      user?.type ||
+      userType ||
+      localActiveType ||
+      localUserType ||
+      null
+    );
+  };
+
+  /**
+   * ---------------------------------------------------------
+   * Validate authentication/token consistency
+   * ---------------------------------------------------------
+   */
   const validateTokenConsistency = () => {
     const activeType = localStorage.getItem("active-user-type");
 
-    // If no active type, check if there's any token
+    /**
+     * If there is no active-user-type, do NOT blindly accept
+     * any token.
+     *
+     * The new authentication system requires an active type.
+     */
     if (!activeType) {
-      const tokenKeys = [
-        "admin-token",
-        "hr-token",
-        "employee-token",
-        "auth-token",
-      ];
-      const hasToken = tokenKeys.some((key) => {
-        const token = localStorage.getItem(key);
-        return token && token !== "null" && token !== "undefined";
-      });
-      return hasToken;
-    }
+      console.warn(
+        "ProtectedRoute: No active-user-type found."
+      );
 
-    // Check if the token for the active type exists
-    const tokenKey = `${activeType}-token`;
-    const token = localStorage.getItem(tokenKey);
-
-    if (!token || token === "null" || token === "undefined") {
-      // Try auth-token as fallback
-      const authToken = localStorage.getItem("auth-token");
-      if (authToken && authToken !== "null" && authToken !== "undefined") {
-        // Migrate auth-token to type-specific token
-        localStorage.setItem(tokenKey, authToken);
-        return true;
-      }
       return false;
     }
 
-    // If user is loaded, verify type matches
+    /**
+     * Make sure active type is one of the supported types.
+     */
+    if (!USER_TYPES.includes(activeType)) {
+      console.warn(
+        "ProtectedRoute: Invalid active-user-type:",
+        activeType
+      );
+
+      return false;
+    }
+
+    /**
+     * Get the token belonging to the active user type.
+     */
+    const expectedTokenKey = `${activeType}-token`;
+    const token = localStorage.getItem(expectedTokenKey);
+
+    /**
+     * The active user must have its own token.
+     *
+     * Do NOT automatically migrate auth-token here because
+     * loginUser / initializeAuth are responsible for creating
+     * the correct type-specific token.
+     */
+    if (!isValidToken(token)) {
+      console.warn(
+        `ProtectedRoute: Missing token for ${activeType}`
+      );
+
+      return false;
+    }
+
+    /**
+     * If Redux already has a user type, it must match the
+     * active localStorage type.
+     */
     if (user?.type && user.type !== activeType) {
-      // User type doesn't match active type - this is a problem
+      console.warn(
+        "ProtectedRoute: User type mismatch",
+        {
+          reduxUserType: user.type,
+          activeUserType: activeType,
+        }
+      );
+
+      return false;
+    }
+
+    /**
+     * If Redux userType exists, it must also match.
+     */
+    if (userType && userType !== activeType) {
+      console.warn(
+        "ProtectedRoute: Redux userType mismatch",
+        {
+          reduxUserType: userType,
+          activeUserType: activeType,
+        }
+      );
+
+      return false;
+    }
+
+    /**
+     * Make sure the API client is using the same token.
+     *
+     * getActiveTokenKey() should return the same token key.
+     */
+    const activeTokenKey = getActiveTokenKey();
+
+    if (activeTokenKey && activeTokenKey !== expectedTokenKey) {
+      console.warn(
+        "ProtectedRoute: API token key mismatch",
+        {
+          activeTokenKey,
+          expectedTokenKey,
+        }
+      );
+
       return false;
     }
 
     return true;
   };
 
+  /**
+   * ---------------------------------------------------------
+   * Wait for authentication initialization
+   * ---------------------------------------------------------
+   */
   if (loading) {
     return <Loader fullScreen />;
   }
 
-  // Check authentication and token consistency
+  /**
+   * ---------------------------------------------------------
+   * Authentication validation
+   * ---------------------------------------------------------
+   */
   if (!isAuthenticated || !validateTokenConsistency()) {
+    console.warn(
+      "ProtectedRoute: Authentication failed. Clearing auth."
+    );
+
     clearAllTokens();
+
     return <Navigate to="/login" replace />;
   }
 
-  // Helper to check user types
+  /**
+   * ---------------------------------------------------------
+   * Resolve current user type
+   * ---------------------------------------------------------
+   */
+  const activeType = getActiveUserType();
+
+  /**
+   * ---------------------------------------------------------
+   * User type helpers
+   * ---------------------------------------------------------
+   */
+
+  const isAdmin =
+    activeType === "admin" ||
+    user?.type === "admin";
+
   const isHR =
+    activeType === "hr" ||
     user?.type === "hr" ||
     user?.role?.name === "HR Manager" ||
     user?.role?.name === "HR";
-  const isAdmin = user?.type === "admin";
-  const isManager = user?.role?.name === "Manager" || user?.type === "manager";
-  const isTeamLead =
-    user?.role?.name === "Team Lead" || user?.type === "team_lead";
-  const isEmployee = user?.type === "employee";
 
-  // Determine user's primary dashboard
+  const isManager =
+    activeType === "manager" ||
+    user?.type === "manager" ||
+    user?.role?.name === "Manager";
+
+  const isTeamLead =
+    activeType === "team_lead" ||
+    user?.type === "team_lead" ||
+    user?.role?.name === "Team Lead";
+
+  const isEmployee =
+    activeType === "employee" ||
+    user?.type === "employee";
+
+  /**
+   * ---------------------------------------------------------
+   * Employee-side users
+   *
+   * HR, employee, manager and team_lead all use the
+   * EmployeeLayout according to your App.jsx.
+   * ---------------------------------------------------------
+   */
+  const isEmployeeType =
+    isEmployee ||
+    isHR ||
+    isManager ||
+    isTeamLead;
+
+  /**
+   * ---------------------------------------------------------
+   * Determine user's primary dashboard
+   * ---------------------------------------------------------
+   */
   const getUserDashboard = () => {
-    if (isAdmin || isHR) {
+    if (isAdmin) {
       return "/admin/dashboard";
     }
+
     return "/employee/dashboard";
   };
 
-  // Check user type
+  /**
+   * ---------------------------------------------------------
+   * Required user type validation
+   * ---------------------------------------------------------
+   */
   if (requiredType) {
     let hasRequiredType = false;
 
-    if (requiredType === "admin") {
-      // ONLY admin can access admin routes
-      hasRequiredType = isAdmin;
-    } else if (requiredType === "employee") {
-      // Everyone except admin can access employee routes
-      hasRequiredType = !isAdmin;
-    } else if (requiredType === "hr") {
-      hasRequiredType = isHR;
-    } else {
-      hasRequiredType = user?.type === requiredType;
+    switch (requiredType) {
+      /**
+       * Admin routes
+       *
+       * ONLY admin can access these.
+       */
+      case "admin":
+        hasRequiredType = isAdmin;
+        break;
+
+      /**
+       * Employee routes
+       *
+       * employee
+       * manager
+       * team_lead
+       * hr
+       *
+       * are all allowed to use EmployeeLayout.
+       */
+      case "employee":
+        hasRequiredType = isEmployeeType;
+        break;
+
+      /**
+       * HR-specific protection
+       */
+      case "hr":
+        hasRequiredType = isHR;
+        break;
+
+      /**
+       * Manager-specific protection
+       */
+      case "manager":
+        hasRequiredType = isManager;
+        break;
+
+      /**
+       * Team lead-specific protection
+       */
+      case "team_lead":
+        hasRequiredType = isTeamLead;
+        break;
+
+      /**
+       * Any other future type
+       */
+      default:
+        hasRequiredType =
+          activeType === requiredType ||
+          user?.type === requiredType;
+        break;
     }
 
+    /**
+     * User does not have the required type.
+     */
     if (!hasRequiredType) {
-      const redirectPath = isAdmin ? "/admin/dashboard" : "/employee/dashboard";
+      const redirectPath = getUserDashboard();
 
-      console.log("🚨 PROTECTED ROUTE TYPE FAILURE", {
-        currentPath: window.location.pathname,
-        requiredType,
-        userType: user?.type,
-        redirectPath,
-        activeType: localStorage.getItem("active-user-type"),
-      });
+      console.warn(
+        "ProtectedRoute: User type authorization failed",
+        {
+          currentPath: window.location.pathname,
+          requiredType,
+          activeType,
+          reduxUserType: user?.type,
+          reduxUserTypeState: userType,
+          redirectPath,
+        }
+      );
 
-      return <Navigate to={redirectPath} replace />;
+      return (
+        <Navigate
+          to={redirectPath}
+          replace
+        />
+      );
     }
   }
 
-  // Check permission if required
+  /**
+   * ---------------------------------------------------------
+   * Permission validation
+   * ---------------------------------------------------------
+   */
   if (requiredPermission) {
     const permissions = user?.permissions || {};
+
+    /**
+     * Supported permission formats:
+     *
+     * permissions: {
+     *   employees: {
+     *     read: true
+     *   }
+     * }
+     *
+     * OR
+     *
+     * permissions: {
+     *   all: true
+     * }
+     */
     const hasPermission =
-      permissions[requiredPermission]?.read === true ||
-      permissions.all === true ||
+      permissions?.[requiredPermission]?.read === true ||
+      permissions?.[requiredPermission] === true ||
+      permissions?.all === true ||
       isAdmin;
 
     if (!hasPermission) {
-      const redirectPath = getUserDashboard();
-      return <Navigate to={redirectPath} replace />;
+      console.warn(
+        "ProtectedRoute: Permission denied",
+        {
+          requiredPermission,
+          userType: activeType,
+        }
+      );
+
+      return (
+        <Navigate
+          to={getUserDashboard()}
+          replace
+        />
+      );
     }
   }
 
+  /**
+   * ---------------------------------------------------------
+   * Authorized
+   * ---------------------------------------------------------
+   *
+   * If children are supplied, render children.
+   *
+   * Otherwise render nested routes through Outlet.
+   */
   return children || <Outlet />;
 };
 

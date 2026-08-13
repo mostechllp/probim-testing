@@ -663,40 +663,48 @@ const Dashboard = () => {
 
   // ─── GET PROJECTS FROM DASHBOARD DATA ──────────────────────────────
   // Extract projects from dashboardData.project_assignments
-  const dashboardProjects = dashboardData?.project_assignments
-    ?.map((item) => ({
-      id: item.project.id,
-      name: item.project.name,
-      description: item.project.description,
-      project_manager_id: item.project.project_manager_id,
-      team_lead_id: item.project.team_lead_id,
-      total_hours: item.project.total_hours,
-      total_cost: item.project.total_cost,
-      currency: item.project.currency,
-      status: item.project.status || "Active",
-      assigned_at: item.assignment.assigned_at,
-      priority: item.project.priority || "Medium",
-      managerName: "N/A", // Will be populated from employees
-      teamLeadName: "N/A", // Will be populated from employees
-    }))
-    .filter(Boolean) || [];
+  const dashboardProjects =
+    dashboardData?.project_assignments
+      ?.map((item) => ({
+        id: item.project.id,
+        name: item.project.name,
+        description: item.project.description,
+        project_manager_id: item.project.project_manager_id,
+        team_lead_id: item.project.team_lead_id,
+        total_hours: item.project.total_hours,
+        total_cost: item.project.total_cost,
+        currency: item.project.currency,
+        status: item.project.status || "Active",
+        assigned_at: item.assignment.assigned_at,
+        priority: item.project.priority || "Medium",
+        managerName: "N/A", // Will be populated from employees
+        teamLeadName: "N/A", // Will be populated from employees
+      }))
+      .filter(Boolean) || [];
 
   // Get manager and team lead names from employees list
   const projectsWithNames = dashboardProjects.map((project) => {
     const manager = employees?.find(
-      (emp) => emp.id === project.project_manager_id || emp.user_id === project.project_manager_id
+      (emp) =>
+        emp.id === project.project_manager_id ||
+        emp.user_id === project.project_manager_id,
     );
     const teamLead = employees?.find(
-      (emp) => emp.id === project.team_lead_id || emp.user_id === project.team_lead_id
+      (emp) =>
+        emp.id === project.team_lead_id || emp.user_id === project.team_lead_id,
     );
 
     return {
       ...project,
       managerName: manager
-        ? manager.name || `${manager.first_name || ""} ${manager.last_name || ""}`.trim() || "N/A"
+        ? manager.name ||
+          `${manager.first_name || ""} ${manager.last_name || ""}`.trim() ||
+          "N/A"
         : "N/A",
       teamLeadName: teamLead
-        ? teamLead.name || `${teamLead.first_name || ""} ${teamLead.last_name || ""}`.trim() || "N/A"
+        ? teamLead.name ||
+          `${teamLead.first_name || ""} ${teamLead.last_name || ""}`.trim() ||
+          "N/A"
         : "N/A",
     };
   });
@@ -1085,10 +1093,21 @@ const Dashboard = () => {
       </div>
 
       {/* ─── LEAVE & PROJECTS STATS CARDS ────────────────────────────────── */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-        <LeaveStatsCard />
-        <ProjectsStatsCard />
-      </div>
+      {/* ─── LEAVE & PROJECTS STATS CARDS ────────────────────────────────── */}
+{showAdminGraphs ? (
+  // Admin/HR view - 2 columns
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+    <LeaveStatsCard />
+    <ProjectsStatsCard />
+  </div>
+) : (
+  // Employee view - single column, full width
+  <div className="mb-4">
+    <LeaveStatsCard />
+  </div>
+)}
+
+      
 
       {/* ─── ADMIN/HR GRAPHS ──────────────────────────────────────────────── */}
       {showAdminGraphs && (
@@ -1230,7 +1249,7 @@ const Dashboard = () => {
         </>
       )}
 
-      {/* ─── EMPLOYEE PROJECTS SECTION (Fallback if no admin graphs) ─── */}
+      {/* ─── EMPLOYEE PROJECTS SECTION (Only for non-HR/Admin users) ─── */}
       {!showAdminGraphs && projectsWithNames.length > 0 && (
         <div className="projects-section bg-[var(--surface)] border border-[var(--border)] rounded-xl p-3 mb-4">
           <div className="flex items-center justify-between mb-2">
