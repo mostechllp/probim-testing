@@ -33,6 +33,24 @@ const formatUserType = (type) => {
   return typeMap[lowerType] || type;
 };
 
+// Format notification type - remove underscores and capitalize
+const formatNotificationType = (type) => {
+  if (!type) return "Notification";
+  
+  if (typeof type === 'string') {
+    // Handle underscore separated types like "special_day"
+    return type
+      .replace(/_/g, ' ')
+      .replace(/([A-Z])/g, ' $1')
+      .trim()
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ');
+  }
+  
+  return "Notification";
+};
+
 const Header = ({ onMenuClick }) => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -250,26 +268,53 @@ const Header = ({ onMenuClick }) => {
     });
   };
 
-  // Get notification type icon
+  // Get notification type icon with better detection
   const getNotificationIcon = (notification) => {
     const type = notification.type || notification.data?.type || "";
+    const lowerType = String(type).toLowerCase();
     
-    if (type.includes("Probation") || type === "probation") {
+    if (lowerType.includes("probation")) {
       return "fa-clock text-orange-500";
     }
-    if (type.includes("Leave") || type === "leave") {
+    if (lowerType.includes("leave")) {
       return "fa-calendar-check text-blue-500";
     }
-    if (type.includes("Attendance") || type === "attendance") {
+    if (lowerType.includes("attendance")) {
       return "fa-fingerprint text-purple-500";
     }
-    if (type.includes("Contract") || type === "contract") {
+    if (lowerType.includes("contract")) {
       return "fa-file-contract text-indigo-500";
     }
-    if (type.includes("Task") || type === "task") {
+    if (lowerType.includes("task")) {
       return "fa-tasks text-green-500";
     }
+    if (lowerType.includes("special_day") || lowerType.includes("birthday") || lowerType.includes("special")) {
+      return "fa-gift text-rose-500";
+    }
+    if (lowerType.includes("document") || lowerType.includes("expiry") || lowerType.includes("employee_document")) {
+      return "fa-file-alt text-orange-500";
+    }
+    if (lowerType.includes("wfh") || lowerType.includes("work from home")) {
+      return "fa-home text-amber-500";
+    }
     return "fa-bell text-gray-500";
+  };
+
+  // Get notification type color class
+  const getNotificationTypeColor = (notification) => {
+    const type = notification.type || notification.data?.type || "";
+    const lowerType = String(type).toLowerCase();
+    
+    if (lowerType.includes("leave")) return "bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400";
+    if (lowerType.includes("attendance")) return "bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400";
+    if (lowerType.includes("task")) return "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400";
+    if (lowerType.includes("document") || lowerType.includes("expiry") || lowerType.includes("employee_document")) return "bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400";
+    if (lowerType.includes("probation")) return "bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400";
+    if (lowerType.includes("contract")) return "bg-teal-100 text-teal-600 dark:bg-teal-900/30 dark:text-teal-400";
+    if (lowerType.includes("special_day") || lowerType.includes("birthday") || lowerType.includes("special")) return "bg-rose-100 text-rose-600 dark:bg-rose-900/30 dark:text-rose-400";
+    if (lowerType.includes("wfh") || lowerType.includes("work from home")) return "bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400";
+    
+    return "bg-gray-100 text-gray-600 dark:bg-gray-700/30 dark:text-gray-400";
   };
 
   return (
@@ -388,52 +433,63 @@ const Header = ({ onMenuClick }) => {
                       <p className="text-xs mt-1">No unread notifications</p>
                     </div>
                   ) : (
-                    notifications.map((notification) => (
-                      <div
-                        key={notification.id}
-                        className={`p-3 border-b border-gray-200 dark:border-gray-700 cursor-pointer transition-colors hover:bg-gray-50 dark:hover:bg-gray-700 ${
-                          !notification.read ? "bg-green-50 dark:bg-green-900/20" : ""
-                        } ${markingId === notification.id ? "opacity-50" : ""}`}
-                        onClick={() => handleMarkAsRead(notification.id)}
-                      >
-                        <div className="flex items-start gap-3">
-                          {/* Notification icon */}
-                          <div className="flex-shrink-0 mt-0.5">
-                            <i className={`fas ${getNotificationIcon(notification)}`}></i>
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="text-sm font-medium text-gray-800 dark:text-gray-200">
-                              {notification.title}
+                    notifications.map((notification) => {
+                      // Get the type from notification data
+                      const type = notification.data?.type || notification.type || "";
+                      const formattedType = formatNotificationType(type);
+                      const typeColor = getNotificationTypeColor(notification);
+                      const iconClass = getNotificationIcon(notification);
+                      const message = notification.data?.message || notification.message || '';
+                      
+                      return (
+                        <div
+                          key={notification.id}
+                          className={`p-3 border-b border-gray-200 dark:border-gray-700 cursor-pointer transition-colors hover:bg-gray-50 dark:hover:bg-gray-700 ${
+                            !notification.read ? "bg-green-50 dark:bg-green-900/20" : ""
+                          } ${markingId === notification.id ? "opacity-50" : ""}`}
+                          onClick={() => handleMarkAsRead(notification.id)}
+                        >
+                          <div className="flex items-start gap-3">
+                            {/* Notification icon */}
+                            <div className="flex-shrink-0 mt-0.5">
+                              <i className={`fas ${iconClass}`}></i>
                             </div>
-                            <p className="text-xs text-gray-600 dark:text-gray-400 mt-0.5 break-words line-clamp-2">
-                              {notification.message}
-                            </p>
-                            <div className="flex items-center gap-2 mt-1">
-                              <small className="text-xs text-gray-400">
-                                {formatNotificationTime(notification.created_at)}
-                              </small>
-                              {!notification.read && markingId !== notification.id && (
-                                <span className="w-1.5 h-1.5 bg-green-500 rounded-full flex-shrink-0 animate-pulse"></span>
-                              )}
-                              {markingId === notification.id && (
-                                <i className="fas fa-spinner fa-spin text-xs text-green-500"></i>
-                              )}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${typeColor}`}>
+                                  {formattedType}
+                                </span>
+                              </div>
+                              <p className="text-sm text-gray-800 dark:text-gray-200 mt-1 leading-relaxed">
+                                {message}
+                              </p>
+                              <div className="flex items-center gap-2 mt-1.5">
+                                <small className="text-xs text-gray-400">
+                                  {formatNotificationTime(notification.created_at)}
+                                </small>
+                                {!notification.read && markingId !== notification.id && (
+                                  <span className="w-1.5 h-1.5 bg-green-500 rounded-full flex-shrink-0 animate-pulse"></span>
+                                )}
+                                {markingId === notification.id && (
+                                  <i className="fas fa-spinner fa-spin text-xs text-green-500"></i>
+                                )}
+                              </div>
                             </div>
                           </div>
                         </div>
-                      </div>
-                    ))
+                      );
+                    })
                   )}
                 </div>
 
                 <div className="p-3 border-t border-gray-200 dark:border-gray-700 text-center bg-gray-50 dark:bg-gray-700/50">
-                  {/* <Link
+                  <Link
                     to={`${getBasePath()}/notifications`}
                     onClick={() => setShowNotifications(false)}
                     className="text-xs text-green-500 hover:text-green-600 font-medium"
                   >
                     View all notifications
-                  </Link> */}
+                  </Link>
                 </div>
               </div>
             )}

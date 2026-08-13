@@ -48,18 +48,78 @@ export const downloadMyPayslip = createAsyncThunk(
       const response = await apiClient.get(`/employee/payroll/${id}/download`, {
         responseType: "blob",
       });
-      const url = window.URL.createObjectURL(new Blob([response.data]));
+
+      console.log("Download my payslip response:", response);
+
+      const blob = response.data;
+
+      // Get filename from backend Content-Disposition header
+      const contentDisposition = response.headers["content-disposition"];
+      let filename = `payslip_${id}.pdf`;
+
+      if (contentDisposition) {
+        const match = contentDisposition.match(
+          /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/
+        );
+
+        if (match?.[1]) {
+          filename = match[1].replace(/['"]/g, "");
+        }
+      }
+
+      console.log("Backend filename:", filename);
+
+      // Download using backend filename
+      const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.setAttribute("download", `payslip_${id}.pdf`);
+      link.setAttribute("download", filename);
       document.body.appendChild(link);
       link.click();
       link.remove();
-      return true;
+      window.URL.revokeObjectURL(url);
+
+      return {
+        success: true,
+        filename,
+      };
     } catch (error) {
-      return rejectWithValue(
-        error.response?.data?.message || "Failed to download payslip"
-      );
+      console.error("Download my payslip error:", error);
+
+      // Extract error message from the response
+      let errorMessage = "Failed to download payslip";
+
+      if (error.response) {
+        // If the error response is a blob (PDF error page)
+        if (error.response.data instanceof Blob) {
+          try {
+            const text = await error.response.data.text();
+            // Try to parse as JSON
+            try {
+              const parsed = JSON.parse(text);
+              errorMessage = parsed.message || parsed.error || text;
+            } catch {
+              // If not JSON, use the text directly
+              errorMessage = text || errorMessage;
+            }
+          } catch {
+            errorMessage = "Failed to download payslip";
+          }
+        } else if (error.response.data) {
+          // If it's a regular JSON response
+          if (typeof error.response.data === 'object') {
+            errorMessage = error.response.data.message || 
+                          error.response.data.error || 
+                          errorMessage;
+          } else {
+            errorMessage = error.response.data || errorMessage;
+          }
+        }
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
+      return rejectWithValue(errorMessage);
     }
   }
 );

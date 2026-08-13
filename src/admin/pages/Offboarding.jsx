@@ -35,37 +35,49 @@ import {
 
 // Helper function to get step name
 const getStepName = (stepKey) => {
+  if (!stepKey) return "Unknown";
+  
+  const key = String(stepKey).toLowerCase();
+  
   const stepMap = {
     initiation: "Initiation",
-    visa_cancellation: "Visa Cancellation",
+    initiated: "Initiation",
+    assets: "Assets",
+    asset_return: "Assets",
+    settlement: "Settlement",
+    final_settlement: "Settlement",
+    visa: "Visa Cancel",
+    visa_cancellation: "Visa Cancel",
+    interview: "Interview",
+    exit_interview: "Interview",
+    letters: "Letters",
+    letters_documents: "Letters",
+    final_clearance: "Final Clearance",
+    clearance: "Final Clearance",
+    verification: "Final Clearance",
     checklist: "General Checklist",
-    assets: "Asset Return",
-    exit_interview: "Exit Interview",
-    settlement: "Final Settlement",
-    letters: "Letters & Documents",
+    general_checklist: "General Checklist",
+    completed: "Completed"
   };
-  return stepMap[stepKey] || stepKey || "Unknown";
+  return stepMap[key] || stepKey;
 };
 
 const getStepIcon = (stepKey) => {
-  switch (stepKey) {
-    case "initiation":
-      return <UserPlus size={14} />;
-    case "visa_cancellation":
-      return <ShieldCheck size={14} />;
-    case "checklist":
-      return <ClipboardList size={14} />;
-    case "assets":
-      return <Package size={14} />;
-    case "exit_interview":
-      return <MessageSquareIcon size={14} />;
-    case "settlement":
-      return <DollarSign size={14} />;
-    case "letters":
-      return <FileText size={14} />;
-    default:
-      return <Timer size={14} />;
-  }
+  if (!stepKey) return <Timer size={14} />;
+  
+  const key = String(stepKey).toLowerCase();
+
+  if (["initiation", "initiated"].includes(key)) return <UserPlus size={14} />;
+  if (["assets", "asset_return"].includes(key)) return <Package size={14} />;
+  if (["settlement", "final_settlement"].includes(key)) return <DollarSign size={14} />;
+  if (["visa", "visa_cancellation"].includes(key)) return <ShieldCheck size={14} />;
+  if (["interview", "exit_interview"].includes(key)) return <MessageSquareIcon size={14} />;
+  if (["letters", "letters_documents"].includes(key)) return <FileText size={14} />;
+  if (["final_clearance", "clearance", "verification"].includes(key)) return <CheckCircle2 size={14} />;
+  if (["checklist", "general_checklist"].includes(key)) return <ClipboardList size={14} />;
+  if (key === "completed") return <CheckCircle2 size={14} />;
+  
+  return <Timer size={14} />;
 };
 
 const MessageSquareIcon = ({ size }) => (
@@ -229,6 +241,24 @@ const OffboardingDashboard = () => {
 
         const progress = progressData[off.id];
 
+        let calculatedCurrentStep = off.current_step || "initiation";
+        
+        if (progress && progress.steps && progress.steps.length > 0) {
+          const inProgressStep = progress.steps.find(s => s.status === "in_progress");
+          if (inProgressStep) {
+            calculatedCurrentStep = inProgressStep.key;
+          } else {
+            const pendingStep = progress.steps.find(s => s.status === "pending");
+            if (pendingStep) {
+              calculatedCurrentStep = pendingStep.key;
+            } else if (progress.progress_percentage === 100 || off.status === "completed") {
+              calculatedCurrentStep = "Completed";
+            }
+          }
+        } else if (off.status === "completed") {
+          calculatedCurrentStep = "Completed";
+        }
+
         return {
           id: off.id,
           name: employeeName,
@@ -236,7 +266,7 @@ const OffboardingDashboard = () => {
           department: department,
           lastDay: off.last_working_day,
           status: off.status,
-          currentStep: off.current_step || "initiation",
+          currentStep: calculatedCurrentStep,
           progressPercentage: progress?.progress_percentage || 0,
           completedSteps: progress?.completed_steps || 0,
           totalSteps: progress?.total_steps || 7,
@@ -249,40 +279,6 @@ const OffboardingDashboard = () => {
     }
   }, [offboardings, offboardingLoading, employeeMap, progressData]);
 
-  const offboardingCards = [
-    {
-      id: "initiate",
-      title: "Initiate Offboarding",
-      description:
-        "Start the offboarding process for an employee. Fill in employee details, last working day, and separation type.",
-      icon: <UserPlus size={28} />,
-      path: "/admin/employees/offboarding-initiation",
-      color: "blue",
-      bgClass:
-        "bg-blue-50 dark:bg-blue-950/30 text-blue-600 dark:text-blue-400",
-      buttonClass:
-        "bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/50",
-      stats: "Start new process",
-      buttonText: "Initiate Now",
-    },
-    /*
-    {
-      id: "categories",
-      title: "Checklist Categories",
-      description:
-        "Manage offboarding checklist categories. Create, edit, and organize tasks by categories.",
-      icon: <ClipboardList size={28} />,
-      path: "/admin/employees/checklist-categories",
-      color: "green",
-      bgClass:
-        "bg-green-50 dark:bg-green-950/30 text-green-600 dark:text-green-400",
-      buttonClass:
-        "bg-green-50 dark:bg-green-950/40 text-green-600 dark:text-green-400 hover:bg-green-100 dark:hover:bg-green-900/50",
-      stats: `${categories?.length || 0} categories`,
-      buttonText: "Manage Categories",
-    },
-    */
-  ];
 
   const quickStats = [
     {
@@ -501,54 +497,21 @@ const OffboardingDashboard = () => {
       </div>
 
       {/* Page Header */}
-      <div className="mb-6">
+      <div className="mb-6 flex justify-between items-center">
         <h2 className="text-lg md:text-2xl font-bold gradient-heading bg-clip-text text-transparent">
           Offboarding
         </h2>
-      </div>
-
-      {/* Main Cards Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 mb-8">
-        {offboardingCards.map((card) => (
-          <div
-            key={card.id}
-            className="group relative bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden hover:shadow-soft transition-all duration-300 hover:-translate-y-1 cursor-pointer"
-            onClick={() => navigate(card.path)}
-          >
-            <div className="p-4 md:p-6">
-              <div
-                className={`w-12 h-12 md:w-14 md:h-14 ${card.bgClass} rounded-xl flex items-center justify-center mb-3 md:mb-4`}
-              >
-                {card.icon}
-              </div>
-              <h3 className="text-base md:text-xl font-bold text-gray-900 dark:text-white mb-1 md:mb-2">
-                {card.title}
-              </h3>
-              <p className="text-xs md:text-sm text-gray-500 dark:text-gray-400 leading-relaxed mb-3 md:mb-4">
-                {card.description}
-              </p>
-              <div className="flex items-center justify-between mt-3 md:mt-4 pt-3 md:pt-4 border-t border-gray-100 dark:border-gray-700">
-                <span className="text-[10px] md:text-xs font-semibold text-gray-400 uppercase tracking-wide">
-                  {card.stats}
-                </span>
-                <button
-                  className={`px-3 md:px-4 py-1.5 md:py-2 rounded-lg ${card.buttonClass} font-semibold text-xs md:text-sm flex items-center gap-1 md:gap-2 transition-all group-hover:gap-2 md:group-hover:gap-3`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (card.path === "/admin/employees/offboarding-initiation") {
-                      localStorage.removeItem("offboarding_id");
-                      localStorage.removeItem("offboarding_draft");
-                    }
-                    navigate(card.path);
-                  }}
-                >
-                  {card.buttonText}
-                  <ArrowRight size={14} />
-                </button>
-              </div>
-            </div>
-          </div>
-        ))}
+        <button
+          className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 font-semibold text-sm flex items-center gap-2 transition-all shadow-sm"
+          onClick={() => {
+            localStorage.removeItem("offboarding_id");
+            localStorage.removeItem("offboarding_draft");
+            navigate("/admin/employees/offboarding-initiation");
+          }}
+        >
+          <UserPlus size={16} />
+          Initiate Now
+        </button>
       </div>
 
       {/* Recent Offboarding Section */}

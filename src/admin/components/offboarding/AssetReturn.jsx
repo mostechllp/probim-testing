@@ -236,10 +236,26 @@ const AssetReturn = () => {
     const offboardingIdValue = offboardingId || localStorage.getItem("offboarding_id");
     
     try {
-      await apiClient.post(`/admin/offboarding/${offboardingIdValue}/assets`, {
-        assets_status: "completed",
-        updated_at: new Date().toISOString()
-      });
+      const assetsPayload = assets.map(asset => ({
+        id: asset.assetId || asset.id,
+        asset_id: asset.assetId || asset.id,
+        offboarding_id: offboardingIdValue,
+        name: asset.name,
+        returned_date: asset.returnedDate || null,
+        return_condition: asset.condition || "",
+        status: asset.status === 'Returned' ? 'returned' : 'pending',
+        assignment_id: asset.assignmentId || null
+      }));
+
+      await dispatch(updateAssets({ 
+        id: offboardingIdValue, 
+        assetsData: {
+          offboarding_id: offboardingIdValue,
+          assets: assetsPayload,
+          assets_status: "completed",
+          updated_at: new Date().toISOString()
+        } 
+      })).unwrap();
 
       await dispatch(fetchOffboardingProgress(offboardingIdValue));
       navigate(`/admin/employees/final-settlement?id=${offboardingIdValue}`);

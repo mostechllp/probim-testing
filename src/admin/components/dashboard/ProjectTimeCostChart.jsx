@@ -18,6 +18,8 @@ import {
   Line,
   PieChart,
   Pie,
+  RadialBarChart,
+  RadialBar,
 } from "recharts";
 import {
   FiTrendingUp,
@@ -31,6 +33,11 @@ import {
   FiArrowUp,
   FiArrowDown,
   FiLoader,
+  FiInfo,
+  FiTarget,
+  FiCheckCircle,
+  FiAlertCircle,
+  FiXCircle,
 } from "react-icons/fi";
 import { CHART_COLORS } from "../../pages/Dashboard";
 
@@ -92,11 +99,9 @@ const CustomTooltip = ({ active, payload }) => {
 
 const renderCustomBarLabel = (props) => {
   const { x, y, width, value, name, payload } = props;
-  
-  // Only show label if value > 0
+
   if (value === 0) return null;
-  
-  // For the utilization bar, show "12h / 40h"
+
   if (name === "Utilization") {
     const utilizationText = `${payload.timeLogged || 0}h / ${payload.plannedHours || 0}h`;
     return (
@@ -113,8 +118,7 @@ const renderCustomBarLabel = (props) => {
       </text>
     );
   }
-  
-  // For cost bars, show the cost value
+
   if (name === "Cost (AED)" || name === "actualCost") {
     return (
       <text
@@ -130,18 +134,25 @@ const renderCustomBarLabel = (props) => {
       </text>
     );
   }
-  
+
   return null;
 };
 
 // ─── Main Component ──────────────────────────────────────────────────────
 
-export const ProjectTimeCostChart = ({ data, onBarClick, loading, reportPeriod }) => {
+export const ProjectTimeCostChart = ({
+  data,
+  onBarClick,
+  loading,
+  reportPeriod,
+}) => {
   const [activeView, setActiveView] = useState("overview");
 
   // ─── Process Data ──────────────────────────────────────────────────────
   const processedData = useMemo(() => {
-    if (!data || data.length === 0) return null;
+    if (!data || !Array.isArray(data) || data.length === 0) {
+      return null;
+    }
 
     const allProjects = data.map((d) => ({
       ...d,
@@ -151,16 +162,25 @@ export const ProjectTimeCostChart = ({ data, onBarClick, loading, reportPeriod }
       planned_total_cost: d.planned_total_cost || 0,
     }));
 
-    // Calculate utilization for each project
     const projectsWithUtilization = allProjects.map((d) => {
-      const utilization = d.planned_total_hours > 0 
-        ? Math.min(Math.round(((d.actual_time_logged_hours || 0) / d.planned_total_hours) * 100), 100)
-        : 0;
+      const utilization =
+        d.planned_total_hours > 0
+          ? Math.min(
+              Math.round(
+                ((d.actual_time_logged_hours || 0) / d.planned_total_hours) *
+                  100,
+              ),
+              100,
+            )
+          : 0;
       return {
         ...d,
         utilization,
-        displayName: d.project_name.length > 20 ? d.project_name.substring(0, 20) + "..." : d.project_name,
-        fullName: d.project_name,
+        displayName:
+          d.project_name?.length > 20
+            ? d.project_name.substring(0, 20) + "..."
+            : d.project_name || "Unnamed",
+        fullName: d.project_name || "Unnamed",
         timeLogged: Math.round((d.actual_time_logged_hours || 0) * 100) / 100,
         actualCost: Math.round((d.actual_cost || 0) * 100) / 100,
         plannedHours: d.planned_total_hours || 0,
@@ -168,45 +188,87 @@ export const ProjectTimeCostChart = ({ data, onBarClick, loading, reportPeriod }
         currency: d.currency || "AED",
         employeeCount: d.employee_breakdown?.length || 0,
         projectId: d.project_id,
-        hasData: (d.actual_time_logged_hours || 0) > 0 || (d.actual_cost || 0) > 0,
-        // For utilization bar: scaled value for display
-        utilizationDisplay: d.planned_total_hours > 0 
-          ? Math.min((d.actual_time_logged_hours / d.planned_total_hours) * 100, 100)
-          : 0,
+        hasData:
+          (d.actual_time_logged_hours || 0) > 0 || (d.actual_cost || 0) > 0,
+        utilizationDisplay:
+          d.planned_total_hours > 0
+            ? Math.min(
+                (d.actual_time_logged_hours / d.planned_total_hours) * 100,
+                100,
+              )
+            : 0,
+        utilizationStatus:
+          utilization >= 80 ? "good" : utilization >= 50 ? "warning" : "danger",
       };
     });
 
-    // Sort by actual cost descending
     const sortedByCost = [...projectsWithUtilization].sort(
-      (a, b) => (b.actualCost || 0) - (a.actualCost || 0)
+      (a, b) => (b.actualCost || 0) - (a.actualCost || 0),
     );
 
-    // Top projects with data
-    const topProjects = sortedByCost.filter(d => d.hasData).slice(0, 8);
+    const topProjects = sortedByCost.filter((d) => d.hasData).slice(0, 8);
 
-    // ─── Summary Stats ──────────────────────────────────────────────────────
-    const projectsWithData = projectsWithUtilization.filter(d => d.hasData);
-    const totalHours = projectsWithUtilization.reduce((sum, d) => sum + d.timeLogged, 0);
-    const totalCost = projectsWithUtilization.reduce((sum, d) => sum + d.actualCost, 0);
-    const plannedHours = projectsWithUtilization.reduce((sum, d) => sum + d.plannedHours, 0);
-    const plannedCost = projectsWithUtilization.reduce((sum, d) => sum + d.plannedCost, 0);
-    const projectsWithPlan = projectsWithUtilization.filter(d => d.plannedHours > 0);
+    const projectsWithData = projectsWithUtilization.filter((d) => d.hasData);
+    const totalHours = projectsWithUtilization.reduce(
+      (sum, d) => sum + d.timeLogged,
+      0,
+    );
+    const totalCost = projectsWithUtilization.reduce(
+      (sum, d) => sum + d.actualCost,
+      0,
+    );
+    const plannedHours = projectsWithUtilization.reduce(
+      (sum, d) => sum + d.plannedHours,
+      0,
+    );
+    const plannedCost = projectsWithUtilization.reduce(
+      (sum, d) => sum + d.plannedCost,
+      0,
+    );
+    const projectsWithPlan = projectsWithUtilization.filter(
+      (d) => d.plannedHours > 0,
+    );
+
+    const utilizationDistribution = {
+      good: projectsWithPlan.filter((d) => d.utilization >= 80).length,
+      warning: projectsWithPlan.filter(
+        (d) => d.utilization >= 50 && d.utilization < 80,
+      ).length,
+      danger: projectsWithPlan.filter((d) => d.utilization < 50).length,
+    };
 
     return {
       overview: projectsWithUtilization,
       topProjects: topProjects,
       projectsWithPlan: projectsWithPlan,
+      utilizationDistribution,
       summary: {
         totalHours: Math.round(totalHours * 100) / 100,
         totalCost: Math.round(totalCost * 100) / 100,
         plannedHours: Math.round(plannedHours * 100) / 100,
         plannedCost: Math.round(plannedCost * 100) / 100,
-        timeUtilization: plannedHours > 0 ? Math.min(Math.round((totalHours / plannedHours) * 100), 100) : 0,
-        budgetUtilization: plannedCost > 0 ? Math.min(Math.round((totalCost / plannedCost) * 100), 100) : 0,
-        costVariance: plannedCost > 0 ? Math.round(((totalCost - plannedCost) / plannedCost) * 100) : 0,
+        timeUtilization:
+          plannedHours > 0
+            ? Math.min(Math.round((totalHours / plannedHours) * 100), 100)
+            : 0,
+        budgetUtilization:
+          plannedCost > 0
+            ? Math.min(Math.round((totalCost / plannedCost) * 100), 100)
+            : 0,
+        costVariance:
+          plannedCost > 0
+            ? Math.round(((totalCost - plannedCost) / plannedCost) * 100)
+            : 0,
         projectCount: projectsWithData.length,
         totalProjects: projectsWithUtilization.length,
         projectsWithPlanCount: projectsWithPlan.length,
+        avgUtilization:
+          projectsWithPlan.length > 0
+            ? Math.round(
+                projectsWithPlan.reduce((sum, d) => sum + d.utilization, 0) /
+                  projectsWithPlan.length,
+              )
+            : 0,
       },
     };
   }, [data]);
@@ -226,10 +288,15 @@ export const ProjectTimeCostChart = ({ data, onBarClick, loading, reportPeriod }
       <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-soft border border-gray-100 dark:border-gray-700">
         <div className="flex items-center gap-3 mb-2">
           <div className="w-8 h-8 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center">
-            <FiTrendingUp className="text-green-600 dark:text-green-400" size={16} />
+            <FiTrendingUp
+              className="text-green-600 dark:text-green-400"
+              size={16}
+            />
           </div>
           <div>
-            <h3 className="text-sm font-bold text-gray-800 dark:text-white">Project Time & Cost</h3>
+            <h3 className="text-sm font-bold text-gray-800 dark:text-white">
+              Project Time & Cost
+            </h3>
             {reportPeriod && (
               <p className="text-[10px] text-gray-500 dark:text-gray-400">
                 {reportPeriod.month}/{reportPeriod.year} • No data
@@ -247,7 +314,203 @@ export const ProjectTimeCostChart = ({ data, onBarClick, loading, reportPeriod }
     );
   }
 
-  const { overview, topProjects, projectsWithPlan, summary } = processedData;
+  const {
+    overview,
+    topProjects,
+    projectsWithPlan,
+    utilizationDistribution,
+    summary,
+  } = processedData;
+
+  // ─── Render Utilization Chart ──────────────────────────────────────────
+  const renderUtilization = () => {
+    const utilizationData = projectsWithPlan.slice(0, 10).map((p) => ({
+      name: p.displayName,
+      fullName: p.fullName,
+      utilization: p.utilization,
+      timeLogged: p.timeLogged,
+      plannedHours: p.plannedHours,
+      status: p.utilizationStatus,
+      actualCost: p.actualCost,
+      plannedCost: p.plannedCost,
+      projectId: p.projectId,
+    }));
+
+    return (
+      <div className="space-y-4">
+        {/* Bar Chart + List Side by Side */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {/* Bar Chart */}
+          <div className="bg-gray-50 dark:bg-gray-700/30 rounded-lg p-3 border border-gray-200 dark:border-gray-600">
+            <div className="text-xs font-semibold text-gray-600 dark:text-gray-300 mb-2 text-center">
+              Project Utilization
+            </div>
+            <div className="h-[220px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={utilizationData}
+                  layout="vertical"
+                  margin={{ top: 5, right: 5, left: 70, bottom: 5 }}
+                >
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke="#e5e7eb"
+                    opacity={0.3}
+                    horizontal={false}
+                  />
+                  <XAxis
+                    type="number"
+                    domain={[0, 100]}
+                    tick={{ fontSize: 8, fill: "#6b7280" }}
+                    tickFormatter={(value) => `${value}%`}
+                  />
+                  <YAxis
+                    type="category"
+                    dataKey="name"
+                    tick={{
+                      fontSize: 9,
+                      fill: "#4b5563",
+                      fontWeight: 500,
+                    }}
+                    width={70}
+                    interval={0}
+                  />
+                  <Tooltip
+                    content={({ active, payload }) => {
+                      if (active && payload && payload.length) {
+                        const data = payload[0].payload;
+                        return (
+                          <div className="bg-white dark:bg-gray-800 p-2 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 text-xs">
+                            <p className="font-semibold text-gray-800 dark:text-white">
+                              {data.fullName}
+                            </p>
+                            <p className="text-purple-600 dark:text-purple-400">
+                              Utilization: {data.utilization}%
+                            </p>
+                            <p className="text-blue-600 dark:text-blue-400">
+                              Actual: {data.timeLogged}h / {data.plannedHours}h
+                            </p>
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
+                  />
+                  <Bar
+                    dataKey="utilization"
+                    name="Utilization %"
+                    radius={[0, 4, 4, 0]}
+                    barSize={14}
+                    onClick={(data) =>
+                      onBarClick &&
+                      onBarClick({ activePayload: [{ payload: data }] })
+                    }
+                    cursor="pointer"
+                    label={(props) => {
+                      const { x, y, width, value } = props;
+                      if (value === 0) return null;
+                      return (
+                        <text
+                          x={x + width + 5}
+                          y={y + 5}
+                          fill="#6b7280"
+                          fontSize={8}
+                          fontWeight="600"
+                          textAnchor="start"
+                        >
+                          {value}%
+                        </text>
+                      );
+                    }}
+                  >
+                    {utilizationData.map((entry, index) => {
+                      const color =
+                        entry.utilization >= 80
+                          ? "#8b5cf6"
+                          : entry.utilization >= 50
+                            ? "#f59e0b"
+                            : "#ef4444";
+                      return <Cell key={`ub-${index}`} fill={color} />;
+                    })}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+            {utilizationData.length === 0 && (
+              <div className="text-center text-[10px] text-gray-400 -mt-2">
+                No projects with planned hours
+              </div>
+            )}
+          </div>
+
+          {/* List - Side by Side with Bar Chart */}
+          <div className="bg-gray-50 dark:bg-gray-700/30 rounded-lg p-3 border border-gray-200 dark:border-gray-600">
+            <div className="text-xs font-semibold text-gray-600 dark:text-gray-300 mb-2 text-center">
+              Utilization Details
+            </div>
+            <div className="space-y-1 max-h-[220px] overflow-y-auto pr-1">
+              {projectsWithPlan.slice(0, 10).map((project, index) => (
+                <div
+                  key={index}
+                  onClick={() =>
+                    onBarClick &&
+                    onBarClick({ activePayload: [{ payload: project }] })
+                  }
+                  className="cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600/50 rounded-md px-2 py-1.5 transition-colors flex items-center justify-between group"
+                >
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    <span className="text-[9px] font-medium text-gray-400 w-4 text-center flex-shrink-0">
+                      {index + 1}
+                    </span>
+                    <span className="text-[10px] font-medium text-gray-700 dark:text-gray-300 truncate flex-1">
+                      {project.fullName}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <div className="w-16 h-1.5 bg-gray-200 dark:bg-gray-600 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all duration-500 ${
+                          project.utilization >= 80
+                            ? "bg-purple-500"
+                            : project.utilization >= 50
+                              ? "bg-amber-500"
+                              : "bg-rose-500"
+                        }`}
+                        style={{
+                          width: `${Math.min(project.utilization, 100)}%`,
+                        }}
+                      />
+                    </div>
+                    <span
+                      className={`text-[8px] font-semibold min-w-[28px] text-right ${
+                        project.utilization >= 80
+                          ? "text-purple-600 dark:text-purple-400"
+                          : project.utilization >= 50
+                            ? "text-amber-600 dark:text-amber-400"
+                            : "text-rose-600 dark:text-rose-400"
+                      }`}
+                    >
+                      {project.utilization}%
+                    </span>
+                  </div>
+                </div>
+              ))}
+              {projectsWithPlan.length > 10 && (
+                <div className="text-center text-[8px] text-gray-400 pt-1 border-t border-gray-200 dark:border-gray-600">
+                  +{projectsWithPlan.length - 10} more projects
+                </div>
+              )}
+              {projectsWithPlan.length === 0 && (
+                <div className="text-center py-3 text-gray-400 dark:text-gray-500 text-xs">
+                  No projects with planned hours
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   // ─── Render Overview ──────────────────────────────────────────────────────
   const renderOverview = () => (
@@ -259,14 +522,16 @@ export const ProjectTimeCostChart = ({ data, onBarClick, loading, reportPeriod }
             <div className="w-6 h-6 bg-blue-500/20 rounded-lg flex items-center justify-center">
               <FiClock className="text-blue-600 dark:text-blue-400 text-sm" />
             </div>
-            <span className="text-[10px] text-gray-500 dark:text-gray-400 font-medium">Total Hours</span>
+            <span className="text-[10px] text-gray-500 dark:text-gray-400 font-medium">
+              Total Hours
+            </span>
           </div>
           <p className="text-xl font-bold text-blue-600 dark:text-blue-400">
             {summary.totalHours}h
           </p>
           <div className="mt-1 flex items-center gap-2">
             <div className="flex-1 h-1 bg-blue-200 dark:bg-blue-800 rounded-full overflow-hidden">
-              <div 
+              <div
                 className="h-full bg-blue-500 rounded-full transition-all duration-500"
                 style={{ width: `${Math.min(summary.timeUtilization, 100)}%` }}
               />
@@ -282,16 +547,20 @@ export const ProjectTimeCostChart = ({ data, onBarClick, loading, reportPeriod }
             <div className="w-6 h-6 bg-green-500/20 rounded-lg flex items-center justify-center">
               <FiDollarSign className="text-green-600 dark:text-green-400 text-sm" />
             </div>
-            <span className="text-[10px] text-gray-500 dark:text-gray-400 font-medium">Total Cost</span>
+            <span className="text-[10px] text-gray-500 dark:text-gray-400 font-medium">
+              Total Cost
+            </span>
           </div>
           <p className="text-xl font-bold text-green-600 dark:text-green-400">
             AED {summary.totalCost.toLocaleString()}
           </p>
           <div className="mt-1 flex items-center gap-2">
             <div className="flex-1 h-1 bg-green-200 dark:bg-green-800 rounded-full overflow-hidden">
-              <div 
+              <div
                 className="h-full bg-green-500 rounded-full transition-all duration-500"
-                style={{ width: `${Math.min(summary.budgetUtilization, 100)}%` }}
+                style={{
+                  width: `${Math.min(summary.budgetUtilization, 100)}%`,
+                }}
               />
             </div>
             <span className="text-[9px] text-gray-500 dark:text-gray-400 whitespace-nowrap">
@@ -305,13 +574,22 @@ export const ProjectTimeCostChart = ({ data, onBarClick, loading, reportPeriod }
             <div className="w-6 h-6 bg-purple-500/20 rounded-lg flex items-center justify-center">
               <FiActivity className="text-purple-600 dark:text-purple-400 text-sm" />
             </div>
-            <span className="text-[10px] text-gray-500 dark:text-gray-400 font-medium">Cost Variance</span>
+            <span className="text-[10px] text-gray-500 dark:text-gray-400 font-medium">
+              Cost Variance
+            </span>
           </div>
-          <p className={`text-xl font-bold ${summary.costVariance > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
-            {summary.costVariance > 0 ? '+' : ''}{summary.costVariance}%
+          <p
+            className={`text-xl font-bold ${summary.costVariance > 0 ? "text-red-600 dark:text-red-400" : "text-green-600 dark:text-green-400"}`}
+          >
+            {summary.costVariance > 0 ? "+" : ""}
+            {summary.costVariance}%
           </p>
           <p className="text-[9px] text-gray-500 dark:text-gray-400">
-            {summary.costVariance > 0 ? 'Over budget' : summary.costVariance < 0 ? 'Under budget' : 'On track'}
+            {summary.costVariance > 0
+              ? "Over budget"
+              : summary.costVariance < 0
+                ? "Under budget"
+                : "On track"}
           </p>
         </div>
 
@@ -320,7 +598,9 @@ export const ProjectTimeCostChart = ({ data, onBarClick, loading, reportPeriod }
             <div className="w-6 h-6 bg-orange-500/20 rounded-lg flex items-center justify-center">
               <FiBarChart2 className="text-orange-600 dark:text-orange-400 text-sm" />
             </div>
-            <span className="text-[10px] text-gray-500 dark:text-gray-400 font-medium">Projects</span>
+            <span className="text-[10px] text-gray-500 dark:text-gray-400 font-medium">
+              Projects
+            </span>
           </div>
           <p className="text-xl font-bold text-orange-600 dark:text-orange-400">
             {summary.projectCount}/{summary.totalProjects}
@@ -331,7 +611,7 @@ export const ProjectTimeCostChart = ({ data, onBarClick, loading, reportPeriod }
         </div>
       </div>
 
-      {/* ─── BAR CHART: Utilization + Cost Combined ────────────────────── */}
+      {/* BAR CHART: Utilization + Cost Combined */}
       <div>
         <div className="flex items-center justify-between mb-2">
           <span className="text-xs font-semibold text-gray-600 dark:text-gray-300">
@@ -343,16 +623,27 @@ export const ProjectTimeCostChart = ({ data, onBarClick, loading, reportPeriod }
         <div className="h-[260px] w-full">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
-              data={topProjects.length > 0 ? topProjects : overview.filter(d => d.hasData).slice(0, 8)}
+              data={
+                topProjects.length > 0
+                  ? topProjects
+                  : overview.filter((d) => d.hasData).slice(0, 8)
+              }
               layout="vertical"
               margin={{ top: 10, right: 10, left: 110, bottom: 10 }}
               onClick={onBarClick}
             >
-              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" opacity={0.3} horizontal={false} />
-              <XAxis 
-                type="number" 
+              <CartesianGrid
+                strokeDasharray="3 3"
+                stroke="#e5e7eb"
+                opacity={0.3}
+                horizontal={false}
+              />
+              <XAxis
+                type="number"
                 tick={{ fontSize: 9, fill: "#6b7280" }}
-                tickFormatter={(value) => value >= 1000 ? `${(value/1000).toFixed(0)}k` : value}
+                tickFormatter={(value) =>
+                  value >= 1000 ? `${(value / 1000).toFixed(0)}k` : value
+                }
               />
               <YAxis
                 type="category"
@@ -363,15 +654,17 @@ export const ProjectTimeCostChart = ({ data, onBarClick, loading, reportPeriod }
               />
               <Tooltip content={<CustomTooltip />} />
               <Legend wrapperStyle={{ fontSize: 9, paddingTop: 4 }} />
-              
-              {/* Utilization Bar - Shows actual/total hours */}
+
               <Bar
                 dataKey="utilizationDisplay"
                 name="Utilization"
                 fill="#8b5cf6"
                 radius={[0, 4, 4, 0]}
                 barSize={16}
-                onClick={(data) => onBarClick && onBarClick({ activePayload: [{ payload: data }] })}
+                onClick={(data) =>
+                  onBarClick &&
+                  onBarClick({ activePayload: [{ payload: data }] })
+                }
                 cursor="pointer"
                 label={(props) => {
                   const { x, y, width, value, payload } = props;
@@ -391,23 +684,31 @@ export const ProjectTimeCostChart = ({ data, onBarClick, loading, reportPeriod }
                   );
                 }}
               >
-                {(topProjects.length > 0 ? topProjects : overview.filter(d => d.hasData).slice(0, 8)).map((entry, index) => {
+                {(topProjects.length > 0
+                  ? topProjects
+                  : overview.filter((d) => d.hasData).slice(0, 8)
+                ).map((entry, index) => {
                   const utilization = entry.utilization || 0;
-                  const color = utilization >= 80 ? '#8b5cf6' : utilization >= 50 ? '#f59e0b' : '#ef4444';
-                  return (
-                    <Cell key={`util-${index}`} fill={color} />
-                  );
+                  const color =
+                    utilization >= 80
+                      ? "#8b5cf6"
+                      : utilization >= 50
+                        ? "#f59e0b"
+                        : "#ef4444";
+                  return <Cell key={`util-${index}`} fill={color} />;
                 })}
               </Bar>
-              
-              {/* Cost Bar */}
+
               <Bar
                 dataKey="actualCost"
                 name="Cost (AED)"
                 fill="#10b981"
                 radius={[0, 4, 4, 0]}
                 barSize={16}
-                onClick={(data) => onBarClick && onBarClick({ activePayload: [{ payload: data }] })}
+                onClick={(data) =>
+                  onBarClick &&
+                  onBarClick({ activePayload: [{ payload: data }] })
+                }
                 cursor="pointer"
                 label={(props) => {
                   const { x, y, width, value } = props;
@@ -427,57 +728,19 @@ export const ProjectTimeCostChart = ({ data, onBarClick, loading, reportPeriod }
                   );
                 }}
               >
-                {(topProjects.length > 0 ? topProjects : overview.filter(d => d.hasData).slice(0, 8)).map((entry, index) => (
-                  <Cell key={`cost-${index}`} fill={CHART_COLORS[(index + 3) % CHART_COLORS.length]} opacity={0.85} />
+                {(topProjects.length > 0
+                  ? topProjects
+                  : overview.filter((d) => d.hasData).slice(0, 8)
+                ).map((entry, index) => (
+                  <Cell
+                    key={`cost-${index}`}
+                    fill={CHART_COLORS[(index + 3) % CHART_COLORS.length]}
+                    opacity={0.85}
+                  />
                 ))}
               </Bar>
             </BarChart>
           </ResponsiveContainer>
-        </div>
-      </div>
-
-      {/* ─── Quick Utilization List ────────────────────────────────────── */}
-      <div className="mt-1 pt-2 border-t border-gray-100 dark:border-gray-700">
-        <div className="flex items-center justify-between mb-1.5">
-          <span className="text-[9px] font-medium text-gray-500 dark:text-gray-400">
-            Time Utilization Details
-          </span>
-          <span className="text-[8px] text-gray-400">Actual / Total Hours</span>
-        </div>
-        <div className="grid grid-cols-1 gap-1 max-h-[60px] overflow-y-auto">
-          {projectsWithPlan.slice(0, 6).map((project, index) => (
-            <div 
-              key={index}
-              onClick={() => onBarClick && onBarClick({ activePayload: [{ payload: project }] })}
-              className="cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/30 rounded px-2 py-0.5 transition-colors flex items-center justify-between"
-            >
-              <span className="text-[8px] text-gray-600 dark:text-gray-400 truncate flex-1">
-                {project.fullName}
-              </span>
-              <div className="flex items-center gap-2 ml-2">
-                <div className="w-20 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                  <div 
-                    className={`h-full rounded-full transition-all duration-500 ${
-                      project.utilization >= 80 ? 'bg-purple-500' : 
-                      project.utilization >= 50 ? 'bg-amber-500' : 'bg-rose-500'
-                    }`}
-                    style={{ width: `${Math.min(project.utilization, 100)}%` }}
-                  />
-                </div>
-                <span className={`text-[7px] font-medium whitespace-nowrap ${
-                  project.utilization >= 80 ? 'text-purple-600' : 
-                  project.utilization >= 50 ? 'text-amber-600' : 'text-rose-600'
-                }`}>
-                  {project.timeLogged}h / {project.plannedHours}h
-                </span>
-              </div>
-            </div>
-          ))}
-          {projectsWithPlan.length > 6 && (
-            <div className="text-[7px] text-gray-400 text-center">
-              +{projectsWithPlan.length - 6} more projects
-            </div>
-          )}
         </div>
       </div>
     </div>
@@ -492,7 +755,11 @@ export const ProjectTimeCostChart = ({ data, onBarClick, loading, reportPeriod }
       <div className="h-[200px] w-full">
         <ResponsiveContainer width="100%" height="100%">
           <ScatterChart margin={{ top: 10, right: 10, left: 0, bottom: 10 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" opacity={0.4} />
+            <CartesianGrid
+              strokeDasharray="3 3"
+              stroke="#e5e7eb"
+              opacity={0.4}
+            />
             <XAxis
               type="number"
               dataKey="timeLogged"
@@ -516,13 +783,19 @@ export const ProjectTimeCostChart = ({ data, onBarClick, loading, reportPeriod }
               name="Projects"
               data={overview}
               fill="#2a78d6"
-              onClick={(data) => onBarClick && onBarClick({ activePayload: [{ payload: data }] })}
+              onClick={(data) =>
+                onBarClick && onBarClick({ activePayload: [{ payload: data }] })
+              }
               cursor="pointer"
             >
               {overview.map((entry, index) => (
-                <Cell 
-                  key={`s-${index}`} 
-                  fill={entry.hasData ? CHART_COLORS[index % CHART_COLORS.length] : "#d1d5db"}
+                <Cell
+                  key={`s-${index}`}
+                  fill={
+                    entry.hasData
+                      ? CHART_COLORS[index % CHART_COLORS.length]
+                      : "#d1d5db"
+                  }
                   opacity={entry.hasData ? 1 : 0.4}
                 />
               ))}
@@ -535,7 +808,9 @@ export const ProjectTimeCostChart = ({ data, onBarClick, loading, reportPeriod }
 
   // ─── Render Planned vs Actual ──────────────────────────────────────────
   const renderPlannedVsActual = () => {
-    const plannedData = overview.filter(d => d.plannedHours > 0 || d.plannedCost > 0).slice(0, 10);
+    const plannedData = overview
+      .filter((d) => d.plannedHours > 0 || d.plannedCost > 0)
+      .slice(0, 10);
     return (
       <div className="h-[200px] w-full">
         <ResponsiveContainer width="100%" height="100%">
@@ -543,7 +818,11 @@ export const ProjectTimeCostChart = ({ data, onBarClick, loading, reportPeriod }
             data={plannedData}
             margin={{ top: 5, right: 5, left: 0, bottom: 15 }}
           >
-            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" opacity={0.4} />
+            <CartesianGrid
+              strokeDasharray="3 3"
+              stroke="#e5e7eb"
+              opacity={0.4}
+            />
             <XAxis
               dataKey="displayName"
               angle={-30}
@@ -552,16 +831,31 @@ export const ProjectTimeCostChart = ({ data, onBarClick, loading, reportPeriod }
               tick={{ fontSize: 7, fill: "#6b7280" }}
               interval={0}
             />
-            <YAxis yAxisId="left" tick={{ fontSize: 7, fill: "#6b7280" }} width={25} />
-            <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 7, fill: "#6b7280" }} width={25} />
+            <YAxis
+              yAxisId="left"
+              tick={{ fontSize: 7, fill: "#6b7280" }}
+              width={25}
+            />
+            <YAxis
+              yAxisId="right"
+              orientation="right"
+              tick={{ fontSize: 7, fill: "#6b7280" }}
+              width={25}
+            />
             <Tooltip content={<CustomTooltip />} />
             <Legend wrapperStyle={{ fontSize: 7, paddingTop: 2 }} />
-            <Bar yAxisId="left" dataKey="plannedHours" name="Planned Hrs" fill="#94a3b8" barSize={7} />
-            <Bar 
-              yAxisId="left" 
-              dataKey="timeLogged" 
-              name="Actual Hrs" 
-              fill="#2a78d6" 
+            <Bar
+              yAxisId="left"
+              dataKey="plannedHours"
+              name="Planned Hrs"
+              fill="#94a3b8"
+              barSize={7}
+            />
+            <Bar
+              yAxisId="left"
+              dataKey="timeLogged"
+              name="Actual Hrs"
+              fill="#2a78d6"
               barSize={7}
             />
             <Line
@@ -591,9 +885,9 @@ export const ProjectTimeCostChart = ({ data, onBarClick, loading, reportPeriod }
   // ─── Render Budget Distribution ──────────────────────────────────────
   const renderBudget = () => {
     const budgetData = overview
-      .filter(d => d.actualCost > 0 || d.plannedCost > 0)
+      .filter((d) => d.actualCost > 0 || d.plannedCost > 0)
       .slice(0, 8);
-    
+
     return (
       <div className="space-y-2">
         <div className="h-[180px] w-full">
@@ -608,13 +902,20 @@ export const ProjectTimeCostChart = ({ data, onBarClick, loading, reportPeriod }
                 paddingAngle={2}
                 dataKey="actualCost"
                 nameKey="displayName"
-                onClick={(data) => onBarClick && onBarClick({ activePayload: [{ payload: data }] })}
+                onClick={(data) =>
+                  onBarClick &&
+                  onBarClick({ activePayload: [{ payload: data }] })
+                }
                 cursor="pointer"
               >
                 {budgetData.map((entry, index) => (
-                  <Cell 
-                    key={`p-${index}`} 
-                    fill={entry.hasData ? CHART_COLORS[index % CHART_COLORS.length] : "#e5e7eb"}
+                  <Cell
+                    key={`p-${index}`}
+                    fill={
+                      entry.hasData
+                        ? CHART_COLORS[index % CHART_COLORS.length]
+                        : "#e5e7eb"
+                    }
                     opacity={entry.hasData ? 1 : 0.4}
                   />
                 ))}
@@ -625,13 +926,17 @@ export const ProjectTimeCostChart = ({ data, onBarClick, loading, reportPeriod }
                     const data = payload[0].payload;
                     return (
                       <div className="bg-white dark:bg-gray-800 p-2 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 text-xs">
-                        <p className="font-semibold text-gray-800 dark:text-white">{data.fullName}</p>
+                        <p className="font-semibold text-gray-800 dark:text-white">
+                          {data.fullName}
+                        </p>
                         <p className="text-green-600 dark:text-green-400">
-                          Actual: {data.currency || "AED"} {data.actualCost.toLocaleString()}
+                          Actual: {data.currency || "AED"}{" "}
+                          {data.actualCost.toLocaleString()}
                         </p>
                         {data.plannedCost > 0 && (
                           <p className="text-gray-500 dark:text-gray-400">
-                            Planned: {data.currency || "AED"} {data.plannedCost.toLocaleString()}
+                            Planned: {data.currency || "AED"}{" "}
+                            {data.plannedCost.toLocaleString()}
                           </p>
                         )}
                       </div>
@@ -643,7 +948,9 @@ export const ProjectTimeCostChart = ({ data, onBarClick, loading, reportPeriod }
               <Legend
                 wrapperStyle={{ fontSize: 7 }}
                 formatter={(value) => (
-                  <span className="text-gray-600 dark:text-gray-300">{value}</span>
+                  <span className="text-gray-600 dark:text-gray-300">
+                    {value}
+                  </span>
                 )}
               />
             </PieChart>
@@ -661,6 +968,8 @@ export const ProjectTimeCostChart = ({ data, onBarClick, loading, reportPeriod }
     switch (activeView) {
       case "overview":
         return renderOverview();
+      case "utilization":
+        return renderUtilization();
       case "scatter":
         return renderScatter();
       case "planned":
@@ -687,14 +996,15 @@ export const ProjectTimeCostChart = ({ data, onBarClick, loading, reportPeriod }
             </h3>
             {reportPeriod && (
               <p className="text-[10px] text-gray-500 dark:text-gray-400">
-                {reportPeriod.month}/{reportPeriod.year} • {summary.totalProjects} projects
+                {reportPeriod.month}/{reportPeriod.year} •{" "}
+                {summary.totalProjects} projects
               </p>
             )}
           </div>
         </div>
 
         {/* View Tabs */}
-        <div className="flex gap-0.5 bg-gray-100 dark:bg-gray-700 rounded-lg p-0.5">
+        <div className="flex gap-0.5 bg-gray-100 dark:bg-gray-700 rounded-lg p-0.5 flex-wrap">
           <button
             onClick={() => setActiveView("overview")}
             className={`px-2.5 py-1 rounded text-[9px] font-medium transition-all ${
@@ -706,6 +1016,18 @@ export const ProjectTimeCostChart = ({ data, onBarClick, loading, reportPeriod }
           >
             <FiBarChart2 className="inline mr-1" size={11} />
             Overview
+          </button>
+          <button
+            onClick={() => setActiveView("utilization")}
+            className={`px-2.5 py-1 rounded text-[9px] font-medium transition-all ${
+              activeView === "utilization"
+                ? "bg-white dark:bg-gray-600 text-green-600 dark:text-green-400 shadow-sm"
+                : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
+            }`}
+            title="Utilization"
+          >
+            <FiTarget className="inline mr-1" size={11} />
+            Utilization
           </button>
           <button
             onClick={() => setActiveView("scatter")}
