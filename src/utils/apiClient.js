@@ -24,8 +24,16 @@ const TOKEN_KEYS = ['admin-token', 'employee-token', 'auth-token', 'hr-token'];
 
 const isEmptyToken = (value) => !value || value === 'null' || value === 'undefined';
 
-export const getActiveTokenKey = () =>
-  TOKEN_KEYS.find((key) => !isEmptyToken(localStorage.getItem(key)));
+export const getActiveTokenKey = () => {
+  const activeType = localStorage.getItem("active-user-type");
+
+  if (!activeType) return null;
+
+  const tokenKey = `${activeType}-token`;
+  const token = localStorage.getItem(tokenKey);
+
+  return isEmptyToken(token) ? null : tokenKey;
+};
 
 const getToken = () => {
   const key = getActiveTokenKey();
@@ -131,18 +139,15 @@ const refreshAccessToken = () => {
 
 // Get token based on user type
 export const getAuthToken = (userType) => {
-  if (userType) {
-    return localStorage.getItem(`${userType}-token`);
-  }
-  // Fallback to active user type
-  const activeType = localStorage.getItem('active-user-type');
-  if (activeType) {
-    return localStorage.getItem(`${activeType}-token`);
-  }
-  // Last resort: check all tokens
-  return getToken();
-};
+  const activeType =
+    userType || localStorage.getItem("active-user-type");
 
+  if (!activeType) return null;
+
+  const token = localStorage.getItem(`${activeType}-token`);
+
+  return isEmptyToken(token) ? null : token;
+};
 // Clear all tokens
 export const clearAllTokens = () => {
   ['admin-token', 'hr-token', 'employee-token', 'auth-token'].forEach(key => {

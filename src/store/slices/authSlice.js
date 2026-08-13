@@ -69,62 +69,136 @@ export const logoutUser = createAsyncThunk("auth/logout", async () => {
 export const initializeAuth = createAsyncThunk(
   "auth/initialize",
   async (_, { rejectWithValue }) => {
-    // Get the active user type
-    const activeType = localStorage.getItem("active-user-type");
-    let token = null;
-    
-    // Only look for the token that matches the active type
-    if (activeType) {
-      token = localStorage.getItem(`${activeType}-token`);
-    }
-    
-    // If no token found, check all keys as fallback
-    if (!token || token === 'null' || token === 'undefined') {
-      const tokenKeys = ['admin-token', 'hr-token', 'employee-token', 'auth-token'];
-      for (const key of tokenKeys) {
-        const t = localStorage.getItem(key);
-        if (t && t !== 'null' && t !== 'undefined') {
-          token = t;
-          break;
-        }
-      }
-    }
-    
-    if (!token) {
-      return rejectWithValue("No token");
-    }
+    const clearAuthStorage = () => {
+      const tokenKeys = [
+        "admin-token",
+        "hr-token",
+        "employee-token",
+        "auth-token",
+      ];
 
-    try {
-      const response = await apiClient.get("/auth/me");
-      const userData = response.data.data;
-      const userType = userData.user?.type || activeType || 'admin';
-      
-      // Store token with proper key and clean up others
-      const tokenKey = `${userType}-token`;
-      localStorage.setItem(tokenKey, token);
-      localStorage.setItem("active-user-type", userType);
-      localStorage.setItem("user-type", userType);
-      localStorage.setItem("user-data", JSON.stringify(userData));
-      
-      // Clean up other tokens
-      const tokenKeys = ['admin-token', 'hr-token', 'employee-token', 'auth-token'];
-      tokenKeys.forEach(key => {
-        if (key !== tokenKey && key !== 'auth-token') {
-          localStorage.removeItem(key);
-        }
-      });
-      
-      return userData;
-    } catch {
-      // Token is invalid/expired — clear everything
-      const tokenKeys = ['admin-token', 'hr-token', 'employee-token', 'auth-token'];
-      tokenKeys.forEach(key => localStorage.removeItem(key));
+      tokenKeys.forEach((key) => localStorage.removeItem(key));
+
       localStorage.removeItem("user-type");
       localStorage.removeItem("user-data");
       localStorage.removeItem("active-user-type");
       localStorage.removeItem("hr-user");
       localStorage.removeItem("employee-user");
-      return rejectWithValue("Invalid token");
+    };
+
+    // ---------------------------------------------------------
+    // 1. Active user type MUST exist
+    // ---------------------------------------------------------
+    const activeType = localStorage.getItem("active-user-type");
+
+    if (!activeType) {
+      return rejectWithValue("No active user type");
+    }
+
+    // Only allow known user types
+    const allowedTypes = ["admin", "hr", "employee", "manager", "team_lead"];
+
+    if (!allowedTypes.includes(activeType)) {
+      clearAuthStorage();
+      return rejectWithValue("Invalid user type");
+    }
+
+    // ---------------------------------------------------------
+    // 2. Get ONLY the token belonging to active-user-type
+    // ---------------------------------------------------------
+    const tokenKey = `${activeType}-token`;
+    const token = localStorage.getItem(tokenKey);
+
+    if (!token || token === "null" || token === "undefined") {
+      console.error(
+        `No token found for active user type: ${activeType}`
+      );
+
+      clearAuthStorage();
+      return rejectWithValue("No token for active user type");
+    }
+
+    try {
+      // ---------------------------------------------------------
+      // 3. Make sure apiClient uses THIS token
+      // ---------------------------------------------------------
+      apiClient.defaults.headers.common.Authorization =
+        `Bearer ${token}`;
+
+      // ---------------------------------------------------------
+      // 4. Validate token with backend
+      // ---------------------------------------------------------
+      const response = await apiClient.get("/auth/me");
+
+      const userData = response.data.data;
+      const authenticatedUser = userData?.user;
+
+      if (!authenticatedUser) {
+        throw new Error("Invalid user data from /auth/me");
+      }
+
+      const backendUserType = authenticatedUser.type;
+
+      // ---------------------------------------------------------
+      // 5. VERY IMPORTANT:
+      //    Backend user type MUST match active-user-type
+      // ---------------------------------------------------------
+      if (backendUserType !== activeType) {
+        console.error(
+          `AUTH TYPE MISMATCH: localStorage=${activeType}, backend=${backendUserType}`
+        );
+
+        throw new Error("User type mismatch");
+      }
+
+      // ---------------------------------------------------------
+      // 6. Store ONLY consistent authentication information
+      // ---------------------------------------------------------
+      localStorage.setItem(
+        "active-user-type",
+        backendUserType
+      );
+
+      localStorage.setItem(
+        "user-type",
+        backendUserType
+      );
+
+      localStorage.setItem(
+        "user-data",
+        JSON.stringify(userData)
+      );
+
+      // ---------------------------------------------------------
+      // 7. Remove every other token
+      // ---------------------------------------------------------
+      const tokenKeys = [
+        "admin-token",
+        "hr-token",
+        "employee-token",
+        "manager-token",
+        "team_lead-token",
+        "auth-token",
+      ];
+
+      tokenKeys.forEach((key) => {
+        if (key !== tokenKey) {
+          localStorage.removeItem(key);
+        }
+      });
+
+      return userData;
+    } catch (error) {
+      console.error(
+        "Authentication initialization failed:",
+        error.response?.data || error.message
+      );
+
+      clearAuthStorage();
+
+      return rejectWithValue(
+        error.message || "Invalid authentication"
+      );
     }
   }
 );
@@ -173,7 +247,7 @@ const initialState = {
   token: getTokenFromStorage(),
   userType: getUserTypeFromStorage(),
   isAuthenticated: !!getTokenFromStorage(),
-  loading: false,
+  loading: true,
   error: null,
   profileUpdateLoading: false,
   profileUpdateError: null,
