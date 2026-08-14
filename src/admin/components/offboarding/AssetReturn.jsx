@@ -202,8 +202,11 @@ const AssetReturn = () => {
       
       // Prepare payload to mark assets step as completed/skipped
       const assetsData = {
+        offboarding_id: offboardingIdValue,
         assets: [],
-        assets_status: "skipped",
+        assets_status: "completed",
+        asset_return_status: "completed",
+        status: "completed",
         skipped: true,
         skipped_reason: "No assets assigned to employee",
         updated_at: new Date().toISOString()
@@ -253,6 +256,8 @@ const AssetReturn = () => {
           offboarding_id: offboardingIdValue,
           assets: assetsPayload,
           assets_status: "completed",
+          asset_return_status: "completed",
+          status: "completed",
           updated_at: new Date().toISOString()
         } 
       })).unwrap();

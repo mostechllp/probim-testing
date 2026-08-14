@@ -129,6 +129,7 @@ const ExitInterview = () => {
     try {
       // Prepare interview payload
       const interviewPayload = {
+        offboarding_id: offboardingId || localStorage.getItem("offboarding_id"),
         interviewer: interviewData.interviewer,
         interview_date: interviewData.interviewDate,
         interview_mode: interviewData.interviewMode,
@@ -144,7 +145,9 @@ const ExitInterview = () => {
         exit_interview_notes: interviewData.additionalComments || "None",
         remarks: interviewData.additionalComments || "None",
         submitted_at: new Date().toISOString(),
-        status: "completed"
+        status: "completed",
+        exit_interview_status: "completed",
+        interview_status: "completed"
       };
 
       // Submit interview via API

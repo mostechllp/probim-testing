@@ -123,12 +123,15 @@ export const fetchOffboardingProgress = createAsyncThunk(
   },
 );
 
-// Update Offboarding - PUT /admin/offboarding/{id}
+// Update Offboarding - PUT /admin/offboarding/update-initiate
 export const updateOffboarding = createAsyncThunk(
   "offboarding/update",
   async ({ id, data }, { rejectWithValue }) => {
     try {
-      const response = await apiClient.put(`/admin/offboarding/${id}`, data);
+      const response = await apiClient.put(`/admin/offboarding/update-initiate`, {
+        ...data,
+        offboarding_id: id
+      });
 
       console.log("Offboarding updated response:", response.data);
 

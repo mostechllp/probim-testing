@@ -1,12 +1,19 @@
 import { lazy, useEffect, Suspense } from "react";
-import { Routes, Route, Navigate } from "react-router-dom";
+
+import { Routes, Route, Navigate, useParams } from "react-router-dom";
+
 import { useSelector, useDispatch } from "react-redux";
+
 import { useTheme } from "./admin/hooks/useTheme";
 import Loader from "./admin/components/common/Loader";
 import { initializeAuth } from "./store/slices/authSlice";
+
 import "react-datepicker/dist/react-datepicker.css";
 
-// Import shared components
+// ============================================================
+// SHARED COMPONENTS
+// ============================================================
+
 import ProtectedRoute from "./shared/components/ProtectedRoute";
 
 import Login from "./pages/Login";
@@ -14,8 +21,12 @@ import { ThemeProvider } from "./context/ThemeContext";
 import NotFound from "./pages/NotFound";
 import ErrorBoundary from "./components/common/ErrorBoundary";
 
-// Lazy load layouts
+// ============================================================
+// LAZY LOAD LAYOUTS
+// ============================================================
+
 const AdminLayout = lazy(() => import("./shared/layouts/AdminLayout"));
+
 const EmployeeLayout = lazy(() => import("./shared/layouts/EmployeeLayout"));
 
 // ============================================================
@@ -23,254 +34,223 @@ const EmployeeLayout = lazy(() => import("./shared/layouts/EmployeeLayout"));
 // ============================================================
 
 const AdminDashboard = lazy(() => import("./admin/pages/Dashboard"));
+
 const Projects = lazy(() => import("./admin/pages/Projects"));
+
 const ProjectDetails = lazy(() => import("./admin/pages/ProjectDetails"));
 
 const ProjectAssignments = lazy(
-  () => import("./admin/pages/ProjectAssignments")
+  () => import("./admin/pages/ProjectAssignments"),
 );
 
 const Employees = lazy(() => import("./admin/pages/Employees"));
+
 const AddEmployee = lazy(() => import("./admin/pages/AddEmployee"));
+
 const EditEmployee = lazy(() => import("./admin/pages/EditEmployee"));
+
 const EmployeeDetails = lazy(() => import("./admin/pages/EmployeeDetails"));
 
 const Organizations = lazy(() => import("./admin/pages/Organizations"));
-const AddOrganization = lazy(
-  () => import("./admin/pages/AddOrganization")
-);
-const EditOrganization = lazy(
-  () => import("./admin/pages/EditOrganization")
-);
+
+const AddOrganization = lazy(() => import("./admin/pages/AddOrganization"));
+
+const EditOrganization = lazy(() => import("./admin/pages/EditOrganization"));
 
 const Companies = lazy(() => import("./admin/pages/Companies"));
+
 const AddCompany = lazy(() => import("./admin/pages/AddCompany"));
+
 const EditCompany = lazy(() => import("./admin/pages/EditCompany"));
 
 const Agreements = lazy(() => import("./admin/pages/Agreements"));
+
 const AddAgreement = lazy(() => import("./admin/pages/AddAgreement"));
+
 const EditAgreement = lazy(() => import("./admin/pages/EditAgreement"));
+
 const AddDocument = lazy(() => import("./admin/pages/AddDocument"));
 
 const Attendances = lazy(() => import("./admin/pages/Attendances"));
+
 const Leaves = lazy(() => import("./admin/pages/Leaves"));
 
 const LeaveTypeManagement = lazy(
-  () => import("./admin/pages/LeaveTypeManagement")
+  () => import("./admin/pages/LeaveTypeManagement"),
 );
 
-const LeaveAllocations = lazy(
-  () => import("./admin/pages/LeaveAllocations")
-);
+const LeaveAllocations = lazy(() => import("./admin/pages/LeaveAllocations"));
 
 const EditLeaveAllocation = lazy(
-  () => import("./admin/pages/EditLeaveAllocation")
+  () => import("./admin/pages/EditLeaveAllocation"),
 );
 
 const Designations = lazy(() => import("./admin/pages/Designations"));
+
 const Departments = lazy(() => import("./admin/pages/Departments"));
+
 const TaskReports = lazy(() => import("./admin/pages/TaskReports"));
+
 const Reports = lazy(() => import("./admin/pages/Reports"));
 
-const ModuleManagement = lazy(
-  () => import("./admin/pages/ModuleManagement")
-);
+const ModuleManagement = lazy(() => import("./admin/pages/ModuleManagement"));
+
+// ============================================================
+// REPORTS
+// ============================================================
 
 const EmployeeDetailsReport = lazy(
-  () => import("./admin/components/reports/EmployeeDetailsReport")
+  () => import("./admin/components/reports/EmployeeDetailsReport"),
 );
 
 const AttendanceReport = lazy(
-  () => import("./admin/components/reports/AttendanceReport")
+  () => import("./admin/components/reports/AttendanceReport"),
 );
 
 const ProjectReport = lazy(
-  () => import("./admin/components/reports/ProjectReport")
+  () => import("./admin/components/reports/ProjectReport"),
 );
 
 const LeaveRequestReport = lazy(
-  () => import("./admin/components/reports/LeaveRequestsReports")
+  () => import("./admin/components/reports/LeaveRequestsReports"),
 );
 
 const PendingLeaveReport = lazy(
-  () => import("./admin/components/reports/PendingLeavesReport")
+  () => import("./admin/components/reports/PendingLeavesReport"),
 );
 
 const EmployeeNearestExpiryReport = lazy(
-  () => import("./admin/components/reports/EmployeeNearestExpiryReport")
+  () => import("./admin/components/reports/EmployeeNearestExpiryReport"),
 );
 
 const EmployeeUpcomingRenewalReport = lazy(
-  () => import("./admin/components/reports/EmployeeUpcomingRenewalsReport")
+  () => import("./admin/components/reports/EmployeeUpcomingRenewalsReport"),
 );
 
 const OrgNearestExpiryReport = lazy(
-  () => import("./admin/components/reports/CompanyNearestExpiryReport")
+  () => import("./admin/components/reports/CompanyNearestExpiryReport"),
 );
 
 const OrgUpcomingRenewalReport = lazy(
-  () => import("./admin/components/reports/CompanyUpcomingRenewalsReport")
+  () => import("./admin/components/reports/CompanyUpcomingRenewalsReport"),
 );
 
 const EmployeeAttendancePage = lazy(
-  () => import("./admin/components/reports/EmployeeAttendancePage")
+  () => import("./admin/components/reports/EmployeeAttendancePage"),
 );
+
+// ============================================================
+// ADMIN OTHER PAGES
+// ============================================================
 
 const AdminWFH = lazy(() => import("./admin/pages/WFH"));
+
 const Settings = lazy(() => import("./admin/pages/Settings"));
+
 const RoleManagement = lazy(() => import("./admin/pages/RoleManagement"));
 
-const PayrollCalender = lazy(
-  () => import("./admin/pages/PayrollCalender")
-);
+const PayrollCalender = lazy(() => import("./admin/pages/PayrollCalender"));
 
 const PayrollList = lazy(() => import("./admin/pages/PayrollList"));
+
 const AddPayroll = lazy(() => import("./admin/pages/AddPayroll"));
+
+const PayrollDetails = lazy(() => import("./admin/pages/PayrollDetails"));
+
+const EditPayroll = lazy(() => import("./admin/pages/EditPayroll"));
+
 const Onboarding = lazy(() => import("./admin/pages/Onboarding"));
 
 const ProjectWorkingHours = lazy(
-  () => import("./admin/pages/ProjectWorkingHours")
+  () => import("./admin/pages/ProjectWorkingHours"),
 );
 
 const AdminAttendanceRequests = lazy(
-  () => import("./admin/pages/AttendanceRequests")
+  () => import("./admin/pages/AttendanceRequests"),
 );
 
-const PayrollDetails = lazy(
-  () => import("./admin/pages/PayrollDetails")
-);
-
-const EditPayroll = lazy(
-  () => import("./admin/pages/EditPayroll")
-);
-
-const Offboarding = lazy(
-  () => import("./admin/pages/Offboarding")
-);
+const Offboarding = lazy(() => import("./admin/pages/Offboarding"));
 
 const OffboardingInitiation = lazy(
-  () => import("./admin/components/offboarding/OffboardingInitiation")
+  () => import("./admin/components/offboarding/OffboardingInitiation"),
 );
 
 const OffboardingChecklistManager = lazy(
-  () =>
-    import("./admin/components/offboarding/OffboardingChecklistManager")
+  () => import("./admin/components/offboarding/OffboardingChecklistManager"),
 );
 
-const AssetManagement = lazy(
-  () => import("./admin/pages/AssetManagement")
-);
+const AssetManagement = lazy(() => import("./admin/pages/AssetManagement"));
 
 const AssetTypeManagement = lazy(
-  () => import("./admin/pages/AssetTypeManagement")
+  () => import("./admin/pages/AssetTypeManagement"),
 );
 
 const VisaCancellationAndExit = lazy(
-  () =>
-    import("./admin/components/offboarding/VisaCancellationAndExit")
+  () => import("./admin/components/offboarding/VisaCancellationAndExit"),
 );
 
 const OffboardingChecklist = lazy(
-  () => import("./admin/components/offboarding/OffboardingChecklist")
+  () => import("./admin/components/offboarding/OffboardingChecklist"),
 );
 
 const AssetReturn = lazy(
-  () => import("./admin/components/offboarding/AssetReturn")
+  () => import("./admin/components/offboarding/AssetReturn"),
 );
 
 const ExitInterview = lazy(
-  () => import("./admin/components/offboarding/ExitInterview")
+  () => import("./admin/components/offboarding/ExitInterview"),
 );
 
 const FinalSettlement = lazy(
-  () => import("./admin/components/offboarding/FinalSettlement")
+  () => import("./admin/components/offboarding/FinalSettlement"),
 );
 
 const LettersAndClearance = lazy(
-  () => import("./admin/components/offboarding/LettersAndClearance")
+  () => import("./admin/components/offboarding/LettersAndClearance"),
 );
 
 const ChecklistCategories = lazy(
-  () => import("./admin/pages/ChecklistCategoriesManagement")
+  () => import("./admin/pages/ChecklistCategoriesManagement"),
 );
 
-const Notifications = lazy(
-  () => import("./admin/pages/Notifications")
-);
+const Notifications = lazy(() => import("./admin/pages/Notifications"));
 
 // ============================================================
 // EMPLOYEE PAGES
 // ============================================================
 
-const EmployeeDashboard = lazy(
-  () => import("./employee/pages/Dashboard")
-);
+const EmployeeDashboard = lazy(() => import("./employee/pages/Dashboard"));
 
-const EmployeeLeaves = lazy(
-  () => import("./employee/pages/Leaves")
-);
+const EmployeeLeaves = lazy(() => import("./employee/pages/Leaves"));
 
-const RequestLeave = lazy(
-  () => import("./employee/pages/RequestLeave")
-);
+const RequestLeave = lazy(() => import("./employee/pages/RequestLeave"));
 
-const EmployeeProfile = lazy(
-  () => import("./employee/pages/Profile")
-);
+const EmployeeProfile = lazy(() => import("./employee/pages/Profile"));
 
-const EmployeeWFH = lazy(
-  () => import("./employee/pages/WFH")
-);
+const EmployeeWFH = lazy(() => import("./employee/pages/WFH"));
 
-const EmployeeTaskReports = lazy(
-  () => import("./employee/pages/TaskReports")
-);
+const EmployeeTaskReports = lazy(() => import("./employee/pages/TaskReports"));
 
 const AttendanceRequests = lazy(
-  () => import("./employee/pages/AttendanceRequests")
+  () => import("./employee/pages/AttendanceRequests"),
 );
 
 const RequestLeaveForEmployee = lazy(
-  () => import("./employee/pages/RequestLeaveForEmployees")
+  () => import("./employee/pages/RequestLeaveForEmployees"),
 );
 
-const EmployeeMyPayroll = lazy(
-  () => import("./employee/pages/MyPayroll")
-);
+const EmployeeMyPayroll = lazy(() => import("./employee/pages/MyPayroll"));
 
-const EmployeeMyDocuments = lazy(
-  () => import("./employee/pages/MyDocuments")
-);
+const EmployeeMyDocuments = lazy(() => import("./employee/pages/MyDocuments"));
 
 // ============================================================
 // USER TYPE HELPERS
 // ============================================================
 
-/*
- * Employee-side application types.
- *
- * These users use EmployeeLayout:
- * - employee
- * - manager
- * - team_lead
- * - hr
- */
+const EMPLOYEE_SIDE_TYPES = ["employee", "manager", "team_lead", "hr"];
+
 const isEmployeeType = (type) => {
-  const employeeTypes = [
-    "employee",
-    "manager",
-    "team_lead",
-    "hr",
-  ];
-
-  return employeeTypes.includes(type);
-};
-
-/*
- * Admin-side application type.
- */
-const isAdminType = (type) => {
-  return type === "admin";
+  return EMPLOYEE_SIDE_TYPES.includes(type);
 };
 
 // ============================================================
@@ -280,18 +260,75 @@ const isAdminType = (type) => {
 const LazyWrapper = ({ children }) => {
   return (
     <ErrorBoundary>
-      <Suspense fallback={<Loader fullScreen />}>
-        {children}
-      </Suspense>
+      <Suspense fallback={<Loader fullScreen />}>{children}</Suspense>
     </ErrorBoundary>
   );
 };
 
 // ============================================================
-// APP
+// REDIRECT HELPERS
 // ============================================================
 
-function App() {
+const getDashboardPath = (userType) => {
+  if (userType === "admin") {
+    return "/admin/dashboard";
+  }
+
+  if (isEmployeeType(userType)) {
+    return "/employee/dashboard";
+  }
+
+  return "/login";
+};
+
+// ============================================================
+// DYNAMIC REDIRECT COMPONENTS
+// ============================================================
+
+const EmployeeAttendanceRedirect = () => {
+  const { employeeId } = useParams();
+
+  return (
+    <Navigate
+      to={`/employee/reports/attendance/employee/${employeeId}`}
+      replace
+    />
+  );
+};
+
+const AdminAttendanceRedirect = () => {
+  const { employeeId } = useParams();
+
+  return (
+    <Navigate to={`/admin/reports/attendance/employee/${employeeId}`} replace />
+  );
+};
+
+const EmployeePayrollRedirect = ({ type = "details" }) => {
+  const { id } = useParams();
+
+  if (type === "edit") {
+    return <Navigate to={`/employee/payroll/edit/${id}`} replace />;
+  }
+
+  return <Navigate to={`/employee/payroll/${id}`} replace />;
+};
+
+const AdminPayrollRedirect = ({ type = "details" }) => {
+  const { id } = useParams();
+
+  if (type === "edit") {
+    return <Navigate to={`/admin/payroll/edit/${id}`} replace />;
+  }
+
+  return <Navigate to={`/admin/payroll/${id}`} replace />;
+};
+
+// ============================================================
+// APP CONTENT
+// ============================================================
+
+function AppContent() {
   const { theme } = useTheme();
   const dispatch = useDispatch();
 
@@ -301,28 +338,18 @@ function App() {
     isAuthenticated,
   } = useSelector((state) => state.auth);
 
-  // ----------------------------------------------------------
-  // INITIALIZE AUTHENTICATION
-  // ----------------------------------------------------------
+  // ==========================================================
+  // INITIALIZE AUTH
+  // ==========================================================
+
   useEffect(() => {
     let mounted = true;
 
     const initialize = async () => {
-      try {
-        await dispatch(initializeAuth()).unwrap();
+      await dispatch(initializeAuth());
 
-        if (!mounted) {
-          return;
-        }
-      } catch (error) {
-        /*
-         * initializeAuth already clears invalid authentication
-         * information.
-         *
-         * We intentionally do not perform another token cleanup
-         * here because doing so can cause race conditions.
-         */
-        console.log("Authentication initialization:", error);
+      if (!mounted) {
+        return;
       }
     };
 
@@ -333,1070 +360,762 @@ function App() {
     };
   }, [dispatch]);
 
-  // ----------------------------------------------------------
-  // THEME
-  // ----------------------------------------------------------
+  // ==========================================================
+  // APPLY THEME
+  // ==========================================================
+
   useEffect(() => {
-    if (theme === "dark") {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
+    document.documentElement.classList.toggle("dark", theme === "dark");
   }, [theme]);
 
-  // ----------------------------------------------------------
+  // ==========================================================
   // WAIT FOR AUTH INITIALIZATION
-  // ----------------------------------------------------------
+  // ==========================================================
+
   if (authLoading) {
     return <Loader fullScreen />;
   }
 
-  // ----------------------------------------------------------
-  // USER TYPE
-  // ----------------------------------------------------------
-  const userType = user?.type || "";
+  const userType = user?.type || null;
 
-  /*
-   * Keep the value available for route decisions.
-   *
-   * isAuthenticated is primarily handled by ProtectedRoute,
-   * while this value is used only for redirect decisions.
-   */
-  const authenticated = Boolean(
-    isAuthenticated && user && userType
-  );
+  const isLoggedIn = Boolean(isAuthenticated && user && userType);
 
-  // Avoid unused helper warning if this helper is retained
-  // intentionally for future route decisions.
-  void isAdminType;
+  const dashboardPath = getDashboardPath(userType);
+
+  // ==========================================================
+  // ROUTES
+  // ==========================================================
 
   return (
+    <Routes>
+      {/* ======================================================
+          PUBLIC ROUTES
+      ====================================================== */}
+
+      <Route
+        path="/"
+        element={
+          isLoggedIn ? <Navigate to={dashboardPath} replace /> : <Login />
+        }
+      />
+
+      <Route
+        path="/login"
+        element={
+          isLoggedIn ? <Navigate to={dashboardPath} replace /> : <Login />
+        }
+      />
+
+      {/* ======================================================
+          ADMIN ROUTES
+      ====================================================== */}
+
+      <Route
+        path="/admin"
+        element={
+          <ProtectedRoute requiredType="admin">
+            <LazyWrapper>
+              <AdminLayout />
+            </LazyWrapper>
+          </ProtectedRoute>
+        }
+      >
+        <Route index element={<Navigate to="/admin/dashboard" replace />} />
+
+        <Route path="dashboard" element={<AdminDashboard />} />
+
+        <Route path="employees" element={<Employees />} />
+
+        <Route path="projects" element={<Projects />} />
+
+        <Route path="projects/:id" element={<ProjectDetails />} />
+
+        <Route path="project-assignments" element={<ProjectAssignments />} />
+
+        <Route path="employees/add-employee" element={<AddEmployee />} />
+
+        <Route path="employees/onboarding" element={<Onboarding />} />
+
+        <Route path="employees/edit/:id" element={<EditEmployee />} />
+
+        <Route path="employees/:id" element={<EmployeeDetails />} />
+
+        <Route path="organizations" element={<Organizations />} />
+
+        <Route path="notifications" element={<Notifications />} />
+
+        <Route
+          path="organizations/add-organization"
+          element={<AddOrganization />}
+        />
+
+        <Route
+          path="organizations/edit-organization/:id"
+          element={<EditOrganization />}
+        />
+
+        <Route
+          path="organizations/:organizationId/companies"
+          element={<Companies />}
+        />
+
+        <Route
+          path="organizations/:organizationId/add-company"
+          element={<AddCompany />}
+        />
+
+        <Route
+          path="organizations/:organizationId/edit-company/:id"
+          element={<EditCompany />}
+        />
+
+        <Route path="agreements" element={<Agreements />} />
+
+        <Route path="agreements/add-agreement" element={<AddAgreement />} />
+
+        <Route path="agreements/add-document" element={<AddDocument />} />
+
+        <Route
+          path="agreements/edit-agreement/:id"
+          element={<EditAgreement />}
+        />
+
+        <Route path="attendances" element={<Attendances />} />
+
+        <Route path="designations" element={<Designations />} />
+
+        <Route path="departments" element={<Departments />} />
+
+        <Route path="task-reports" element={<TaskReports />} />
+
+        <Route path="reports" element={<Reports />} />
+
+        <Route
+          path="reports/employee-details"
+          element={<EmployeeDetailsReport />}
+        />
+
+        <Route
+          path="reports/attendance-reports"
+          element={<AttendanceReport />}
+        />
+
+        <Route path="reports/project-report" element={<ProjectReport />} />
+
+        <Route
+          path="reports/leave-requests-reports"
+          element={<LeaveRequestReport />}
+        />
+
+        <Route
+          path="reports/pending-leaves-reports"
+          element={<PendingLeaveReport />}
+        />
+
+        <Route
+          path="reports/employee-near-expiry"
+          element={<EmployeeNearestExpiryReport />}
+        />
+
+        <Route
+          path="reports/employee-upcoming-renewals"
+          element={<EmployeeUpcomingRenewalReport />}
+        />
+
+        <Route
+          path="reports/organization-near-expiry"
+          element={<OrgNearestExpiryReport />}
+        />
+
+        <Route
+          path="reports/organization-upcoming-renewals"
+          element={<OrgUpcomingRenewalReport />}
+        />
+
+        <Route
+          path="reports/attendance/employee/:employeeId"
+          element={<EmployeeAttendancePage />}
+        />
+
+        <Route path="leaves" element={<Leaves />} />
+
+        <Route path="leaves/leave-types" element={<LeaveTypeManagement />} />
+
+        <Route path="leaves/allocations" element={<LeaveAllocations />} />
+
+        <Route
+          path="leaves/allocations/:id"
+          element={<EditLeaveAllocation />}
+        />
+
+        <Route path="payroll" element={<PayrollCalender />} />
+
+        <Route path="payroll/list" element={<PayrollList />} />
+
+        <Route path="payroll/add" element={<AddPayroll />} />
+
+        <Route path="payroll/:id" element={<PayrollDetails />} />
+
+        <Route path="payroll/edit/:id" element={<EditPayroll />} />
+
+        <Route path="wfh" element={<AdminWFH />} />
+
+        <Route path="settings" element={<Settings />} />
+
+        <Route path="roles" element={<RoleManagement />} />
+
+        <Route path="modules" element={<ModuleManagement />} />
+
+        <Route path="project-working-hours" element={<ProjectWorkingHours />} />
+
+        <Route
+          path="attendance-requests"
+          element={<AdminAttendanceRequests />}
+        />
+
+        <Route path="employees/offboarding" element={<Offboarding />} />
+
+        <Route
+          path="employees/offboarding-initiation"
+          element={<OffboardingInitiation />}
+        />
+
+        <Route
+          path="employees/offboarding-checklist-manager"
+          element={<OffboardingChecklistManager />}
+        />
+
+        <Route
+          path="employees/checklist-categories"
+          element={<ChecklistCategories />}
+        />
+
+        <Route
+          path="employees/asset-management"
+          element={<AssetManagement />}
+        />
+
+        <Route
+          path="employees/assets/types"
+          element={<AssetTypeManagement />}
+        />
+
+        <Route
+          path="employees/visa-cancellation"
+          element={<VisaCancellationAndExit />}
+        />
+
+        <Route
+          path="employees/offboarding-checklist"
+          element={<OffboardingChecklist />}
+        />
+
+        <Route path="employees/asset-return" element={<AssetReturn />} />
+
+        <Route path="employees/exit-interview" element={<ExitInterview />} />
+
+        <Route
+          path="employees/final-settlement"
+          element={<FinalSettlement />}
+        />
+
+        <Route
+          path="employees/letters-and-clearance"
+          element={<LettersAndClearance />}
+        />
+
+        <Route
+          path="request-leave-for-employee"
+          element={<RequestLeaveForEmployee />}
+        />
+      </Route>
+
+      {/* ======================================================
+          EMPLOYEE / HR / MANAGER / TEAM LEAD ROUTES
+      ====================================================== */}
+
+      <Route
+        path="/employee"
+        element={
+          <ProtectedRoute requiredType="employee">
+            <LazyWrapper>
+              <EmployeeLayout />
+            </LazyWrapper>
+          </ProtectedRoute>
+        }
+      >
+        <Route index element={<Navigate to="/employee/dashboard" replace />} />
+
+        <Route path="dashboard" element={<EmployeeDashboard />} />
+
+        <Route path="leaves" element={<EmployeeLeaves />} />
+
+        <Route path="request-leave" element={<RequestLeave />} />
+
+        <Route path="wfh" element={<EmployeeWFH />} />
+
+        <Route path="task-reports" element={<EmployeeTaskReports />} />
+
+        <Route path="my-tasks" element={<EmployeeTaskReports />} />
+
+        <Route path="profile" element={<EmployeeProfile />} />
+
+        <Route path="attendance-requests" element={<AttendanceRequests />} />
+
+        <Route path="my-documents" element={<EmployeeMyDocuments />} />
+
+        <Route path="onboarding" element={<Onboarding />} />
+
+        {/* ----------------------------------------------------
+            EMPLOYEE SIDE ADMIN/COMMON MODULES
+        ---------------------------------------------------- */}
+
+        <Route path="employees" element={<Employees />} />
+
+        <Route path="employees/add-employee" element={<AddEmployee />} />
+
+        <Route path="employees/onboarding" element={<Onboarding />} />
+
+        <Route path="employees/edit/:id" element={<EditEmployee />} />
+
+        <Route path="employees/:id" element={<EmployeeDetails />} />
+
+        <Route path="projects" element={<Projects />} />
+
+        <Route path="projects/:id" element={<ProjectDetails />} />
+
+        <Route path="project-assignments" element={<ProjectAssignments />} />
+
+        <Route path="organizations" element={<Organizations />} />
+
+        <Route
+          path="organizations/add-organization"
+          element={<AddOrganization />}
+        />
+
+        <Route
+          path="organizations/edit-organization/:id"
+          element={<EditOrganization />}
+        />
+
+        <Route
+          path="organizations/:organizationId/companies"
+          element={<Companies />}
+        />
+
+        <Route
+          path="organizations/:organizationId/add-company"
+          element={<AddCompany />}
+        />
+
+        <Route
+          path="organizations/:organizationId/edit-company/:id"
+          element={<EditCompany />}
+        />
+
+        <Route path="agreements" element={<Agreements />} />
+
+        <Route path="agreements/add-agreement" element={<AddAgreement />} />
+
+        <Route path="agreements/add-document" element={<AddDocument />} />
+
+        <Route
+          path="agreements/edit-agreement/:id"
+          element={<EditAgreement />}
+        />
+
+        <Route path="attendance" element={<Attendances />} />
+
+        <Route path="designations" element={<Designations />} />
+
+        <Route path="departments" element={<Departments />} />
+
+        <Route path="task-reports-admin" element={<TaskReports />} />
+
+        {/* ----------------------------------------------------
+            REPORTS
+        ---------------------------------------------------- */}
+
+        <Route path="reports" element={<Reports />} />
+
+        <Route
+          path="reports/employee-details"
+          element={<EmployeeDetailsReport />}
+        />
+
+        <Route
+          path="reports/attendance-reports"
+          element={<AttendanceReport />}
+        />
+
+        <Route path="reports/project-report" element={<ProjectReport />} />
+
+        <Route
+          path="reports/leave-requests-reports"
+          element={<LeaveRequestReport />}
+        />
+
+        <Route
+          path="reports/pending-leaves-reports"
+          element={<PendingLeaveReport />}
+        />
+
+        <Route
+          path="reports/employee-near-expiry"
+          element={<EmployeeNearestExpiryReport />}
+        />
+
+        <Route
+          path="reports/employee-upcoming-renewals"
+          element={<EmployeeUpcomingRenewalReport />}
+        />
+
+        <Route
+          path="reports/organization-near-expiry"
+          element={<OrgNearestExpiryReport />}
+        />
+
+        <Route
+          path="reports/organization-upcoming-renewals"
+          element={<OrgUpcomingRenewalReport />}
+        />
+
+        <Route
+          path="reports/attendance/employee/:employeeId"
+          element={<EmployeeAttendancePage />}
+        />
+
+        {/* ----------------------------------------------------
+            LEAVE MANAGEMENT
+        ---------------------------------------------------- */}
+
+        <Route path="leave-management" element={<Leaves />} />
+
+        <Route path="leaves/leave-types" element={<LeaveTypeManagement />} />
+
+        <Route path="leaves/allocations" element={<LeaveAllocations />} />
+
+        <Route
+          path="leaves/allocations/:id"
+          element={<EditLeaveAllocation />}
+        />
+
+        {/* ----------------------------------------------------
+            OTHER MODULES
+        ---------------------------------------------------- */}
+
+        <Route path="wfh-admin" element={<AdminWFH />} />
+
+        <Route path="settings" element={<Settings />} />
+
+        <Route path="roles" element={<RoleManagement />} />
+
+        <Route path="modules" element={<ModuleManagement />} />
+
+        <Route path="project-working-hours" element={<ProjectWorkingHours />} />
+
+        {/* ----------------------------------------------------
+            PAYROLL
+        ---------------------------------------------------- */}
+
+        <Route path="payroll" element={<EmployeeMyPayroll />} />
+
+        <Route
+          path="request-leave-for-employee"
+          element={<RequestLeaveForEmployee />}
+        />
+      </Route>
+
+      {/* ======================================================
+          LEGACY / ADMIN REDIRECT ROUTES
+      ====================================================== */}
+
+      <Route
+        path="/admin/employees/add-employee"
+        element={
+          <ProtectedRoute>
+            {isEmployeeType(userType) ? (
+              <Navigate to="/employee/employees/add-employee" replace />
+            ) : (
+              <Navigate to="/admin/employees/add-employee" replace />
+            )}
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin/employees/onboarding"
+        element={
+          <ProtectedRoute>
+            {isEmployeeType(userType) ? (
+              <Navigate to="/employee/employees/onboarding" replace />
+            ) : (
+              <Navigate to="/admin/employees/onboarding" replace />
+            )}
+          </ProtectedRoute>
+        }
+      />
+
+      {/* ======================================================
+          REPORT REDIRECTS
+      ====================================================== */}
+
+      <Route
+        path="/admin/reports/employee-details"
+        element={
+          <ProtectedRoute>
+            {isEmployeeType(userType) ? (
+              <Navigate to="/employee/reports/employee-details" replace />
+            ) : (
+              <Navigate to="/admin/reports/employee-details" replace />
+            )}
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin/reports/attendance-reports"
+        element={
+          <ProtectedRoute>
+            {isEmployeeType(userType) ? (
+              <Navigate to="/employee/reports/attendance-reports" replace />
+            ) : (
+              <Navigate to="/admin/reports/attendance-reports" replace />
+            )}
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin/reports/project-report"
+        element={
+          <ProtectedRoute>
+            {isEmployeeType(userType) ? (
+              <Navigate to="/employee/reports/project-report" replace />
+            ) : (
+              <Navigate to="/admin/reports/project-report" replace />
+            )}
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin/reports/leave-requests-reports"
+        element={
+          <ProtectedRoute>
+            {isEmployeeType(userType) ? (
+              <Navigate to="/employee/reports/leave-requests-reports" replace />
+            ) : (
+              <Navigate to="/admin/reports/leave-requests-reports" replace />
+            )}
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin/reports/pending-leaves-reports"
+        element={
+          <ProtectedRoute>
+            {isEmployeeType(userType) ? (
+              <Navigate to="/employee/reports/pending-leaves-reports" replace />
+            ) : (
+              <Navigate to="/admin/reports/pending-leaves-reports" replace />
+            )}
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin/reports/employee-near-expiry"
+        element={
+          <ProtectedRoute>
+            {isEmployeeType(userType) ? (
+              <Navigate to="/employee/reports/employee-near-expiry" replace />
+            ) : (
+              <Navigate to="/admin/reports/employee-near-expiry" replace />
+            )}
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin/reports/employee-upcoming-renewals"
+        element={
+          <ProtectedRoute>
+            {isEmployeeType(userType) ? (
+              <Navigate
+                to="/employee/reports/employee-upcoming-renewals"
+                replace
+              />
+            ) : (
+              <Navigate
+                to="/admin/reports/employee-upcoming-renewals"
+                replace
+              />
+            )}
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin/reports/organization-near-expiry"
+        element={
+          <ProtectedRoute>
+            {isEmployeeType(userType) ? (
+              <Navigate
+                to="/employee/reports/organization-near-expiry"
+                replace
+              />
+            ) : (
+              <Navigate to="/admin/reports/organization-near-expiry" replace />
+            )}
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin/reports/organization-upcoming-renewals"
+        element={
+          <ProtectedRoute>
+            {isEmployeeType(userType) ? (
+              <Navigate
+                to="/employee/reports/organization-upcoming-renewals"
+                replace
+              />
+            ) : (
+              <Navigate
+                to="/admin/reports/organization-upcoming-renewals"
+                replace
+              />
+            )}
+          </ProtectedRoute>
+        }
+      />
+
+      {/* ======================================================
+          DYNAMIC ATTENDANCE REPORT REDIRECT
+      ====================================================== */}
+
+      <Route
+        path="/admin/reports/attendance/employee/:employeeId"
+        element={
+          <ProtectedRoute>
+            {isEmployeeType(userType) ? (
+              <EmployeeAttendanceRedirect />
+            ) : (
+              <AdminAttendanceRedirect />
+            )}
+          </ProtectedRoute>
+        }
+      />
+
+      {/* ======================================================
+          MODULE REDIRECT
+      ====================================================== */}
+
+      <Route
+        path="/admin/modules"
+        element={
+          <ProtectedRoute>
+            {isEmployeeType(userType) ? (
+              <Navigate to="/employee/modules" replace />
+            ) : (
+              <Navigate to="/admin/modules" replace />
+            )}
+          </ProtectedRoute>
+        }
+      />
+
+      {/* ======================================================
+          PROJECT WORKING HOURS REDIRECT
+      ====================================================== */}
+
+      <Route
+        path="/admin/project-working-hours"
+        element={
+          <ProtectedRoute>
+            {isEmployeeType(userType) ? (
+              <Navigate to="/employee/project-working-hours" replace />
+            ) : (
+              <Navigate to="/admin/project-working-hours" replace />
+            )}
+          </ProtectedRoute>
+        }
+      />
+
+      {/* ======================================================
+          PAYROLL REDIRECTS
+      ====================================================== */}
+
+      <Route
+        path="/admin/payroll"
+        element={
+          <ProtectedRoute>
+            {isEmployeeType(userType) ? (
+              <Navigate to="/employee/payroll" replace />
+            ) : (
+              <Navigate to="/admin/payroll" replace />
+            )}
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin/payroll/add"
+        element={
+          <ProtectedRoute>
+            {isEmployeeType(userType) ? (
+              <Navigate to="/employee/payroll" replace />
+            ) : (
+              <Navigate to="/admin/payroll/add" replace />
+            )}
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin/payroll/edit/:id"
+        element={
+          <ProtectedRoute>
+            {isEmployeeType(userType) ? (
+              <EmployeePayrollRedirect type="edit" />
+            ) : (
+              <AdminPayrollRedirect type="edit" />
+            )}
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin/payroll/:id"
+        element={
+          <ProtectedRoute>
+            {isEmployeeType(userType) ? (
+              <EmployeePayrollRedirect />
+            ) : (
+              <AdminPayrollRedirect />
+            )}
+          </ProtectedRoute>
+        }
+      />
+
+      {/* ======================================================
+          GLOBAL 404
+      ====================================================== */}
+
+      <Route path="*" element={<NotFound />} />
+    </Routes>
+  );
+}
+
+// ============================================================
+// APP
+// ============================================================
+
+function App() {
+  return (
     <ThemeProvider>
-      <Routes>
-        {/* ======================================================
-            PUBLIC ROUTES
-        ====================================================== */}
-
-        <Route path="/" element={<Login />} />
-        <Route path="/login" element={<Login />} />
-
-        {/* ======================================================
-            ADMIN ROUTES
-        ====================================================== */}
-
-        <Route
-          path="/admin"
-          element={
-            <ProtectedRoute requiredType="admin">
-              <LazyWrapper>
-                <AdminLayout />
-              </LazyWrapper>
-            </ProtectedRoute>
-          }
-        >
-          <Route
-            index
-            element={
-              <Navigate
-                to="/admin/dashboard"
-                replace
-              />
-            }
-          />
-
-          <Route
-            path="dashboard"
-            element={<AdminDashboard />}
-          />
-
-          <Route
-            path="employees"
-            element={<Employees />}
-          />
-
-          <Route
-            path="projects"
-            element={<Projects />}
-          />
-
-          <Route
-            path="projects/:id"
-            element={<ProjectDetails />}
-          />
-
-          <Route
-            path="project-assignments"
-            element={<ProjectAssignments />}
-          />
-
-          <Route
-            path="employees/add-employee"
-            element={<AddEmployee />}
-          />
-
-          <Route
-            path="employees/onboarding"
-            element={<Onboarding />}
-          />
-
-          <Route
-            path="employees/edit/:id"
-            element={<EditEmployee />}
-          />
-
-          <Route
-            path="employees/:id"
-            element={<EmployeeDetails />}
-          />
-
-          <Route
-            path="organizations"
-            element={<Organizations />}
-          />
-
-          <Route
-            path="notifications"
-            element={<Notifications />}
-          />
-
-          <Route
-            path="organizations/add-organization"
-            element={<AddOrganization />}
-          />
-
-          <Route
-            path="organizations/edit-organization/:id"
-            element={<EditOrganization />}
-          />
-
-          <Route
-            path="organizations/:organizationId/companies"
-            element={<Companies />}
-          />
-
-          <Route
-            path="organizations/:organizationId/add-company"
-            element={<AddCompany />}
-          />
-
-          <Route
-            path="organizations/:organizationId/edit-company/:id"
-            element={<EditCompany />}
-          />
-
-          <Route
-            path="agreements"
-            element={<Agreements />}
-          />
-
-          <Route
-            path="agreements/add-agreement"
-            element={<AddAgreement />}
-          />
-
-          <Route
-            path="agreements/add-document"
-            element={<AddDocument />}
-          />
-
-          <Route
-            path="agreements/edit-agreement/:id"
-            element={<EditAgreement />}
-          />
-
-          <Route
-            path="attendances"
-            element={<Attendances />}
-          />
-
-          <Route
-            path="designations"
-            element={<Designations />}
-          />
-
-          <Route
-            path="departments"
-            element={<Departments />}
-          />
-
-          <Route
-            path="task-reports"
-            element={<TaskReports />}
-          />
-
-          <Route
-            path="reports"
-            element={<Reports />}
-          />
-
-          <Route
-            path="reports/employee-details"
-            element={<EmployeeDetailsReport />}
-          />
-
-          <Route
-            path="reports/attendance-reports"
-            element={<AttendanceReport />}
-          />
-
-          <Route
-            path="reports/project-report"
-            element={<ProjectReport />}
-          />
-
-          <Route
-            path="reports/leave-requests-reports"
-            element={<LeaveRequestReport />}
-          />
-
-          <Route
-            path="reports/pending-leaves-reports"
-            element={<PendingLeaveReport />}
-          />
-
-          <Route
-            path="reports/employee-near-expiry"
-            element={<EmployeeNearestExpiryReport />}
-          />
-
-          <Route
-            path="reports/employee-upcoming-renewals"
-            element={<EmployeeUpcomingRenewalReport />}
-          />
-
-          <Route
-            path="reports/organization-near-expiry"
-            element={<OrgNearestExpiryReport />}
-          />
-
-          <Route
-            path="reports/organization-upcoming-renewals"
-            element={<OrgUpcomingRenewalReport />}
-          />
-
-          <Route
-            path="reports/attendance/employee/:employeeId"
-            element={<EmployeeAttendancePage />}
-          />
-
-          <Route
-            path="leaves"
-            element={<Leaves />}
-          />
-
-          <Route
-            path="leaves/leave-types"
-            element={<LeaveTypeManagement />}
-          />
-
-          <Route
-            path="leaves/allocations"
-            element={<LeaveAllocations />}
-          />
-
-          <Route
-            path="leaves/allocations/:id"
-            element={<EditLeaveAllocation />}
-          />
-
-          <Route
-            path="payroll"
-            element={<PayrollCalender />}
-          />
-
-          <Route
-            path="payroll/list"
-            element={<PayrollList />}
-          />
-
-          <Route
-            path="payroll/add"
-            element={<AddPayroll />}
-          />
-
-          <Route
-            path="wfh"
-            element={<AdminWFH />}
-          />
-
-          <Route
-            path="settings"
-            element={<Settings />}
-          />
-
-          <Route
-            path="roles"
-            element={<RoleManagement />}
-          />
-
-          <Route
-            path="modules"
-            element={<ModuleManagement />}
-          />
-
-          <Route
-            path="payroll/:id"
-            element={<PayrollDetails />}
-          />
-
-          <Route
-            path="payroll/edit/:id"
-            element={<EditPayroll />}
-          />
-
-          <Route
-            path="project-working-hours"
-            element={<ProjectWorkingHours />}
-          />
-
-          <Route
-            path="attendance-requests"
-            element={<AdminAttendanceRequests />}
-          />
-
-          <Route
-            path="employees/offboarding"
-            element={<Offboarding />}
-          />
-
-          <Route
-            path="employees/offboarding-initiation"
-            element={<OffboardingInitiation />}
-          />
-
-          <Route
-            path="employees/offboarding-checklist-manager"
-            element={<OffboardingChecklistManager />}
-          />
-
-          <Route
-            path="employees/checklist-categories"
-            element={<ChecklistCategories />}
-          />
-
-          <Route
-            path="employees/asset-management"
-            element={<AssetManagement />}
-          />
-
-          <Route
-            path="employees/assets/types"
-            element={<AssetTypeManagement />}
-          />
-
-          <Route
-            path="employees/visa-cancellation"
-            element={<VisaCancellationAndExit />}
-          />
-
-          <Route
-            path="employees/offboarding-checklist"
-            element={<OffboardingChecklist />}
-          />
-
-          <Route
-            path="employees/asset-return"
-            element={<AssetReturn />}
-          />
-
-          <Route
-            path="employees/exit-interview"
-            element={<ExitInterview />}
-          />
-
-          <Route
-            path="employees/final-settlement"
-            element={<FinalSettlement />}
-          />
-
-          <Route
-            path="employees/letters-and-clearance"
-            element={<LettersAndClearance />}
-          />
-
-          <Route
-            path="request-leave-for-employee"
-            element={<RequestLeaveForEmployee />}
-          />
-        </Route>
-
-        {/* ======================================================
-            EMPLOYEE / HR / MANAGER / TEAM LEAD ROUTES
-        ====================================================== */}
-
-        <Route
-          path="/employee"
-          element={
-            <ProtectedRoute requiredType="employee">
-              <LazyWrapper>
-                <EmployeeLayout />
-              </LazyWrapper>
-            </ProtectedRoute>
-          }
-        >
-          <Route
-            index
-            element={
-              <Navigate
-                to="/employee/dashboard"
-                replace
-              />
-            }
-          />
-
-          <Route
-            path="dashboard"
-            element={<EmployeeDashboard />}
-          />
-
-          <Route
-            path="leaves"
-            element={<EmployeeLeaves />}
-          />
-
-          <Route
-            path="request-leave"
-            element={<RequestLeave />}
-          />
-
-          <Route
-            path="wfh"
-            element={<EmployeeWFH />}
-          />
-
-          <Route
-            path="task-reports"
-            element={<TaskReports />}
-          />
-
-          <Route
-            path="my-tasks"
-            element={<EmployeeTaskReports />}
-          />
-
-          <Route
-            path="profile"
-            element={<EmployeeProfile />}
-          />
-
-          <Route
-            path="attendance-requests"
-            element={<AttendanceRequests />}
-          />
-
-          <Route
-            path="my-documents"
-            element={<EmployeeMyDocuments />}
-          />
-
-          <Route
-            path="onboarding"
-            element={<Onboarding />}
-          />
-
-          <Route
-            path="employees"
-            element={<Employees />}
-          />
-
-          <Route
-            path="projects"
-            element={<Projects />}
-          />
-
-          <Route
-            path="projects/:id"
-            element={<ProjectDetails />}
-          />
-
-          <Route
-            path="project-assignments"
-            element={<ProjectAssignments />}
-          />
-
-          <Route
-            path="employees/add-employee"
-            element={<AddEmployee />}
-          />
-
-          <Route
-            path="employees/onboarding"
-            element={<Onboarding />}
-          />
-
-          <Route
-            path="employees/edit/:id"
-            element={<EditEmployee />}
-          />
-
-          <Route
-            path="employees/:id"
-            element={<EmployeeDetails />}
-          />
-
-          <Route
-            path="organizations"
-            element={<Organizations />}
-          />
-
-          <Route
-            path="organizations/add-organization"
-            element={<AddOrganization />}
-          />
-
-          <Route
-            path="organizations/edit-organization/:id"
-            element={<EditOrganization />}
-          />
-
-          <Route
-            path="organizations/:organizationId/companies"
-            element={<Companies />}
-          />
-
-          <Route
-            path="organizations/:organizationId/add-company"
-            element={<AddCompany />}
-          />
-
-          <Route
-            path="organizations/:organizationId/edit-company/:id"
-            element={<EditCompany />}
-          />
-
-          <Route
-            path="agreements"
-            element={<Agreements />}
-          />
-
-          <Route
-            path="agreements/add-agreement"
-            element={<AddAgreement />}
-          />
-
-          <Route
-            path="agreements/add-document"
-            element={<AddDocument />}
-          />
-
-          <Route
-            path="agreements/edit-agreement/:id"
-            element={<EditAgreement />}
-          />
-
-          <Route
-            path="attendance"
-            element={<Attendances />}
-          />
-
-          <Route
-            path="designations"
-            element={<Designations />}
-          />
-
-          <Route
-            path="departments"
-            element={<Departments />}
-          />
-
-          <Route
-            path="task-reports"
-            element={<TaskReports />}
-          />
-
-          <Route
-            path="reports"
-            element={<Reports />}
-          />
-
-          <Route
-            path="reports/employee-details"
-            element={<EmployeeDetailsReport />}
-          />
-
-          <Route
-            path="reports/attendance-reports"
-            element={<AttendanceReport />}
-          />
-
-          <Route
-            path="reports/project-report"
-            element={<ProjectReport />}
-          />
-
-          <Route
-            path="reports/leave-requests-reports"
-            element={<LeaveRequestReport />}
-          />
-
-          <Route
-            path="reports/pending-leaves-reports"
-            element={<PendingLeaveReport />}
-          />
-
-          <Route
-            path="reports/employee-near-expiry"
-            element={<EmployeeNearestExpiryReport />}
-          />
-
-          <Route
-            path="reports/employee-upcoming-renewals"
-            element={<EmployeeUpcomingRenewalReport />}
-          />
-
-          <Route
-            path="reports/organization-near-expiry"
-            element={<OrgNearestExpiryReport />}
-          />
-
-          <Route
-            path="reports/organization-upcoming-renewals"
-            element={<OrgUpcomingRenewalReport />}
-          />
-
-          <Route
-            path="reports/attendance/employee/:employeeId"
-            element={<EmployeeAttendancePage />}
-          />
-
-          <Route
-            path="leave-management"
-            element={<Leaves />}
-          />
-
-          <Route
-            path="leaves/leave-types"
-            element={<LeaveTypeManagement />}
-          />
-
-          <Route
-            path="leaves/allocations"
-            element={<LeaveAllocations />}
-          />
-
-          <Route
-            path="leaves/allocations/:id"
-            element={<EditLeaveAllocation />}
-          />
-
-          <Route
-            path="wfh"
-            element={<AdminWFH />}
-          />
-
-          <Route
-            path="settings"
-            element={<Settings />}
-          />
-
-          <Route
-            path="roles"
-            element={<RoleManagement />}
-          />
-
-          <Route
-            path="modules"
-            element={<ModuleManagement />}
-          />
-
-          <Route
-            path="project-working-hours"
-            element={<ProjectWorkingHours />}
-          />
-
-          <Route
-            path="payroll"
-            element={<EmployeeMyPayroll />}
-          />
-
-          <Route
-            path="request-leave-for-employee"
-            element={<RequestLeaveForEmployee />}
-          />
-        </Route>
-
-        {/* ======================================================
-            REDIRECT ROUTES
-        ====================================================== */}
-
-        <Route
-          path="/admin/employees/add-employee"
-          element={
-            <ProtectedRoute>
-              <LazyWrapper>
-                {isEmployeeType(userType) ? (
-                  <Navigate
-                    to="/employee/employees/add-employee"
-                    replace
-                  />
-                ) : (
-                  <Navigate
-                    to="/admin/employees/add-employee"
-                    replace
-                  />
-                )}
-              </LazyWrapper>
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/admin/employees/onboarding"
-          element={
-            <ProtectedRoute>
-              <LazyWrapper>
-                {isEmployeeType(userType) ? (
-                  <Navigate
-                    to="/employee/employees/onboarding"
-                    replace
-                  />
-                ) : (
-                  <Navigate
-                    to="/admin/employees/onboarding"
-                    replace
-                  />
-                )}
-              </LazyWrapper>
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/admin/reports/employee-details"
-          element={
-            <ProtectedRoute>
-              <LazyWrapper>
-                {isEmployeeType(userType) ? (
-                  <Navigate
-                    to="/employee/reports/employee-details"
-                    replace
-                  />
-                ) : (
-                  <Navigate
-                    to="/admin/reports/employee-details"
-                    replace
-                  />
-                )}
-              </LazyWrapper>
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/admin/reports/attendance-reports"
-          element={
-            <ProtectedRoute>
-              <LazyWrapper>
-                {isEmployeeType(userType) ? (
-                  <Navigate
-                    to="/employee/reports/attendance-reports"
-                    replace
-                  />
-                ) : (
-                  <Navigate
-                    to="/admin/reports/attendance-reports"
-                    replace
-                  />
-                )}
-              </LazyWrapper>
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/admin/reports/leave-requests-reports"
-          element={
-            <ProtectedRoute>
-              <LazyWrapper>
-                {isEmployeeType(userType) ? (
-                  <Navigate
-                    to="/employee/reports/leave-requests-reports"
-                    replace
-                  />
-                ) : (
-                  <Navigate
-                    to="/admin/reports/leave-requests-reports"
-                    replace
-                  />
-                )}
-              </LazyWrapper>
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/admin/reports/pending-leaves-reports"
-          element={
-            <ProtectedRoute>
-              <LazyWrapper>
-                {isEmployeeType(userType) ? (
-                  <Navigate
-                    to="/employee/reports/pending-leaves-reports"
-                    replace
-                  />
-                ) : (
-                  <Navigate
-                    to="/admin/reports/pending-leaves-reports"
-                    replace
-                  />
-                )}
-              </LazyWrapper>
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/admin/reports/employee-near-expiry"
-          element={
-            <ProtectedRoute>
-              <LazyWrapper>
-                {isEmployeeType(userType) ? (
-                  <Navigate
-                    to="/employee/reports/employee-near-expiry"
-                    replace
-                  />
-                ) : (
-                  <Navigate
-                    to="/admin/reports/employee-near-expiry"
-                    replace
-                  />
-                )}
-              </LazyWrapper>
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/admin/reports/employee-upcoming-renewals"
-          element={
-            <ProtectedRoute>
-              <LazyWrapper>
-                {isEmployeeType(userType) ? (
-                  <Navigate
-                    to="/employee/reports/employee-upcoming-renewals"
-                    replace
-                  />
-                ) : (
-                  <Navigate
-                    to="/admin/reports/employee-upcoming-renewals"
-                    replace
-                  />
-                )}
-              </LazyWrapper>
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/admin/reports/organization-near-expiry"
-          element={
-            <ProtectedRoute>
-              <LazyWrapper>
-                {isEmployeeType(userType) ? (
-                  <Navigate
-                    to="/employee/reports/organization-near-expiry"
-                    replace
-                  />
-                ) : (
-                  <Navigate
-                    to="/admin/reports/organization-near-expiry"
-                    replace
-                  />
-                )}
-              </LazyWrapper>
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/admin/reports/organization-upcoming-renewals"
-          element={
-            <ProtectedRoute>
-              <LazyWrapper>
-                {isEmployeeType(userType) ? (
-                  <Navigate
-                    to="/employee/reports/organization-upcoming-renewals"
-                    replace
-                  />
-                ) : (
-                  <Navigate
-                    to="/admin/reports/organization-upcoming-renewals"
-                    replace
-                  />
-                )}
-              </LazyWrapper>
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/admin/reports/attendance/employee/:employeeId"
-          element={
-            <ProtectedRoute>
-              <LazyWrapper>
-                {isEmployeeType(userType) ? (
-                  <Navigate
-                    to="/employee/reports/attendance/employee/:employeeId"
-                    replace
-                  />
-                ) : (
-                  <Navigate
-                    to="/admin/reports/attendance/employee/:employeeId"
-                    replace
-                  />
-                )}
-              </LazyWrapper>
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/admin/modules"
-          element={
-            <ProtectedRoute>
-              <LazyWrapper>
-                {isEmployeeType(userType) ? (
-                  <Navigate
-                    to="/employee/modules"
-                    replace
-                  />
-                ) : (
-                  <Navigate
-                    to="/admin/modules"
-                    replace
-                  />
-                )}
-              </LazyWrapper>
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/admin/project-working-hours"
-          element={
-            <ProtectedRoute>
-              <LazyWrapper>
-                {isEmployeeType(userType) ? (
-                  <Navigate
-                    to="/employee/project-working-hours"
-                    replace
-                  />
-                ) : (
-                  <Navigate
-                    to="/admin/project-working-hours"
-                    replace
-                  />
-                )}
-              </LazyWrapper>
-            </ProtectedRoute>
-          }
-        />
-
-        {/* ======================================================
-            PAYROLL REDIRECT ROUTES
-        ====================================================== */}
-
-        <Route
-          path="/admin/payroll"
-          element={
-            <ProtectedRoute>
-              <LazyWrapper>
-                {isEmployeeType(userType) ? (
-                  <Navigate
-                    to="/employee/payroll"
-                    replace
-                  />
-                ) : (
-                  <Navigate
-                    to="/admin/payroll"
-                    replace
-                  />
-                )}
-              </LazyWrapper>
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/admin/payroll/add"
-          element={
-            <ProtectedRoute>
-              <LazyWrapper>
-                {isEmployeeType(userType) ? (
-                  <Navigate
-                    to="/employee/payroll/add"
-                    replace
-                  />
-                ) : (
-                  <Navigate
-                    to="/admin/payroll/add"
-                    replace
-                  />
-                )}
-              </LazyWrapper>
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/admin/payroll/:id"
-          element={
-            <ProtectedRoute>
-              <LazyWrapper>
-                {isEmployeeType(userType) ? (
-                  <Navigate
-                    to={`/employee/payroll/${window.location.pathname
-                      .split("/")
-                      .pop()}`}
-                    replace
-                  />
-                ) : (
-                  <Navigate
-                    to={`/admin/payroll/${window.location.pathname
-                      .split("/")
-                      .pop()}`}
-                    replace
-                  />
-                )}
-              </LazyWrapper>
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/admin/payroll/edit/:id"
-          element={
-            <ProtectedRoute>
-              <LazyWrapper>
-                {isEmployeeType(userType) ? (
-                  <Navigate
-                    to={`/employee/payroll/edit/${window.location.pathname
-                      .split("/")
-                      .pop()}`}
-                    replace
-                  />
-                ) : (
-                  <Navigate
-                    to={`/admin/payroll/edit/${window.location.pathname
-                      .split("/")
-                      .pop()}`}
-                    replace
-                  />
-                )}
-              </LazyWrapper>
-            </ProtectedRoute>
-          }
-        />
-
-        {/* ======================================================
-            GLOBAL 404
-        ====================================================== */}
-
-        <Route
-          path="*"
-          element={<NotFound />}
-        />
-      </Routes>
+      <AppContent />
     </ThemeProvider>
   );
 }

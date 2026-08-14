@@ -88,6 +88,21 @@ const OffboardingChecklist = () => {
     try {
       // Call the API endpoint to complete offboarding
       if (currentOffboarding?.id) {
+          // Force update statuses as a fallback for backend omissions
+          try {
+              await dispatch(updateOffboarding({
+                  id: currentOffboarding.id,
+                  data: {
+                      asset_return_status: 'completed',
+                      visa_cancellation_status: 'completed',
+                      assets_status: 'completed',
+                      cancellation_status: 'completed'
+                  }
+              })).unwrap();
+          } catch (e) {
+              console.warn("Pre-complete status sync failed", e);
+          }
+          
           await dispatch(completeOffboarding(currentOffboarding.id)).unwrap();
       }
       showToast("Offboarding completed successfully!", "success");

@@ -273,6 +273,9 @@ const VisaCancellationAndExit = () => {
       
       const mappedStatus = cancellationData.status.toLowerCase().replace(" ", "_");
       formData.append("cancellation_status", mappedStatus);
+      formData.append("visa_cancellation_status", mappedStatus);
+      formData.append("status", mappedStatus);
+      formData.append("offboarding_id", offboardingId || localStorage.getItem("offboarding_id"));
       
       if (cancellationData.date) {
         formData.append("cancellation_date", cancellationData.date);
@@ -381,13 +384,6 @@ const VisaCancellationAndExit = () => {
                 )}
               </div>
               <div className="flex items-center gap-3">
-                <div className="px-3 py-1 bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-200/60 dark:border-blue-900/60 rounded text-xs font-bold">
-                  {progressPercentage}% Complete
-                </div>
-                <span className="px-3 py-1 bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 border border-red-200/60 dark:border-red-900/60 rounded text-xs font-bold uppercase tracking-wider flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse"></span>
-                  Action required
-                </span>
               </div>
             </div>
 

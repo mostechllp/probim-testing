@@ -452,12 +452,13 @@ const LettersAndClearance = () => {
     setUploading(prev => ({ ...prev, [docId]: true }));
 
     try {
+      const actualOffboardingId = offboardingId || localStorage.getItem("offboarding_id");
       const formData = new FormData();
       formData.append('file', file);
       formData.append('letter_type', uploadDocuments.find(d => d.id === docId)?.document_type || 'custom');
       formData.append('title', uploadDocuments.find(d => d.id === docId)?.title || 'Document');
+      formData.append('offboarding_id', actualOffboardingId);
 
-      const actualOffboardingId = offboardingId || localStorage.getItem("offboarding_id");
       const response = await apiClient.post(`/admin/offboarding/${actualOffboardingId}/letters/upload`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });

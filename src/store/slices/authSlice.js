@@ -1,168 +1,247 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-import apiClient from "../../utils/apiClient";
+
+import apiClient, {
+  USER_TYPES,
+  TOKEN_KEYS,
+  getActiveToken,
+  setAuthToken,
+  clearAllTokens,
+} from "../../utils/apiClient";
 
 // ============================================================
-// AUTH CONSTANTS
-// ============================================================
-
-const USER_TYPES = [
-  "admin",
-  "hr",
-  "employee",
-  "manager",
-  "team_lead",
-];
-
-const TOKEN_KEYS = USER_TYPES.map((type) => `${type}-token`).concat(
-  "auth-token"
-);
-
-// ============================================================
-// HELPER FUNCTIONS
+// HELPERS
 // ============================================================
 
 const isValidToken = (token) => {
   return (
-    token &&
+    typeof token === "string" &&
+    token.trim() !== "" &&
     token !== "null" &&
-    token !== "undefined" &&
-    token.trim?.() !== ""
+    token !== "undefined"
   );
 };
 
+// ------------------------------------------------------------
+// Get token key according to user type
+// ------------------------------------------------------------
+
 const getTokenKey = (userType) => {
-  if (!userType) return null;
+  if (!userType) {
+    return null;
+  }
+
+  // If TOKEN_KEYS is an object
+  if (
+    !Array.isArray(TOKEN_KEYS) &&
+    TOKEN_KEYS[userType]
+  ) {
+    return TOKEN_KEYS[userType];
+  }
+
+  // If TOKEN_KEYS is an array, try common naming patterns
+  if (Array.isArray(TOKEN_KEYS)) {
+    const possibleKeys = [
+      `${userType}-token`,
+      `${userType}_token`,
+      `${userType}Token`,
+    ];
+
+    const matchingKey = possibleKeys.find((key) =>
+      TOKEN_KEYS.includes(key)
+    );
+
+    if (matchingKey) {
+      return matchingKey;
+    }
+  }
+
+  // Fallback
   return `${userType}-token`;
 };
 
-// Get the token ONLY for the active user type
-const getActiveToken = () => {
-  const activeType = localStorage.getItem("active-user-type");
+// ------------------------------------------------------------
+// Get user type safely
+// ------------------------------------------------------------
 
-  if (!activeType || !USER_TYPES.includes(activeType)) {
+const getUserTypeFromStorage = () => {
+  try {
+    const activeType =
+      localStorage.getItem("active-user-type");
+
+    if (
+      activeType &&
+      USER_TYPES.includes(activeType)
+    ) {
+      return activeType;
+    }
+
+    const userType =
+      localStorage.getItem("user-type");
+
+    if (
+      userType &&
+      USER_TYPES.includes(userType)
+    ) {
+      return userType;
+    }
+
+    return null;
+  } catch (error) {
+    console.error(
+      "Failed to get user type from storage:",
+      error
+    );
+
+    return null;
+  }
+};
+
+// ------------------------------------------------------------
+// Get user safely
+// ------------------------------------------------------------
+
+const normalizeUser = (user) => {
+  if (
+    !user ||
+    typeof user !== "object"
+  ) {
     return null;
   }
 
-  const tokenKey = getTokenKey(activeType);
-  const token = localStorage.getItem(tokenKey);
+  return {
+    ...user,
 
-  return isValidToken(token) ? token : null;
+    name:
+      user.employee?.name ||
+      user.username ||
+      user.name ||
+      "",
+  };
 };
 
-// Clear every authentication-related localStorage value
-const clearAuthStorage = () => {
-  TOKEN_KEYS.forEach((key) => {
-    localStorage.removeItem(key);
-  });
-
-  const userStorageKeys = [
-    "user-type",
-    "user-data",
-    "active-user-type",
-    "user",
-    "token",
-    "userType",
-
-    // Old/role-specific storage
-    "admin-user",
-    "hr-user",
-    "employee-user",
-    "manager-user",
-    "team_lead-user",
-
-    // Remember me
-    "remember-me",
-    "remembered-email",
-  ];
-
-  userStorageKeys.forEach((key) => {
-    localStorage.removeItem(key);
-  });
-
-  // Remove Axios authorization header
-  delete apiClient.defaults.headers.common.Authorization;
-};
-
-// Store user information consistently
-const persistUserData = (userData, userType) => {
-  if (!userData) return;
-
-  localStorage.setItem("user-data", JSON.stringify(userData));
-
-  if (userType) {
-    localStorage.setItem("user-type", userType);
-    localStorage.setItem("active-user-type", userType);
-  }
-};
-
-// Get user data safely from localStorage
 const getUserFromStorage = () => {
   try {
-    const userData = localStorage.getItem("user-data");
+    const storedUser =
+      localStorage.getItem("user-data");
 
-    if (!userData) {
+    if (!storedUser) {
       return null;
     }
 
-    const user = JSON.parse(userData);
+    const parsedUser =
+      JSON.parse(storedUser);
 
-    if (!user || typeof user !== "object") {
-      return null;
-    }
-
-    return {
-      ...user,
-      name:
-        user.employee?.name ||
-        user.username ||
-        user.name ||
-        "",
-    };
+    return normalizeUser(parsedUser);
   } catch (error) {
-    console.error("Failed to parse stored user data:", error);
+    console.error(
+      "Failed to parse stored user:",
+      error
+    );
 
-    localStorage.removeItem("user-data");
+    localStorage.removeItem(
+      "user-data"
+    );
 
     return null;
   }
 };
 
-// Get active user type
-const getUserTypeFromStorage = () => {
-  const activeType = localStorage.getItem("active-user-type");
+// ============================================================
+// SAFE TOKEN INITIALIZATION
+// ============================================================
 
-  if (activeType && USER_TYPES.includes(activeType)) {
-    return activeType;
-  }
+/*
+ * IMPORTANT:
+ *
+ * Do NOT call getActiveToken() here.
+ *
+ * getActiveToken() may expect an active user type.
+ * On the first application load there is no active user type,
+ * which causes:
+ *
+ * "No valid active user type"
+ *
+ * Instead, only read a token if a valid user type already exists.
+ */
 
-  const userType = localStorage.getItem("user-type");
+const getStoredTokenSafely = () => {
+  try {
+    const userType =
+      getUserTypeFromStorage();
 
-  if (userType && USER_TYPES.includes(userType)) {
-    return userType;
-  }
+    if (!userType) {
+      return null;
+    }
 
-  return null;
-};
+    const tokenKey =
+      getTokenKey(userType);
 
-// Get token ONLY from active user type
-const getTokenFromStorage = () => {
-  const activeType = getUserTypeFromStorage();
+    if (!tokenKey) {
+      return null;
+    }
 
-  if (!activeType) {
+    const token =
+      localStorage.getItem(tokenKey);
+
+    return isValidToken(token)
+      ? token
+      : null;
+  } catch (error) {
+    console.error(
+      "Failed to get stored authentication token:",
+      error
+    );
+
     return null;
   }
-
-  const tokenKey = getTokenKey(activeType);
-  const token = localStorage.getItem(tokenKey);
-
-  return isValidToken(token) ? token : null;
 };
 
-// Store role-specific user data if your application needs it
-const persistRoleSpecificUser = (userData, userType) => {
-  if (!userData || !userType) return;
+// ============================================================
+// PERSIST USER
+// ============================================================
 
-  const roleStorageMap = {
+const persistUserData = (
+  user,
+  userType
+) => {
+  if (!user) {
+    return;
+  }
+
+  const normalizedUser =
+    normalizeUser(user);
+
+  localStorage.setItem(
+    "user-data",
+    JSON.stringify(normalizedUser)
+  );
+
+  if (userType) {
+    localStorage.setItem(
+      "active-user-type",
+      userType
+    );
+
+    localStorage.setItem(
+      "user-type",
+      userType
+    );
+  }
+};
+
+// ============================================================
+// ROLE-SPECIFIC USER STORAGE
+// ============================================================
+
+const persistRoleSpecificUser = (
+  user,
+  userType
+) => {
+  if (!user || !userType) {
+    return;
+  }
+
+  const storageMap = {
     admin: "admin-user",
     hr: "hr-user",
     employee: "employee-user",
@@ -170,39 +249,122 @@ const persistRoleSpecificUser = (userData, userType) => {
     team_lead: "team_lead-user",
   };
 
-  const storageKey = roleStorageMap[userType];
+  const storageKey =
+    storageMap[userType];
 
   if (storageKey) {
     localStorage.setItem(
       storageKey,
-      JSON.stringify(userData)
+      JSON.stringify(user)
     );
   }
 };
 
 // ============================================================
-// INITIAL STATE HELPERS
+// CLEAR USER DATA
 // ============================================================
 
-const storedUser = getUserFromStorage();
-const storedToken = getTokenFromStorage();
-const storedUserType = getUserTypeFromStorage();
+const clearUserData = () => {
+  const userKeys = [
+    "user-data",
+    "user-type",
+    "active-user-type",
+    "user",
+    "userType",
+
+    "admin-user",
+    "hr-user",
+    "employee-user",
+    "manager-user",
+    "team_lead-user",
+  ];
+
+  userKeys.forEach((key) => {
+    localStorage.removeItem(key);
+  });
+};
+
+// ============================================================
+// CLEAR AUTH STORAGE
+// ============================================================
+
+const clearAuthStorage = () => {
+  /*
+   * Clear tokens through apiClient helper.
+   */
+  try {
+    clearAllTokens();
+  } catch (error) {
+    console.error(
+      "Failed to clear authentication tokens:",
+      error
+    );
+  }
+
+  /*
+   * Clear user information.
+   */
+  clearUserData();
+
+  /*
+   * Clear axios authorization header.
+   */
+  if (
+    apiClient?.defaults?.headers?.common
+  ) {
+    delete apiClient.defaults.headers
+      .common.Authorization;
+  }
+};
+
+// ============================================================
+// INITIAL STATE
+// ============================================================
+
+const storedUser =
+  getUserFromStorage();
+
+const storedUserType =
+  getUserTypeFromStorage();
+
+/*
+ * IMPORTANT:
+ *
+ * Use getStoredTokenSafely() instead of getActiveToken()
+ * during module initialization.
+ */
+const storedToken =
+  getStoredTokenSafely();
 
 const initialState = {
   user: storedUser,
+
   token: storedToken,
+
   userType: storedUserType,
 
-  isAuthenticated: !!storedToken,
+  isAuthenticated:
+    Boolean(
+      storedToken &&
+      storedUser &&
+      storedUserType
+    ),
 
+  /*
+   * Keep true until initializeAuth completes.
+   */
   loading: true,
+
   error: null,
 
   profileUpdateLoading: false,
+
   profileUpdateError: null,
 
   resetSuccess: false,
+
   resetMessage: "",
+
   resetError: null,
 };
 
@@ -210,102 +372,120 @@ const initialState = {
 // LOGIN
 // ============================================================
 
-export const loginUser = createAsyncThunk(
-  "auth/login",
-  async ({ email, password }, { rejectWithValue }) => {
-    try {
-      const response = await apiClient.post("/auth/login", {
-        username: email,
-        password,
-      });
+export const loginUser =
+  createAsyncThunk(
+    "auth/login",
 
-      const data = response.data?.data;
+    async (
+      { email, password },
+      { rejectWithValue }
+    ) => {
+      try {
+        const response =
+          await apiClient.post(
+            "/auth/login",
+            {
+              username: email,
+              password,
+            }
+          );
 
-      if (!data) {
-        return rejectWithValue(
-          "Invalid login response from server"
+        const data =
+          response.data?.data;
+
+        if (!data) {
+          return rejectWithValue(
+            "Invalid login response from server"
+          );
+        }
+
+        const accessToken =
+          data.access_token;
+
+        const user =
+          data.user;
+
+        if (
+          !isValidToken(accessToken)
+        ) {
+          return rejectWithValue(
+            "Login response does not contain a valid access token"
+          );
+        }
+
+        if (
+          !user ||
+          !user.type
+        ) {
+          return rejectWithValue(
+            "Login response does not contain valid user information"
+          );
+        }
+
+        const userType =
+          user.type;
+
+        if (
+          !USER_TYPES.includes(
+            userType
+          )
+        ) {
+          return rejectWithValue(
+            `Unsupported user type: ${userType}`
+          );
+        }
+
+        // ------------------------------------------------------
+        // Clear previous session
+        // ------------------------------------------------------
+
+        clearAuthStorage();
+
+        // ------------------------------------------------------
+        // Save authentication token
+        // ------------------------------------------------------
+
+        const tokenSaved =
+          setAuthToken(
+            accessToken,
+            userType
+          );
+
+        if (!tokenSaved) {
+          return rejectWithValue(
+            "Unable to save authentication token"
+          );
+        }
+
+        // ------------------------------------------------------
+        // Normalize user
+        // ------------------------------------------------------
+
+        const normalizedUser =
+          normalizeUser(user);
+
+        // ------------------------------------------------------
+        // Save user
+        // ------------------------------------------------------
+
+        persistUserData(
+          normalizedUser,
+          userType
         );
-      }
 
-      const { access_token, user } = data;
-
-      if (!isValidToken(access_token)) {
-        return rejectWithValue(
-          "Login response does not contain a valid access token"
+        persistRoleSpecificUser(
+          normalizedUser,
+          userType
         );
-      }
 
-      if (!user || !user.type) {
-        return rejectWithValue(
-          "Login response does not contain valid user information"
-        );
-      }
+        // ------------------------------------------------------
+        // Remember me
+        // ------------------------------------------------------
 
-      const userType = user.type;
-
-      if (!USER_TYPES.includes(userType)) {
-        return rejectWithValue(
-          `Unsupported user type: ${userType}`
-        );
-      }
-
-      // --------------------------------------------------------
-      // Remove previous session completely
-      // --------------------------------------------------------
-
-      clearAuthStorage();
-
-      // --------------------------------------------------------
-      // Store ONLY current user's token
-      // --------------------------------------------------------
-
-      const tokenKey = getTokenKey(userType);
-
-      localStorage.setItem(tokenKey, access_token);
-
-      localStorage.setItem(
-        "active-user-type",
-        userType
-      );
-
-      localStorage.setItem(
-        "user-type",
-        userType
-      );
-
-      const normalizedUser = {
-        ...user,
-        name:
-          user.employee?.name ||
-          user.username ||
-          user.name ||
-          "",
-      };
-
-      persistUserData(
-        normalizedUser,
-        userType
-      );
-
-      persistRoleSpecificUser(
-        normalizedUser,
-        userType
-      );
-
-      // --------------------------------------------------------
-      // Set Axios authorization header immediately
-      // --------------------------------------------------------
-
-      apiClient.defaults.headers.common.Authorization =
-        `Bearer ${access_token}`;
-
-      // --------------------------------------------------------
-      // Remember Me
-      // --------------------------------------------------------
-
-      if (typeof window !== "undefined") {
         const rememberMe =
-          localStorage.getItem("remember-me") === "true";
+          localStorage.getItem(
+            "remember-me"
+          ) === "true";
 
         if (rememberMe) {
           localStorage.setItem(
@@ -313,359 +493,458 @@ export const loginUser = createAsyncThunk(
             email
           );
         }
+
+        // ------------------------------------------------------
+        // Set axios authorization
+        // ------------------------------------------------------
+
+        apiClient.defaults.headers.common.Authorization =
+          `Bearer ${accessToken}`;
+
+        return {
+          ...data,
+
+          user:
+            normalizedUser,
+        };
+      } catch (error) {
+        console.error(
+          "Login error:",
+          error.response?.data ||
+            error.message
+        );
+
+        return rejectWithValue(
+          error.response?.data
+            ?.message ||
+            error.response?.data
+              ?.error ||
+            "Login failed"
+        );
       }
-
-      return {
-        ...data,
-        user: normalizedUser,
-      };
-    } catch (error) {
-      console.error(
-        "Login error:",
-        error.response?.data || error.message
-      );
-
-      return rejectWithValue(
-        error.response?.data?.message ||
-          error.response?.data?.error ||
-          "Login failed"
-      );
     }
-  }
-);
+  );
 
 // ============================================================
 // LOGOUT
 // ============================================================
 
-export const logoutUser = createAsyncThunk(
-  "auth/logout",
-  async () => {
-    try {
-      // If your backend has a logout API, you can call it here.
-      // Do NOT call it if your backend does not provide one.
+export const logoutUser =
+  createAsyncThunk(
+    "auth/logout",
+
+    async () => {
+      /*
+       * If backend logout endpoint is added later,
+       * it can be called here.
+       */
+
+      clearAuthStorage();
 
       return null;
-    } finally {
-      // Always clear local authentication
-      clearAuthStorage();
     }
-  }
-);
+  );
 
 // ============================================================
 // INITIALIZE AUTH
 // ============================================================
 
-export const initializeAuth = createAsyncThunk(
-  "auth/initialize",
-  async (_, { rejectWithValue }) => {
-    // --------------------------------------------------------
-    // 1. Get active user type
-    // --------------------------------------------------------
+export const initializeAuth =
+  createAsyncThunk(
+    "auth/initialize",
 
-    const activeType =
-      localStorage.getItem("active-user-type");
+    async () => {
+      // --------------------------------------------------------
+      // 1. Get active user type
+      // --------------------------------------------------------
 
-    if (
-      !activeType ||
-      !USER_TYPES.includes(activeType)
-    ) {
-      clearAuthStorage();
+      const activeType =
+        getUserTypeFromStorage();
 
-      return rejectWithValue(
-        "No valid active user type"
-      );
-    }
+      /*
+       * IMPORTANT:
+       *
+       * No active user type is completely normal
+       * when the application is opened for the first time.
+       *
+       * Do NOT treat this as an error.
+       */
 
-    // --------------------------------------------------------
-    // 2. Get ONLY the active user's token
-    // --------------------------------------------------------
+      if (!activeType) {
+        return {
+          authenticated: false,
 
-    const tokenKey = getTokenKey(activeType);
+          user: null,
 
-    const token = localStorage.getItem(tokenKey);
+          token: null,
 
-    if (!isValidToken(token)) {
-      console.error(
-        `No token found for active user type: ${activeType}`
-      );
-
-      clearAuthStorage();
-
-      return rejectWithValue(
-        "No token for active user type"
-      );
-    }
-
-    try {
-      // ------------------------------------------------------
-      // 3. Set Axios token
-      // ------------------------------------------------------
-
-      apiClient.defaults.headers.common.Authorization =
-        `Bearer ${token}`;
-
-      // ------------------------------------------------------
-      // 4. Validate token with backend
-      // ------------------------------------------------------
-
-      const response =
-        await apiClient.get("/auth/me");
-
-      const responseData = response.data?.data;
-
-      if (!responseData) {
-        throw new Error(
-          "Invalid response from /auth/me"
-        );
+          userType: null,
+        };
       }
 
-      // Your existing backend appears to return:
-      // {
-      //   data: {
-      //     user: {...}
-      //   }
-      // }
-      //
-      // But this also safely handles a direct user object.
+      // --------------------------------------------------------
+      // 2. Get token
+      // --------------------------------------------------------
 
-      const authenticatedUser =
-        responseData?.user || responseData;
+      const tokenKey =
+        getTokenKey(activeType);
 
-      if (
-        !authenticatedUser ||
-        typeof authenticatedUser !== "object"
-      ) {
-        throw new Error(
-          "Invalid user data from /auth/me"
-        );
+      if (!tokenKey) {
+        clearAuthStorage();
+
+        return {
+          authenticated: false,
+
+          user: null,
+
+          token: null,
+
+          userType: null,
+        };
       }
 
-      const backendUserType =
-        authenticatedUser.type;
-
-      // ------------------------------------------------------
-      // 5. Validate backend user type
-      // ------------------------------------------------------
-
-      if (
-        !backendUserType ||
-        !USER_TYPES.includes(backendUserType)
-      ) {
-        throw new Error(
-          "Invalid user type returned by backend"
+      const token =
+        localStorage.getItem(
+          tokenKey
         );
+
+      // --------------------------------------------------------
+      // 3. No token
+      // --------------------------------------------------------
+
+      if (!isValidToken(token)) {
+        clearAuthStorage();
+
+        return {
+          authenticated: false,
+
+          user: null,
+
+          token: null,
+
+          userType: null,
+        };
       }
 
-      // ------------------------------------------------------
-      // 6. Prevent token/user-type mismatch
-      // ------------------------------------------------------
+      try {
+        // ------------------------------------------------------
+        // 4. Set axios token
+        // ------------------------------------------------------
 
-      if (backendUserType !== activeType) {
+        apiClient.defaults.headers.common.Authorization =
+          `Bearer ${token}`;
+
+        // ------------------------------------------------------
+        // 5. Validate token
+        // ------------------------------------------------------
+
+        const response =
+          await apiClient.get(
+            "/auth/me"
+          );
+
+        const responseData =
+          response.data?.data;
+
+        if (!responseData) {
+          throw new Error(
+            "Invalid response from /auth/me"
+          );
+        }
+
+        const authenticatedUser =
+          responseData?.user ||
+          responseData;
+
+        if (
+          !authenticatedUser ||
+          typeof authenticatedUser !==
+            "object"
+        ) {
+          throw new Error(
+            "Invalid user data from /auth/me"
+          );
+        }
+
+        // ------------------------------------------------------
+        // 6. Backend user type
+        // ------------------------------------------------------
+
+        const backendUserType =
+          authenticatedUser.type;
+
+        if (
+          !backendUserType ||
+          !USER_TYPES.includes(
+            backendUserType
+          )
+        ) {
+          throw new Error(
+            "Invalid user type returned by backend"
+          );
+        }
+
+        // ------------------------------------------------------
+        // 7. Validate user type
+        // ------------------------------------------------------
+
+        if (
+          backendUserType !==
+          activeType
+        ) {
+          console.error(
+            "AUTH TYPE MISMATCH:",
+            {
+              localStorageType:
+                activeType,
+
+              backendType:
+                backendUserType,
+            }
+          );
+
+          clearAuthStorage();
+
+          return {
+            authenticated: false,
+
+            user: null,
+
+            token: null,
+
+            userType: null,
+          };
+        }
+
+        // ------------------------------------------------------
+        // 8. Normalize user
+        // ------------------------------------------------------
+
+        const normalizedUser =
+          normalizeUser(
+            authenticatedUser
+          );
+
+        // ------------------------------------------------------
+        // 9. Keep localStorage consistent
+        // ------------------------------------------------------
+
+        localStorage.setItem(
+          "active-user-type",
+          backendUserType
+        );
+
+        localStorage.setItem(
+          "user-type",
+          backendUserType
+        );
+
+        localStorage.setItem(
+          tokenKey,
+          token
+        );
+
+        persistUserData(
+          normalizedUser,
+          backendUserType
+        );
+
+        persistRoleSpecificUser(
+          normalizedUser,
+          backendUserType
+        );
+
+        // ------------------------------------------------------
+        // 10. Remove other role tokens
+        // ------------------------------------------------------
+
+        if (Array.isArray(TOKEN_KEYS)) {
+          TOKEN_KEYS.forEach(
+            (key) => {
+              if (key !== tokenKey) {
+                localStorage.removeItem(
+                  key
+                );
+              }
+            }
+          );
+        } else if (
+          TOKEN_KEYS &&
+          typeof TOKEN_KEYS ===
+            "object"
+        ) {
+          Object.values(
+            TOKEN_KEYS
+          ).forEach((key) => {
+            if (
+              key &&
+              key !== tokenKey
+            ) {
+              localStorage.removeItem(
+                key
+              );
+            }
+          });
+        }
+
+        // ------------------------------------------------------
+        // 11. Set validated token
+        // ------------------------------------------------------
+
+        apiClient.defaults.headers.common.Authorization =
+          `Bearer ${token}`;
+
+        return {
+          authenticated: true,
+
+          user:
+            normalizedUser,
+
+          token,
+
+          userType:
+            backendUserType,
+        };
+      } catch (error) {
         console.error(
-          `AUTH TYPE MISMATCH: localStorage=${activeType}, backend=${backendUserType}`
+          "Authentication initialization failed:",
+          error.response?.data ||
+            error.message
         );
 
         clearAuthStorage();
 
-        throw new Error(
-          "User type mismatch"
-        );
+        return {
+          authenticated: false,
+
+          user: null,
+
+          token: null,
+
+          userType: null,
+        };
       }
-
-      // ------------------------------------------------------
-      // 7. Normalize user
-      // ------------------------------------------------------
-
-      const normalizedUser = {
-        ...authenticatedUser,
-        name:
-          authenticatedUser.employee?.name ||
-          authenticatedUser.username ||
-          authenticatedUser.name ||
-          "",
-      };
-
-      // ------------------------------------------------------
-      // 8. Keep storage consistent
-      // ------------------------------------------------------
-
-      localStorage.setItem(
-        "active-user-type",
-        backendUserType
-      );
-
-      localStorage.setItem(
-        "user-type",
-        backendUserType
-      );
-
-      localStorage.setItem(
-        tokenKey,
-        token
-      );
-
-      persistUserData(
-        normalizedUser,
-        backendUserType
-      );
-
-      persistRoleSpecificUser(
-        normalizedUser,
-        backendUserType
-      );
-
-      // ------------------------------------------------------
-      // 9. Remove every OTHER token
-      // ------------------------------------------------------
-
-      TOKEN_KEYS.forEach((key) => {
-        if (key !== tokenKey) {
-          localStorage.removeItem(key);
-        }
-      });
-
-      // ------------------------------------------------------
-      // 10. Make sure Axios uses validated token
-      // ------------------------------------------------------
-
-      apiClient.defaults.headers.common.Authorization =
-        `Bearer ${token}`;
-
-      return normalizedUser;
-    } catch (error) {
-      console.error(
-        "Authentication initialization failed:",
-        error.response?.data || error.message
-      );
-
-      clearAuthStorage();
-
-      return rejectWithValue(
-        error.response?.data?.message ||
-          error.message ||
-          "Invalid authentication"
-      );
     }
-  }
-);
+  );
 
 // ============================================================
 // REQUEST PASSWORD RESET
 // ============================================================
 
-export const requestPasswordReset = createAsyncThunk(
-  "auth/requestPasswordReset",
-  async ({ email }, { rejectWithValue }) => {
-    try {
-      const response =
-        await apiClient.post(
-          "/auth/forgot-password",
-          {
-            email,
-          }
+export const requestPasswordReset =
+  createAsyncThunk(
+    "auth/requestPasswordReset",
+
+    async (
+      { email },
+      { rejectWithValue }
+    ) => {
+      try {
+        const response =
+          await apiClient.post(
+            "/auth/forgot-password",
+            {
+              email,
+            }
+          );
+
+        if (
+          response.data?.status ===
+            "success" ||
+          response.data?.success
+        ) {
+          return {
+            message:
+              response.data?.message ||
+              "Password reset code sent to your email",
+          };
+        }
+
+        return rejectWithValue(
+          response.data?.message ||
+            "Failed to send reset code"
+        );
+      } catch (error) {
+        console.error(
+          "Request password reset error:",
+          error.response?.data
         );
 
-      console.log(
-        "Request password reset response:",
-        response.data
-      );
-
-      if (
-        response.data?.status === "success" ||
-        response.data?.success
-      ) {
-        return {
-          message:
-            response.data.message ||
-            "Password reset code sent to your email",
-        };
+        return rejectWithValue(
+          error.response?.data?.message ||
+            "Failed to send reset code. Please try again."
+        );
       }
-
-      return rejectWithValue(
-        response.data?.message ||
-          "Failed to send reset code"
-      );
-    } catch (error) {
-      console.error(
-        "Request password reset error:",
-        error.response?.data
-      );
-
-      return rejectWithValue(
-        error.response?.data?.message ||
-          "Failed to send reset code. Please try again."
-      );
     }
-  }
-);
+  );
 
 // ============================================================
 // RESET PASSWORD
 // ============================================================
 
-export const resetPassword = createAsyncThunk(
-  "auth/resetPassword",
-  async (
-    { code, password },
-    { rejectWithValue }
-  ) => {
-    try {
-      const response =
-        await apiClient.post(
-          "/auth/reset-password",
-          {
-            code,
-            password,
-          }
-        );
+export const resetPassword =
+  createAsyncThunk(
+    "auth/resetPassword",
 
-      console.log(
-        "Reset password response:",
-        response.data
-      );
+    async (
+      { code, password },
+      { rejectWithValue }
+    ) => {
+      try {
+        const response =
+          await apiClient.post(
+            "/auth/reset-password",
+            {
+              code,
+              password,
+            }
+          );
 
-      if (
-        response.data?.status === "success" ||
-        response.data?.success
-      ) {
-        return {
-          message:
-            response.data.message ||
-            "Password reset successfully",
-        };
-      }
-
-      return rejectWithValue(
-        response.data?.message ||
-          "Failed to reset password"
-      );
-    } catch (error) {
-      console.error(
-        "Reset password error:",
-        error.response?.data
-      );
-
-      if (error.response?.data?.errors) {
-        const errorMessages = Object.values(
-          error.response.data.errors
-        )
-          .flat()
-          .join(", ");
+        if (
+          response.data?.status ===
+            "success" ||
+          response.data?.success
+        ) {
+          return {
+            message:
+              response.data?.message ||
+              "Password reset successfully",
+          };
+        }
 
         return rejectWithValue(
-          errorMessages
+          response.data?.message ||
+            "Failed to reset password"
+        );
+      } catch (error) {
+        console.error(
+          "Reset password error:",
+          error.response?.data
+        );
+
+        if (
+          error.response?.data
+            ?.errors
+        ) {
+          const messages =
+            Object.values(
+              error.response.data.errors
+            )
+              .flat()
+              .join(", ");
+
+          return rejectWithValue(
+            messages
+          );
+        }
+
+        return rejectWithValue(
+          error.response?.data?.message ||
+            "Failed to reset password. Please try again."
         );
       }
-
-      return rejectWithValue(
-        error.response?.data?.message ||
-          "Failed to reset password. Please try again."
-      );
     }
-  }
-);
+  );
 
 // ============================================================
 // UPDATE USER PROFILE
@@ -674,22 +953,30 @@ export const resetPassword = createAsyncThunk(
 export const updateUserProfile =
   createAsyncThunk(
     "auth/updateProfile",
+
     async (
       profileData,
-      { rejectWithValue, getState }
+      {
+        rejectWithValue,
+        getState,
+      }
     ) => {
       try {
         const response =
           await apiClient.post(
             "/employee/update-profile",
             {
-              name: profileData.fullName,
-              email: profileData.email,
+              name:
+                profileData.fullName,
+
+              email:
+                profileData.email,
             }
           );
 
         if (
-          response.data?.status !== "success"
+          response.data?.status !==
+          "success"
         ) {
           return rejectWithValue(
             response.data?.message ||
@@ -710,28 +997,29 @@ export const updateUserProfile =
         const currentUser =
           getState().auth.user;
 
-        const newUserData = {
-          ...currentUser,
-          ...updatedUser,
+        const newUserData =
+          normalizeUser({
+            ...currentUser,
 
-          name:
-            updatedUser.name ||
-            updatedUser.employee?.name ||
-            profileData.fullName ||
-            currentUser?.name ||
-            "",
+            ...updatedUser,
 
-          email:
-            updatedUser.email ||
-            profileData.email ||
-            currentUser?.email ||
-            "",
-        };
+            name:
+              updatedUser.name ||
+              updatedUser.employee
+                ?.name ||
+              profileData.fullName ||
+              currentUser?.name ||
+              "",
+
+            email:
+              updatedUser.email ||
+              profileData.email ||
+              currentUser?.email ||
+              "",
+          });
 
         const userType =
-          localStorage.getItem(
-            "active-user-type"
-          );
+          getUserTypeFromStorage();
 
         persistUserData(
           newUserData,
@@ -766,7 +1054,11 @@ export const updateUserProfile =
 export const fetchCurrentUser =
   createAsyncThunk(
     "auth/fetchCurrentUser",
-    async (_, { rejectWithValue }) => {
+
+    async (
+      _,
+      { rejectWithValue }
+    ) => {
       try {
         const response =
           await apiClient.get(
@@ -774,7 +1066,8 @@ export const fetchCurrentUser =
           );
 
         if (
-          response.data?.status !== "success"
+          response.data?.status !==
+          "success"
         ) {
           return rejectWithValue(
             response.data?.message ||
@@ -793,18 +1086,10 @@ export const fetchCurrentUser =
         }
 
         const userType =
-          localStorage.getItem(
-            "active-user-type"
-          );
+          getUserTypeFromStorage();
 
-        const normalizedUser = {
-          ...userData,
-          name:
-            userData.employee?.name ||
-            userData.username ||
-            userData.name ||
-            "",
-        };
+        const normalizedUser =
+          normalizeUser(userData);
 
         persistUserData(
           normalizedUser,
@@ -836,491 +1121,601 @@ export const fetchCurrentUser =
 // AUTH SLICE
 // ============================================================
 
-const authSlice = createSlice({
-  name: "auth",
+const authSlice =
+  createSlice({
+    name: "auth",
 
-  initialState,
+    initialState,
 
-  reducers: {
-    // --------------------------------------------------------
-    // Clear general error
-    // --------------------------------------------------------
+    reducers: {
+      // ------------------------------------------------------
+      // CLEAR ERROR
+      // ------------------------------------------------------
 
-    clearError: (state) => {
-      state.error = null;
-    },
+      clearError: (state) => {
+        state.error = null;
+      },
 
-    // --------------------------------------------------------
-    // Remember Me
-    // --------------------------------------------------------
+      // ------------------------------------------------------
+      // REMEMBER ME
+      // ------------------------------------------------------
 
-    setRememberMe: (state, action) => {
-      if (action.payload) {
-        localStorage.setItem(
-          "remember-me",
-          "true"
-        );
-      } else {
-        localStorage.removeItem(
-          "remember-me"
-        );
+      setRememberMe: (
+        state,
+        action
+      ) => {
+        if (action.payload) {
+          localStorage.setItem(
+            "remember-me",
+            "true"
+          );
+        } else {
+          localStorage.removeItem(
+            "remember-me"
+          );
 
-        localStorage.removeItem(
-          "remembered-email"
-        );
-      }
-    },
-
-    // --------------------------------------------------------
-    // Clear profile update error
-    // --------------------------------------------------------
-
-    clearProfileUpdateError: (state) => {
-      state.profileUpdateError = null;
-    },
-
-    // --------------------------------------------------------
-    // Update user state
-    // --------------------------------------------------------
-
-    updateUserState: (state, action) => {
-      const updatedUser = {
-        ...state.user,
-        ...action.payload,
-      };
-
-      state.user = updatedUser;
-
-      const userType =
-        localStorage.getItem(
-          "active-user-type"
-        );
-
-      persistUserData(
-        updatedUser,
-        userType
-      );
-
-      persistRoleSpecificUser(
-        updatedUser,
-        userType
-      );
-    },
-
-    // --------------------------------------------------------
-    // Update user
-    // --------------------------------------------------------
-
-    updateUser: (state, action) => {
-      const updatedUser =
-        action.payload || {};
-
-      const currentUser =
-        state.user || {};
-
-      const mergedUser = {
-        ...currentUser,
-        ...updatedUser,
-
-        name:
-          updatedUser.name ||
-          updatedUser.employee?.name ||
-          currentUser.name ||
-          "",
-
-        email:
-          updatedUser.email ||
-          currentUser.email ||
-          "",
-
-        username:
-          updatedUser.username ||
-          currentUser.username ||
-          "",
-      };
-
-      state.user = mergedUser;
-
-      const userType =
-        localStorage.getItem(
-          "active-user-type"
-        );
-
-      persistUserData(
-        mergedUser,
-        userType
-      );
-
-      persistRoleSpecificUser(
-        mergedUser,
-        userType
-      );
-    },
-
-    // --------------------------------------------------------
-    // Clear reset state
-    // --------------------------------------------------------
-
-    clearResetState: (state) => {
-      state.resetSuccess = false;
-      state.resetMessage = "";
-      state.resetError = null;
-    },
-  },
-
-  // ==========================================================
-  // EXTRA REDUCERS
-  // ==========================================================
-
-  extraReducers: (builder) => {
-    builder
-
-      // ======================================================
-      // LOGIN
-      // ======================================================
-
-      .addCase(
-        loginUser.pending,
-        (state) => {
-          state.loading = true;
-          state.error = null;
+          localStorage.removeItem(
+            "remembered-email"
+          );
         }
-      )
+      },
 
-      .addCase(
-        loginUser.fulfilled,
-        (state, action) => {
-          const user =
-            action.payload.user;
+      // ------------------------------------------------------
+      // CLEAR PROFILE ERROR
+      // ------------------------------------------------------
 
-          state.loading = false;
-          state.isAuthenticated = true;
+      clearProfileUpdateError: (
+        state
+      ) => {
+        state.profileUpdateError =
+          null;
+      },
 
-          state.token =
-            action.payload.access_token;
+      // ------------------------------------------------------
+      // UPDATE USER STATE
+      // ------------------------------------------------------
 
-          state.userType =
-            user?.type || null;
+      updateUserState: (
+        state,
+        action
+      ) => {
+        const updatedUser =
+          normalizeUser({
+            ...state.user,
+            ...action.payload,
+          });
 
-          state.user = {
-            ...user,
+        state.user =
+          updatedUser;
+
+        const userType =
+          getUserTypeFromStorage();
+
+        persistUserData(
+          updatedUser,
+          userType
+        );
+
+        persistRoleSpecificUser(
+          updatedUser,
+          userType
+        );
+      },
+
+      // ------------------------------------------------------
+      // UPDATE USER
+      // ------------------------------------------------------
+
+      updateUser: (
+        state,
+        action
+      ) => {
+        const updatedUser =
+          action.payload || {};
+
+        const currentUser =
+          state.user || {};
+
+        const mergedUser =
+          normalizeUser({
+            ...currentUser,
+
+            ...updatedUser,
 
             name:
-              user?.employee?.name ||
-              user?.username ||
-              user?.name ||
+              updatedUser.name ||
+              updatedUser.employee
+                ?.name ||
+              currentUser.name ||
               "",
-          };
 
-          state.error = null;
-        }
-      )
-
-      .addCase(
-        loginUser.rejected,
-        (state, action) => {
-          state.loading = false;
-          state.isAuthenticated = false;
-          state.user = null;
-          state.token = null;
-          state.userType = null;
-          state.error =
-            action.payload ||
-            "Login failed";
-        }
-      )
-
-      // ======================================================
-      // INITIALIZE AUTH
-      // ======================================================
-
-      .addCase(
-        initializeAuth.pending,
-        (state) => {
-          state.loading = true;
-          state.error = null;
-        }
-      )
-
-      .addCase(
-        initializeAuth.fulfilled,
-        (state, action) => {
-          const resolvedUser =
-            action.payload;
-
-          const activeType =
-            resolvedUser?.type ||
-            localStorage.getItem(
-              "active-user-type"
-            );
-
-          state.loading = false;
-          state.isAuthenticated = true;
-
-          state.token =
-            getTokenFromStorage();
-
-          state.userType =
-            activeType || null;
-
-          state.user = {
-            ...resolvedUser,
-
-            name:
-              resolvedUser?.employee?.name ||
-              resolvedUser?.username ||
-              resolvedUser?.name ||
+            email:
+              updatedUser.email ||
+              currentUser.email ||
               "",
-          };
 
-          state.error = null;
-        }
-      )
-
-      .addCase(
-        initializeAuth.rejected,
-        (state, action) => {
-          state.loading = false;
-          state.isAuthenticated = false;
-
-          state.user = null;
-          state.token = null;
-          state.userType = null;
-
-          state.error =
-            action.payload ||
-            "Authentication failed";
-        }
-      )
-
-      // ======================================================
-      // LOGOUT
-      // ======================================================
-
-      .addCase(
-        logoutUser.fulfilled,
-        (state) => {
-          state.user = null;
-          state.token = null;
-          state.userType = null;
-
-          state.isAuthenticated = false;
-          state.loading = false;
-
-          state.error = null;
-
-          state.profileUpdateLoading =
-            false;
-
-          state.profileUpdateError =
-            null;
-
-          state.resetSuccess = false;
-          state.resetMessage = "";
-          state.resetError = null;
-        }
-      )
-
-      // ======================================================
-      // UPDATE PROFILE
-      // ======================================================
-
-      .addCase(
-        updateUserProfile.pending,
-        (state) => {
-          state.profileUpdateLoading =
-            true;
-
-          state.profileUpdateError =
-            null;
-        }
-      )
-
-      .addCase(
-        updateUserProfile.fulfilled,
-        (state, action) => {
-          state.profileUpdateLoading =
-            false;
-
-          state.user =
-            action.payload;
-
-          state.profileUpdateError =
-            null;
-        }
-      )
-
-      .addCase(
-        updateUserProfile.rejected,
-        (state, action) => {
-          state.profileUpdateLoading =
-            false;
-
-          state.profileUpdateError =
-            action.payload ||
-            "Failed to update profile";
-        }
-      )
-
-      // ======================================================
-      // FETCH CURRENT USER
-      // ======================================================
-
-      .addCase(
-        fetchCurrentUser.pending,
-        (state) => {
-          state.loading = true;
-        }
-      )
-
-      .addCase(
-        fetchCurrentUser.fulfilled,
-        (state, action) => {
-          const user =
-            action.payload;
-
-          state.loading = false;
-
-          state.user = {
-            ...user,
-
-            name:
-              user?.employee?.name ||
-              user?.username ||
-              user?.name ||
+            username:
+              updatedUser.username ||
+              currentUser.username ||
               "",
-          };
+          });
 
-          state.isAuthenticated = true;
+        state.user =
+          mergedUser;
 
-          state.token =
-            getTokenFromStorage();
+        const userType =
+          getUserTypeFromStorage();
 
-          state.userType =
-            user?.type ||
-            localStorage.getItem(
-              "active-user-type"
-            );
-        }
-      )
+        persistUserData(
+          mergedUser,
+          userType
+        );
 
-      .addCase(
-        fetchCurrentUser.rejected,
-        (state, action) => {
-          state.loading = false;
+        persistRoleSpecificUser(
+          mergedUser,
+          userType
+        );
+      },
 
-          state.error =
-            action.payload ||
-            "Failed to fetch user";
+      // ------------------------------------------------------
+      // CLEAR RESET STATE
+      // ------------------------------------------------------
 
-          // Do NOT automatically log the user out here.
-          // A temporary profile API failure should not destroy
-          // a valid authentication session.
-        }
-      )
+      clearResetState: (
+        state
+      ) => {
+        state.resetSuccess =
+          false;
 
-      // ======================================================
-      // REQUEST PASSWORD RESET
-      // ======================================================
+        state.resetMessage =
+          "";
 
-      .addCase(
-        requestPasswordReset.pending,
-        (state) => {
-          state.loading = true;
-          state.error = null;
+        state.resetError =
+          null;
+      },
+    },
 
-          state.resetSuccess = false;
-          state.resetMessage = "";
-          state.resetError = null;
-        }
-      )
+    // ========================================================
+    // EXTRA REDUCERS
+    // ========================================================
 
-      .addCase(
-        requestPasswordReset.fulfilled,
-        (state, action) => {
-          state.loading = false;
+    extraReducers: (
+      builder
+    ) => {
+      builder
 
-          state.resetSuccess = true;
+        // ====================================================
+        // LOGIN
+        // ====================================================
 
-          state.resetMessage =
-            action.payload.message;
+        .addCase(
+          loginUser.pending,
+          (state) => {
+            state.loading = true;
 
-          state.resetError = null;
-        }
-      )
+            state.error = null;
+          }
+        )
 
-      .addCase(
-        requestPasswordReset.rejected,
-        (state, action) => {
-          state.loading = false;
+        .addCase(
+          loginUser.fulfilled,
+          (
+            state,
+            action
+          ) => {
+            const user =
+              action.payload.user;
 
-          state.resetSuccess = false;
+            state.loading =
+              false;
 
-          state.resetMessage = "";
+            state.isAuthenticated =
+              true;
 
-          state.resetError =
-            action.payload ||
-            "Failed to send reset code";
+            state.token =
+              action.payload
+                .access_token;
 
-          state.error =
-            action.payload ||
-            "Failed to send reset code";
-        }
-      )
+            state.userType =
+              user?.type || null;
 
-      // ======================================================
-      // RESET PASSWORD
-      // ======================================================
+            state.user =
+              normalizeUser(user);
 
-      .addCase(
-        resetPassword.pending,
-        (state) => {
-          state.loading = true;
-          state.error = null;
+            state.error =
+              null;
+          }
+        )
 
-          state.resetSuccess = false;
-          state.resetMessage = "";
-          state.resetError = null;
-        }
-      )
+        .addCase(
+          loginUser.rejected,
+          (
+            state,
+            action
+          ) => {
+            state.loading =
+              false;
 
-      .addCase(
-        resetPassword.fulfilled,
-        (state, action) => {
-          state.loading = false;
+            state.isAuthenticated =
+              false;
 
-          state.resetSuccess = true;
+            state.user = null;
 
-          state.resetMessage =
-            action.payload.message;
+            state.token = null;
 
-          state.resetError = null;
-        }
-      )
+            state.userType = null;
 
-      .addCase(
-        resetPassword.rejected,
-        (state, action) => {
-          state.loading = false;
+            state.error =
+              action.payload ||
+              "Login failed";
+          }
+        )
 
-          state.resetSuccess = false;
+        // ====================================================
+        // INITIALIZE AUTH
+        // ====================================================
 
-          state.resetMessage = "";
+        .addCase(
+          initializeAuth.pending,
+          (state) => {
+            state.loading =
+              true;
 
-          state.resetError =
-            action.payload ||
-            "Failed to reset password";
+            state.error =
+              null;
+          }
+        )
 
-          state.error =
-            action.payload ||
-            "Failed to reset password";
-        }
-      );
-  },
-});
+        .addCase(
+          initializeAuth.fulfilled,
+          (
+            state,
+            action
+          ) => {
+            const {
+              authenticated,
+              user,
+              token,
+              userType,
+            } =
+              action.payload;
+
+            state.loading =
+              false;
+
+            state.isAuthenticated =
+              Boolean(
+                authenticated
+              );
+
+            state.user =
+              user || null;
+
+            state.token =
+              token || null;
+
+            state.userType =
+              userType || null;
+
+            state.error =
+              null;
+          }
+        )
+
+        .addCase(
+          initializeAuth.rejected,
+          (
+            state,
+            action
+          ) => {
+            state.loading =
+              false;
+
+            state.isAuthenticated =
+              false;
+
+            state.user = null;
+
+            state.token = null;
+
+            state.userType = null;
+
+            state.error =
+              action.payload ||
+              "Authentication failed";
+          }
+        )
+
+        // ====================================================
+        // LOGOUT
+        // ====================================================
+
+        .addCase(
+          logoutUser.fulfilled,
+          (state) => {
+            state.user =
+              null;
+
+            state.token =
+              null;
+
+            state.userType =
+              null;
+
+            state.isAuthenticated =
+              false;
+
+            state.loading =
+              false;
+
+            state.error =
+              null;
+
+            state.profileUpdateLoading =
+              false;
+
+            state.profileUpdateError =
+              null;
+
+            state.resetSuccess =
+              false;
+
+            state.resetMessage =
+              "";
+
+            state.resetError =
+              null;
+          }
+        )
+
+        // ====================================================
+        // UPDATE PROFILE
+        // ====================================================
+
+        .addCase(
+          updateUserProfile.pending,
+          (state) => {
+            state.profileUpdateLoading =
+              true;
+
+            state.profileUpdateError =
+              null;
+          }
+        )
+
+        .addCase(
+          updateUserProfile.fulfilled,
+          (
+            state,
+            action
+          ) => {
+            state.profileUpdateLoading =
+              false;
+
+            state.user =
+              action.payload;
+
+            state.profileUpdateError =
+              null;
+          }
+        )
+
+        .addCase(
+          updateUserProfile.rejected,
+          (
+            state,
+            action
+          ) => {
+            state.profileUpdateLoading =
+              false;
+
+            state.profileUpdateError =
+              action.payload ||
+              "Failed to update profile";
+          }
+        )
+
+        // ====================================================
+        // FETCH CURRENT USER
+        // ====================================================
+
+        .addCase(
+          fetchCurrentUser.pending,
+          (state) => {
+            state.loading =
+              true;
+          }
+        )
+
+        .addCase(
+          fetchCurrentUser.fulfilled,
+          (
+            state,
+            action
+          ) => {
+            const user =
+              normalizeUser(
+                action.payload
+              );
+
+            state.loading =
+              false;
+
+            state.user =
+              user;
+
+            state.isAuthenticated =
+              true;
+
+            /*
+             * Safely retrieve token.
+             */
+            state.token =
+              getStoredTokenSafely();
+
+            state.userType =
+              user?.type ||
+              getUserTypeFromStorage();
+          }
+        )
+
+        .addCase(
+          fetchCurrentUser.rejected,
+          (
+            state,
+            action
+          ) => {
+            state.loading =
+              false;
+
+            state.error =
+              action.payload ||
+              "Failed to fetch user";
+          }
+        )
+
+        // ====================================================
+        // REQUEST PASSWORD RESET
+        // ====================================================
+
+        .addCase(
+          requestPasswordReset.pending,
+          (state) => {
+            state.loading =
+              true;
+
+            state.error =
+              null;
+
+            state.resetSuccess =
+              false;
+
+            state.resetMessage =
+              "";
+
+            state.resetError =
+              null;
+          }
+        )
+
+        .addCase(
+          requestPasswordReset.fulfilled,
+          (
+            state,
+            action
+          ) => {
+            state.loading =
+              false;
+
+            state.resetSuccess =
+              true;
+
+            state.resetMessage =
+              action.payload.message;
+
+            state.resetError =
+              null;
+          }
+        )
+
+        .addCase(
+          requestPasswordReset.rejected,
+          (
+            state,
+            action
+          ) => {
+            state.loading =
+              false;
+
+            state.resetSuccess =
+              false;
+
+            state.resetMessage =
+              "";
+
+            state.resetError =
+              action.payload ||
+              "Failed to send reset code";
+
+            state.error =
+              action.payload ||
+              "Failed to send reset code";
+          }
+        )
+
+        // ====================================================
+        // RESET PASSWORD
+        // ====================================================
+
+        .addCase(
+          resetPassword.pending,
+          (state) => {
+            state.loading =
+              true;
+
+            state.error =
+              null;
+
+            state.resetSuccess =
+              false;
+
+            state.resetMessage =
+              "";
+
+            state.resetError =
+              null;
+          }
+        )
+
+        .addCase(
+          resetPassword.fulfilled,
+          (
+            state,
+            action
+          ) => {
+            state.loading =
+              false;
+
+            state.resetSuccess =
+              true;
+
+            state.resetMessage =
+              action.payload.message;
+
+            state.resetError =
+              null;
+          }
+        )
+
+        .addCase(
+          resetPassword.rejected,
+          (
+            state,
+            action
+          ) => {
+            state.loading =
+              false;
+
+            state.resetSuccess =
+              false;
+
+            state.resetMessage =
+              "";
+
+            state.resetError =
+              action.payload ||
+              "Failed to reset password";
+
+            state.error =
+              action.payload ||
+              "Failed to reset password";
+          }
+        );
+    },
+  });
 
 // ============================================================
-// EXPORT ACTIONS
+// ACTIONS
 // ============================================================
 
 export const {
@@ -1333,7 +1728,7 @@ export const {
 } = authSlice.actions;
 
 // ============================================================
-// EXPORT REDUCER
+// REDUCER
 // ============================================================
 
 export default authSlice.reducer;

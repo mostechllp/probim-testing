@@ -25,6 +25,7 @@ import {
   Play,
 } from "lucide-react";
 import { showToast } from "../../components/common/Toast";
+import apiClient from "../../utils/apiClient";
 import { fetchEmployees } from "../store/slices/employeeSlice";
 import {
   deleteOffboarding,
@@ -42,6 +43,7 @@ const getStepName = (stepKey) => {
   const stepMap = {
     initiation: "Initiation",
     initiated: "Initiation",
+    asset: "Assets",
     assets: "Assets",
     asset_return: "Assets",
     settlement: "Settlement",
@@ -68,7 +70,7 @@ const getStepIcon = (stepKey) => {
   const key = String(stepKey).toLowerCase();
 
   if (["initiation", "initiated"].includes(key)) return <UserPlus size={14} />;
-  if (["assets", "asset_return"].includes(key)) return <Package size={14} />;
+  if (["asset", "assets", "asset_return"].includes(key)) return <Package size={14} />;
   if (["settlement", "final_settlement"].includes(key)) return <DollarSign size={14} />;
   if (["visa", "visa_cancellation"].includes(key)) return <ShieldCheck size={14} />;
   if (["interview", "exit_interview"].includes(key)) return <MessageSquareIcon size={14} />;
@@ -100,11 +102,30 @@ const OffboardingDashboard = () => {
   const dispatch = useDispatch();
 
   const [stats, setStats] = useState({
-    activeOffboarding: 0,
-    pendingTasks: 0,
-    completedThisMonth: 0,
-    assetsToCollect: 0,
+    total_offboarding: 0,
+    pending_initiation: 0,
+    in_progress: 0,
+    completed_offboarding: 0,
+    pending_asset_return: 0,
+    pending_final_settlement: 0,
+    pending_visa_cancellation: 0,
+    pending_exit_interview: 0,
+    pending_letters_documents: 0
   });
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const response = await apiClient.get("/admin/offboarding/stats");
+        if (response.data && response.data.status === "success" && response.data.data) {
+          setStats(response.data.data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch stats:", error);
+      }
+    };
+    fetchStats();
+  }, []);
 
   const [recentOffboarding, setRecentOffboarding] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -200,22 +221,6 @@ const OffboardingDashboard = () => {
   // Process offboarding data
   useEffect(() => {
     if (!offboardingLoading && offboardings) {
-      // Calculate stats
-      const activeCount = offboardings.filter(
-        (off) => off.status !== "completed" && off.status !== "cancelled",
-      ).length;
-
-      const completedCount = offboardings.filter(
-        (off) => off.status === "completed",
-      ).length;
-
-      setStats({
-        activeOffboarding: activeCount,
-        pendingTasks: activeCount * 3,
-        completedThisMonth: completedCount,
-        assetsToCollect: activeCount * 2,
-      });
-
       // Format recent offboarding data with employee names
       const formattedOffboardings = offboardings.map((off) => {
         // Try to find employee by various ID fields
@@ -282,36 +287,67 @@ const OffboardingDashboard = () => {
 
   const quickStats = [
     {
-      label: "Active Offboarding",
-      value: stats.activeOffboarding,
+      label: "Total Offboarding",
+      value: stats.total_offboarding,
       icon: <Briefcase size={20} />,
-      color: "blue",
       bgClass: "bg-blue-100 dark:bg-blue-900/30",
       textClass: "text-blue-600 dark:text-blue-400",
     },
     {
-      label: "Pending Tasks",
-      value: stats.pendingTasks,
-      icon: <Clock size={20} />,
-      color: "orange",
+      label: "Pending Initiation",
+      value: stats.pending_initiation,
+      icon: <UserPlus size={20} />,
       bgClass: "bg-orange-100 dark:bg-orange-900/30",
       textClass: "text-orange-600 dark:text-orange-400",
     },
     {
-      label: "Completed (Month)",
-      value: stats.completedThisMonth,
+      label: "In Progress",
+      value: stats.in_progress,
+      icon: <TrendingUp size={20} />,
+      bgClass: "bg-yellow-100 dark:bg-yellow-900/30",
+      textClass: "text-yellow-600 dark:text-yellow-400",
+    },
+    {
+      label: "Completed Offboarding",
+      value: stats.completed_offboarding,
       icon: <CheckCircle2 size={20} />,
-      color: "green",
       bgClass: "bg-green-100 dark:bg-green-900/30",
       textClass: "text-green-600 dark:text-green-400",
     },
     {
-      label: "Assets Pending",
-      value: stats.assetsToCollect,
+      label: "Pending Asset Return",
+      value: stats.pending_asset_return,
       icon: <Laptop size={20} />,
-      color: "purple",
       bgClass: "bg-purple-100 dark:bg-purple-900/30",
       textClass: "text-purple-600 dark:text-purple-400",
+    },
+    {
+      label: "Pending Final Settlement",
+      value: stats.pending_final_settlement,
+      icon: <DollarSign size={20} />,
+      bgClass: "bg-teal-100 dark:bg-teal-900/30",
+      textClass: "text-teal-600 dark:text-teal-400",
+    },
+    {
+      label: "Pending Visa Cancellation",
+      value: stats.pending_visa_cancellation,
+      icon: <ShieldCheck size={20} />,
+      bgClass: "bg-red-100 dark:bg-red-900/30",
+      textClass: "text-red-600 dark:text-red-400",
+    },
+    {
+      label: "Pending Exit Interview",
+      value: stats.pending_exit_interview,
+      icon: <MessageSquareIcon size={20} />,
+      bgClass: "bg-indigo-100 dark:bg-indigo-900/30",
+      textClass: "text-indigo-600 dark:text-indigo-400",
+    },
+    {
+      label: "Pending Letters & Documents",
+      value: stats.pending_letters_documents,
+      icon: <FileText size={20} />,
+      bgClass: "bg-pink-100 dark:bg-pink-900/30",
+      textClass: "text-pink-600 dark:text-pink-400",
     },
   ];
 
@@ -471,7 +507,7 @@ const OffboardingDashboard = () => {
   return (
     <div className="w-full overflow-x-hidden">
       {/* Stats Cards */}
-      <div className="stats-grid grid grid-cols-2 sm:grid-cols-4 gap-3 md:gap-5 mb-6">
+      <div className="stats-grid grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-5 mb-6">
         {quickStats.map((stat, index) => (
           <div
             key={index}
@@ -579,9 +615,6 @@ const OffboardingDashboard = () => {
                         <div>
                           <p className="text-xs md:text-sm font-semibold text-gray-800 dark:text-gray-200">
                             {item.name}
-                          </p>
-                          <p className="text-[10px] md:text-xs text-gray-500 dark:text-gray-400">
-                            ID: {item.employeeId}
                           </p>
                         </div>
                       </td>

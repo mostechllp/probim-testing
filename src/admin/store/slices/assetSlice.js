@@ -248,6 +248,12 @@ export const fetchEmployeeAssets = createAsyncThunk(
       );
     } catch (error) {
       console.error("Fetch employee assets error:", error.response?.data);
+      
+      // If backend returns 404 for "No active assets", treat it as an empty list instead of an error
+      if (error.response && error.response.status === 404) {
+        return [];
+      }
+
       return rejectWithValue(
         error.response?.data?.message || "Failed to fetch employee assets",
       );

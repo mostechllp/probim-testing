@@ -99,10 +99,12 @@ const FinalSettlement = () => {
       const netPayable = totalPayable - totalDeductions;
 
       const payload = {
+        offboarding_id: offboardingId || localStorage.getItem("offboarding_id"),
         total_payable: totalPayable,
         total_deductions: totalDeductions,
         net_payable: netPayable,
         status: "approved",
+        settlement_status: "approved",
         remarks: remarks
       };
 

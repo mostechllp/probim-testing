@@ -104,44 +104,104 @@ const Notifications = () => {
     dispatch(clearSelectedNotification());
   };
 
+  // ─── FORMAT NOTIFICATION TYPE ──────────────────────────────────────────
+  const formatNotificationType = (type) => {
+    if (!type) return "Notification";
+    
+    if (typeof type === 'string') {
+      // Handle full class name like "App\\Notifications\\EmployeeSpecialDayNotification"
+      const parts = type.split('\\');
+      const lastPart = parts[parts.length - 1] || type;
+      
+      // Remove "Notification" suffix if present
+      const cleanType = lastPart.replace(/Notification$/, '');
+      
+      // Handle underscore separated types
+      return cleanType
+        .replace(/_/g, ' ')
+        .replace(/([A-Z])/g, ' $1')
+        .trim()
+        .split(' ')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+        .join(' ');
+    }
+    
+    return "Notification";
+  };
+
+  // ─── GET NOTIFICATION TYPE COLOR ───────────────────────────────────────
+  const getNotificationTypeColor = (notification) => {
+    const type = notification.type || notification.data?.type || "";
+    const lowerType = String(type).toLowerCase();
+    
+    if (lowerType.includes('leave')) return "bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400";
+    if (lowerType.includes('attendance')) return "bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400";
+    if (lowerType.includes('task')) return "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400";
+    if (lowerType.includes('document') || lowerType.includes('expiry')) return "bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400";
+    if (lowerType.includes('probation')) return "bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400";
+    if (lowerType.includes('contract')) return "bg-teal-100 text-teal-600 dark:bg-teal-900/30 dark:text-teal-400";
+    if (lowerType.includes('special_day') || lowerType.includes('birthday') || lowerType.includes('special')) return "bg-rose-100 text-rose-600 dark:bg-rose-900/30 dark:text-rose-400";
+    if (lowerType.includes('wfh') || lowerType.includes('work from home')) return "bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400";
+    if (lowerType.includes('onboarding')) return "bg-pink-100 text-pink-600 dark:bg-pink-900/30 dark:text-pink-400";
+    if (lowerType.includes('offboarding')) return "bg-slate-100 text-slate-600 dark:bg-slate-900/30 dark:text-slate-400";
+    if (lowerType.includes('payroll')) return "bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400";
+    if (lowerType.includes('announcement')) return "bg-sky-100 text-sky-600 dark:bg-sky-900/30 dark:text-sky-400";
+    
+    return "bg-gray-100 text-gray-600 dark:bg-gray-700/30 dark:text-gray-400";
+  };
+
   const getNotificationIcon = (notification) => {
     const type = notification.type || notification.data?.type || "";
+    const lowerType = String(type).toLowerCase();
 
-    if (type.includes("Probation") || type === "probation") {
+    if (lowerType.includes("probation")) {
       return <FiClock className="text-orange-500" />;
     }
-    if (type.includes("Leave") || type === "leave") {
+    if (lowerType.includes("leave")) {
       return <FiCalendar className="text-blue-500" />;
     }
-    if (type.includes("Attendance") || type === "attendance") {
+    if (lowerType.includes("attendance")) {
       return <FiUser className="text-purple-500" />;
     }
-    if (type.includes("Contract") || type === "contract") {
+    if (lowerType.includes("contract")) {
       return <FiBriefcase className="text-indigo-500" />;
     }
-    if (type.includes("Task") || type === "task") {
+    if (lowerType.includes("task")) {
       return <FiCheckCircle className="text-green-500" />;
+    }
+    if (lowerType.includes("special_day") || lowerType.includes("birthday")) {
+      return <FiBell className="text-rose-500" />;
+    }
+    if (lowerType.includes("document") || lowerType.includes("expiry")) {
+      return <FiBell className="text-orange-500" />;
     }
     return <FiBell className="text-gray-500" />;
   };
 
   const getNotificationColor = (notification) => {
     const type = notification.type || notification.data?.type || "";
+    const lowerType = String(type).toLowerCase();
 
-    if (type.includes("Probation") || type === "probation") {
+    if (lowerType.includes("probation")) {
       return "bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800";
     }
-    if (type.includes("Leave") || type === "leave") {
+    if (lowerType.includes("leave")) {
       return "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800";
     }
-    if (type.includes("Attendance") || type === "attendance") {
+    if (lowerType.includes("attendance")) {
       return "bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800";
     }
-    if (type.includes("Contract") || type === "contract") {
+    if (lowerType.includes("contract")) {
       return "bg-indigo-50 dark:bg-indigo-900/20 border-indigo-200 dark:border-indigo-800";
     }
-    if (type.includes("Task") || type === "task") {
+    if (lowerType.includes("task")) {
       return "bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800";
+    }
+    if (lowerType.includes("special_day") || lowerType.includes("birthday")) {
+      return "bg-rose-50 dark:bg-rose-900/20 border-rose-200 dark:border-rose-800";
+    }
+    if (lowerType.includes("document") || lowerType.includes("expiry")) {
+      return "bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800";
     }
     return "bg-gray-50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700";
   };
@@ -178,8 +238,6 @@ const Notifications = () => {
     });
   };
 
-  // src/pages/Notifications.jsx - Update the getStatusBadge function
-
   const getStatusBadge = (notification) => {
     if (notification.read) {
       const readTime = notification.read_at
@@ -207,6 +265,7 @@ const Notifications = () => {
       </span>
     );
   };
+  
   // Reset to first page when filter or search changes
   useEffect(() => {
     setCurrentPage(1);
@@ -340,54 +399,65 @@ const Notifications = () => {
         </div>
       ) : (
         <div className="space-y-3">
-          {currentNotifications.map((notification) => (
-            <div
-              key={notification.id}
-              className={`p-4 rounded-xl border transition-all ${
-                !notification.read
-                  ? "bg-green-50 dark:bg-green-900/10 border-green-200 dark:border-green-800 shadow-sm"
-                  : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:shadow-md"
-              }`}
-            >
-              <div className="flex items-start gap-4">
-                {/* Icon */}
-                <div
-                  className={`p-2 rounded-lg ${getNotificationColor(notification)}`}
-                >
-                  {getNotificationIcon(notification)}
-                </div>
+          {currentNotifications.map((notification) => {
+            const type = notification.type || notification.data?.type || "";
+            const formattedType = formatNotificationType(type);
+            const typeColor = getNotificationTypeColor(notification);
+            
+            return (
+              <div
+                key={notification.id}
+                className={`p-4 rounded-xl border transition-all ${
+                  !notification.read
+                    ? "bg-green-50 dark:bg-green-900/10 border-green-200 dark:border-green-800 shadow-sm"
+                    : "bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 hover:shadow-md"
+                }`}
+              >
+                <div className="flex items-start gap-4">
+                  {/* Icon */}
+                  <div
+                    className={`p-2 rounded-lg ${getNotificationColor(notification)}`}
+                  >
+                    {getNotificationIcon(notification)}
+                  </div>
 
-                {/* Content */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <h4 className="text-sm font-semibold text-gray-800 dark:text-gray-200">
-                        {notification.title}
-                      </h4>
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 break-words line-clamp-2">
-                        {notification.message}
-                      </p>
-                      <div className="flex items-center gap-3 mt-2">
-                        <span className="text-xs text-gray-400">
-                          {formatDate(notification.created_at)}
-                        </span>
-                        {getStatusBadge(notification)}
+                  {/* Content */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${typeColor}`}>
+                            {formattedType}
+                          </span>
+                        </div>
+                        <h4 className="text-sm font-semibold text-gray-800 dark:text-gray-200 mt-1">
+                          {notification.title}
+                        </h4>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 break-words line-clamp-2">
+                          {notification.message}
+                        </p>
+                        <div className="flex items-center gap-3 mt-2">
+                          <span className="text-xs text-gray-400">
+                            {formatDate(notification.created_at)}
+                          </span>
+                          {getStatusBadge(notification)}
+                        </div>
                       </div>
-                    </div>
-                    <div className="flex items-center gap-2 flex-shrink-0">
-                      <button
-                        onClick={() => handleViewNotification(notification)}
-                        className="px-3 py-1.5 bg-green-500 text-white rounded-lg text-xs font-medium hover:bg-blue-600 transition-colors flex items-center gap-1"
-                      >
-                        <FiEye className="text-xs" />
-                        View
-                      </button>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <button
+                          onClick={() => handleViewNotification(notification)}
+                          className="px-3 py-1.5 bg-green-500 text-white rounded-lg text-xs font-medium hover:bg-green-600 transition-colors flex items-center gap-1"
+                        >
+                          <FiEye className="text-xs" />
+                          View
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -414,9 +484,21 @@ const Notifications = () => {
                 >
                   {getNotificationIcon(selectedNotification)}
                 </div>
-                <h3 className="text-lg font-bold text-gray-800 dark:text-gray-200">
-                  {selectedNotification.title}
-                </h3>
+                <div>
+                  <h3 className="text-lg font-bold text-gray-800 dark:text-gray-200">
+                    {selectedNotification.title}
+                  </h3>
+                  {(() => {
+                    const type = selectedNotification.type || selectedNotification.data?.type || "";
+                    const formattedType = formatNotificationType(type);
+                    const typeColor = getNotificationTypeColor(selectedNotification);
+                    return (
+                      <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${typeColor}`}>
+                        {formattedType}
+                      </span>
+                    );
+                  })()}
+                </div>
               </div>
               <button
                 onClick={handleCloseModal}
@@ -446,8 +528,7 @@ const Notifications = () => {
                       Type
                     </label>
                     <p className="text-sm text-gray-800 dark:text-gray-200 mt-1">
-                      {selectedNotification.type?.split("\\").pop() ||
-                        "General"}
+                      {formatNotificationType(selectedNotification.type || selectedNotification.data?.type || "General")}
                     </p>
                   </div>
                   <div>

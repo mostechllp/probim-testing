@@ -109,6 +109,7 @@ const OffboardingInitiation = () => {
     formState: { errors },
   } = useForm({
     resolver: zodResolver(offboardingSchema),
+    mode: "onChange",
     defaultValues: {
       employeeId: "",
       backendEmployeeId: "",
@@ -343,12 +344,10 @@ const OffboardingInitiation = () => {
     setValue(
       "visaSponsorship",
       data.visa_sponsorship || data.visaSponsorship || "",
-      { shouldValidate: true },
     );
     setValue(
       "nationality",
       data.nationality || employeeData.nationality || "",
-      { shouldValidate: true },
     );
     setValue(
       "reasonForLeaving",
@@ -552,7 +551,6 @@ const OffboardingInitiation = () => {
           </div>,
           "success",
         );
-        navigate(`/admin/employees/offboarding-dashboard`);
       } else {
         // Create new offboarding
         result = await dispatch(initiateOffboarding(payload)).unwrap();
@@ -592,14 +590,13 @@ const OffboardingInitiation = () => {
       setSearchQuery("");
       setManagerSearchQuery("");
 
-      if (!isEditMode) {
-        // Only redirect after a short delay for new offboarding
-        setTimeout(() => {
-          if (result && result.id) {
-            navigate(`/admin/employees/asset-return?id=${result.id}`);
-          }
-        }, 2000);
-      }
+      // Redirect to asset return for both create and update
+      setTimeout(() => {
+        const targetId = (result && result.id) || offboardingId;
+        if (targetId) {
+          navigate(`/admin/employees/asset-return?id=${targetId}`);
+        }
+      }, 1000);
     } catch (error) {
       console.error("Offboarding submission error:", error);
       showToast(
@@ -1146,19 +1143,25 @@ const OffboardingInitiation = () => {
                 <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
                   Visa sponsorship <span className="text-red-500">*</span>
                 </label>
-                <select
-                  {...register("visaSponsorship")}
-                  className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-800 dark:text-gray-200 outline-none transition-all focus:border-green-500 focus:ring-2 focus:ring-green-500/20 font-semibold"
-                >
-                  <option value="">Select Sponsorship</option>
-                  <option value="Company sponsored">Company sponsored</option>
-                  <option value="Self sponsored">Self sponsored</option>
-                  <option value="Golden Visa">Golden Visa</option>
-                  <option value="Family sponsored">Family sponsored</option>
-                  <option value="Not Applicable">
-                    Not Applicable (No visa required)
-                  </option>
-                </select>
+                <Controller
+                  name="visaSponsorship"
+                  control={control}
+                  render={({ field }) => (
+                    <select
+                      {...field}
+                      className="w-full px-4 py-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-800 dark:text-gray-200 outline-none transition-all focus:border-green-500 focus:ring-2 focus:ring-green-500/20 font-semibold"
+                    >
+                      <option value="">Select Sponsorship</option>
+                      <option value="Company sponsored">Company sponsored</option>
+                      <option value="Self sponsored">Self sponsored</option>
+                      <option value="Golden Visa">Golden Visa</option>
+                      <option value="Family sponsored">Family sponsored</option>
+                      <option value="Not Applicable">
+                        Not Applicable (No visa required)
+                      </option>
+                    </select>
+                  )}
+                />
                 {errors.visaSponsorship && (
                   <p className="text-xxs font-bold text-red-500 mt-1">
                     {errors.visaSponsorship.message}
@@ -1168,13 +1171,19 @@ const OffboardingInitiation = () => {
               {/* Nationality */}
               <div className="space-y-1.5">
                 <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                  Nationality
+                  Nationality <span className="text-red-500">*</span>
                 </label>
-                <input
-                  type="text"
-                  placeholder="e.g. Jordanian"
-                  {...register("nationality")}
-                  className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-800 dark:text-gray-200 font-semibold focus:outline-none"
+                <Controller
+                  name="nationality"
+                  control={control}
+                  render={({ field }) => (
+                    <input
+                      {...field}
+                      type="text"
+                      placeholder="e.g. Indian"
+                      className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-800 dark:text-gray-200 font-semibold focus:outline-none"
+                    />
+                  )}
                 />
                 {errors.nationality && (
                   <p className="text-xxs font-bold text-red-500 mt-1">
