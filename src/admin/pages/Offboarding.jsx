@@ -35,11 +35,12 @@ import {
 } from "../store/slices/offboardingSlice";
 
 // Helper function to get step name
+// Helper function to get step name
 const getStepName = (stepKey) => {
   if (!stepKey) return "Unknown";
-  
+
   const key = String(stepKey).toLowerCase();
-  
+
   const stepMap = {
     initiation: "Initiation",
     initiated: "Initiation",
@@ -59,26 +60,41 @@ const getStepName = (stepKey) => {
     verification: "Final Clearance",
     checklist: "General Checklist",
     general_checklist: "General Checklist",
-    completed: "Completed"
+    completed: "Completed",
+    // Additional step keys
+    pending_visa: "Visa Cancel",
+    pending_checklist: "General Checklist",
+    pending_assets: "Assets",
+    pending_interview: "Interview",
+    pending_settlement: "Settlement",
+    pending_letters: "Letters",
+    "in-progress": "In Progress",
   };
   return stepMap[key] || stepKey;
 };
 
 const getStepIcon = (stepKey) => {
   if (!stepKey) return <Timer size={14} />;
-  
+
   const key = String(stepKey).toLowerCase();
 
   if (["initiation", "initiated"].includes(key)) return <UserPlus size={14} />;
-  if (["asset", "assets", "asset_return"].includes(key)) return <Package size={14} />;
-  if (["settlement", "final_settlement"].includes(key)) return <DollarSign size={14} />;
-  if (["visa", "visa_cancellation"].includes(key)) return <ShieldCheck size={14} />;
-  if (["interview", "exit_interview"].includes(key)) return <MessageSquareIcon size={14} />;
-  if (["letters", "letters_documents"].includes(key)) return <FileText size={14} />;
-  if (["final_clearance", "clearance", "verification"].includes(key)) return <CheckCircle2 size={14} />;
-  if (["checklist", "general_checklist"].includes(key)) return <ClipboardList size={14} />;
+  if (["asset", "assets", "asset_return"].includes(key))
+    return <Package size={14} />;
+  if (["settlement", "final_settlement"].includes(key))
+    return <DollarSign size={14} />;
+  if (["visa", "visa_cancellation"].includes(key))
+    return <ShieldCheck size={14} />;
+  if (["interview", "exit_interview"].includes(key))
+    return <MessageSquareIcon size={14} />;
+  if (["letters", "letters_documents"].includes(key))
+    return <FileText size={14} />;
+  if (["final_clearance", "clearance", "verification"].includes(key))
+    return <CheckCircle2 size={14} />;
+  if (["checklist", "general_checklist"].includes(key))
+    return <ClipboardList size={14} />;
   if (key === "completed") return <CheckCircle2 size={14} />;
-  
+
   return <Timer size={14} />;
 };
 
@@ -110,14 +126,18 @@ const OffboardingDashboard = () => {
     pending_final_settlement: 0,
     pending_visa_cancellation: 0,
     pending_exit_interview: 0,
-    pending_letters_documents: 0
+    pending_letters_documents: 0,
   });
 
   useEffect(() => {
     const fetchStats = async () => {
       try {
         const response = await apiClient.get("/admin/offboarding/stats");
-        if (response.data && response.data.status === "success" && response.data.data) {
+        if (
+          response.data &&
+          response.data.status === "success" &&
+          response.data.data
+        ) {
           setStats(response.data.data);
         }
       } catch (error) {
@@ -202,13 +222,61 @@ const OffboardingDashboard = () => {
               fetchOffboardingProgress(offboarding.id),
             ).unwrap();
             if (result) {
-              progressMap[offboarding.id] = result;
+              // ✅ FIX: Create a new object instead of modifying the read-only result
+              let processedResult = { ...result };
+
+              // If steps is not an array, create a steps array
+              if (!Array.isArray(processedResult.steps)) {
+                // If steps is a number, create a default steps array
+                const totalSteps = processedResult.steps || 7;
+                const stepOrder = [
+                  "initiation",
+                  "checklist",
+                  "visa",
+                  "assets",
+                  "interview",
+                  "settlement",
+                  "letters",
+                ];
+                const currentStatus =
+                  processedResult.current_status || "initiation";
+                const currentIndex = stepOrder.indexOf(currentStatus);
+
+                processedResult.steps = stepOrder.map((stepKey, index) => {
+                  let status = "pending";
+                  if (index < currentIndex) {
+                    status = "completed";
+                  } else if (index === currentIndex) {
+                    status = "in_progress";
+                  }
+                  return {
+                    key: stepKey,
+                    status: status,
+                    name: getStepName(stepKey),
+                  };
+                });
+
+                // Update total_steps if needed
+                if (!processedResult.total_steps) {
+                  processedResult.total_steps = stepOrder.length;
+                }
+              }
+
+              progressMap[offboarding.id] = processedResult;
             }
           } catch (error) {
             console.error(
               `Failed to fetch progress for offboarding ${offboarding.id}:`,
               error,
             );
+            // Set default progress
+            progressMap[offboarding.id] = {
+              steps: [],
+              progress_percentage: 0,
+              completed_steps: 0,
+              total_steps: 7,
+              current_status: "initiation",
+            };
           }
         }
         setProgressData(progressMap);
@@ -218,6 +286,7 @@ const OffboardingDashboard = () => {
     fetchProgressForAll();
   }, [offboardings, dispatch]);
 
+  // Process offboarding data
   // Process offboarding data
   useEffect(() => {
     if (!offboardingLoading && offboardings) {
@@ -247,21 +316,49 @@ const OffboardingDashboard = () => {
         const progress = progressData[off.id];
 
         let calculatedCurrentStep = off.current_step || "initiation";
-        
-        if (progress && progress.steps && progress.steps.length > 0) {
-          const inProgressStep = progress.steps.find(s => s.status === "in_progress");
-          if (inProgressStep) {
-            calculatedCurrentStep = inProgressStep.key;
-          } else {
-            const pendingStep = progress.steps.find(s => s.status === "pending");
-            if (pendingStep) {
-              calculatedCurrentStep = pendingStep.key;
-            } else if (progress.progress_percentage === 100 || off.status === "completed") {
-              calculatedCurrentStep = "Completed";
+
+        // ✅ FIX: Check if progress and steps exist and is an array
+        if (progress && progress.steps) {
+          // If steps is an array, use it
+          if (Array.isArray(progress.steps) && progress.steps.length > 0) {
+            const inProgressStep = progress.steps.find(
+              (s) => s.status === "in_progress",
+            );
+            if (inProgressStep) {
+              calculatedCurrentStep = inProgressStep.key;
+            } else {
+              const pendingStep = progress.steps.find(
+                (s) => s.status === "pending",
+              );
+              if (pendingStep) {
+                calculatedCurrentStep = pendingStep.key;
+              } else if (
+                progress.progress_percentage === 100 ||
+                off.status === "completed"
+              ) {
+                calculatedCurrentStep = "Completed";
+              }
+            }
+          } else if (typeof progress.steps === "number") {
+            // If steps is a number, use current_status
+            if (progress.current_status) {
+              calculatedCurrentStep = progress.current_status;
             }
           }
         } else if (off.status === "completed") {
           calculatedCurrentStep = "Completed";
+        }
+
+        // Determine completed steps count
+        let completedSteps = progress?.completed_steps || 0;
+        let totalSteps = progress?.total_steps || 7;
+        let progressPercentage = progress?.progress_percentage || 0;
+
+        // If steps is a number and we have completed steps from progress
+        if (typeof progress?.steps === "number" && progress?.completed_steps) {
+          totalSteps = progress.steps;
+          completedSteps = progress.completed_steps;
+          progressPercentage = Math.round((completedSteps / totalSteps) * 100);
         }
 
         return {
@@ -272,10 +369,10 @@ const OffboardingDashboard = () => {
           lastDay: off.last_working_day,
           status: off.status,
           currentStep: calculatedCurrentStep,
-          progressPercentage: progress?.progress_percentage || 0,
-          completedSteps: progress?.completed_steps || 0,
-          totalSteps: progress?.total_steps || 7,
-          steps: progress?.steps || [],
+          progressPercentage: progressPercentage,
+          completedSteps: completedSteps,
+          totalSteps: totalSteps,
+          steps: Array.isArray(progress?.steps) ? progress.steps : [],
         };
       });
 
@@ -283,7 +380,6 @@ const OffboardingDashboard = () => {
       setLoading(false);
     }
   }, [offboardings, offboardingLoading, employeeMap, progressData]);
-
 
   const quickStats = [
     {
@@ -402,12 +498,82 @@ const OffboardingDashboard = () => {
       ).unwrap();
 
       if (progress) {
-        // Determine which step is currently in progress or pending
-        const steps = progress.steps || [];
+        // ✅ FIX: Create a copy of progress to work with
+        let steps = [];
 
-        // Find the first step that is not completed (in_progress or pending)
+        // If steps is an array, use it
+        if (Array.isArray(progress.steps)) {
+          steps = progress.steps;
+        }
+        // If steps is a number (total steps), we need to construct steps array
+        else if (typeof progress.steps === "number") {
+          // Create a steps array based on the total steps
+          const totalSteps = progress.steps || 7;
+          // Get the current status to determine which step is active
+          const currentStatus = progress.current_status || "initiation";
+
+          // Define step order
+          const stepOrder = [
+            "initiation",
+            "checklist",
+            "visa",
+            "assets",
+            "interview",
+            "settlement",
+            "letters",
+          ];
+
+          // Find the index of the current step
+          const currentIndex = stepOrder.indexOf(currentStatus);
+
+          // Build steps array with statuses
+          steps = stepOrder.map((stepKey, index) => {
+            let status = "pending";
+            if (index < currentIndex) {
+              status = "completed";
+            } else if (index === currentIndex) {
+              status = "in_progress";
+            }
+            return {
+              key: stepKey,
+              status: status,
+              name: getStepName(stepKey),
+            };
+          });
+        } else {
+          // Fallback: use default steps
+          steps = [
+            { key: "initiation", status: "pending", name: "Initiation" },
+            { key: "checklist", status: "pending", name: "General Checklist" },
+            { key: "visa", status: "pending", name: "Visa Cancel" },
+            { key: "assets", status: "pending", name: "Assets" },
+            { key: "interview", status: "pending", name: "Interview" },
+            { key: "settlement", status: "pending", name: "Settlement" },
+            { key: "letters", status: "pending", name: "Letters" },
+          ];
+
+          // If we have a current_status, update the steps
+          if (progress.current_status) {
+            const currentStatus = progress.current_status;
+            let foundActive = false;
+            for (const step of steps) {
+              if (step.key === currentStatus) {
+                step.status = "in_progress";
+                foundActive = true;
+              } else if (!foundActive) {
+                step.status = "completed";
+              }
+            }
+          }
+        }
+
+        console.log("Progress data:", progress);
+        console.log("Steps array:", steps);
+
+        // Determine which step is currently in progress or pending
         let currentStepKey = "initiation"; // default
 
+        // Find the first step that is not completed (in_progress or pending)
         for (const step of steps) {
           if (step.status === "in_progress") {
             currentStepKey = step.key;
@@ -416,7 +582,7 @@ const OffboardingDashboard = () => {
         }
 
         // If no step is in_progress, find the first pending step
-        if (currentStepKey === "initiation") {
+        if (currentStepKey === "initiation" && steps.length > 0) {
           for (const step of steps) {
             if (step.status === "pending") {
               currentStepKey = step.key;
@@ -425,8 +591,12 @@ const OffboardingDashboard = () => {
           }
         }
 
+        // If still no step found, use the current_status from API
+        if (currentStepKey === "initiation" && progress.current_status) {
+          currentStepKey = progress.current_status;
+        }
+
         console.log("Current step to navigate:", currentStepKey);
-        console.log("Progress steps:", steps);
 
         // Fetch full offboarding data
         const result = await dispatch(

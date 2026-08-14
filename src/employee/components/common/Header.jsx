@@ -33,12 +33,29 @@ const formatUserType = (type) => {
   return typeMap[lowerType] || type;
 };
 
+// Get dashboard title based on user role
+const getDashboardTitle = (userType) => {
+  if (!userType) return 'Employee Portal';
+  
+  const lowerType = userType.toLowerCase().trim();
+  
+  const titleMap = {
+    'admin': 'Admin Dashboard',
+    'hr': 'HR Dashboard',
+    'manager': 'Manager Dashboard',
+    'team_lead': 'Team Lead Dashboard',
+    'teamlead': 'Team Lead Dashboard',
+    'team lead': 'Team Lead Dashboard',
+  };
+  
+  return titleMap[lowerType] || 'Employee Portal';
+};
+
 // Format notification type - remove underscores and capitalize
 const formatNotificationType = (type) => {
   if (!type) return "Notification";
   
   if (typeof type === 'string') {
-    // Handle underscore separated types like "special_day"
     return type
       .replace(/_/g, ' ')
       .replace(/([A-Z])/g, ' $1')
@@ -140,6 +157,7 @@ const Header = ({ onMenuClick }) => {
   // Get raw user role from API
   const rawUserRole = user?.type || user?.role || 'employee';
   const userRole = formatUserType(rawUserRole);
+  const dashboardTitle = getDashboardTitle(rawUserRole);
   
   const displayName = getUserName();
   const userEmail = getUserEmail();
@@ -331,7 +349,7 @@ const Header = ({ onMenuClick }) => {
           
           <div>
             <h1 className="text-lg font-bold text-gray-800 dark:text-white">
-              {rawUserRole === 'admin' || rawUserRole === 'hr' ? 'Admin Dashboard' : 'Employee Portal'}
+              {dashboardTitle}
             </h1>
             <p className="text-xs text-gray-500 dark:text-gray-400">
               Welcome back, {displayName}
@@ -434,7 +452,6 @@ const Header = ({ onMenuClick }) => {
                     </div>
                   ) : (
                     notifications.map((notification) => {
-                      // Get the type from notification data
                       const type = notification.data?.type || notification.type || "";
                       const formattedType = formatNotificationType(type);
                       const typeColor = getNotificationTypeColor(notification);
@@ -450,7 +467,6 @@ const Header = ({ onMenuClick }) => {
                           onClick={() => handleMarkAsRead(notification.id)}
                         >
                           <div className="flex items-start gap-3">
-                            {/* Notification icon */}
                             <div className="flex-shrink-0 mt-0.5">
                               <i className={`fas ${iconClass}`}></i>
                             </div>
