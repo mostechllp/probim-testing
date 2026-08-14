@@ -37,6 +37,8 @@ const OffboardingChecklist = () => {
   const { currentEmployee } = useSelector((state) => state.employees);
   const { employeeAssets, loading: assetsLoading } = useSelector((state) => state.assets);
 
+  const hasVisaDetails = currentEmployee?.visa_number || currentEmployee?.visa_expiry_date;
+
   useEffect(() => {
     if (offboardingId) {
       dispatch(fetchOffboardingById(offboardingId));
@@ -320,10 +322,10 @@ const OffboardingChecklist = () => {
             </div>
 
             {/* Step 4: Visa Cancel */}
-            <div className={`p-5 rounded-xl border ${isStepCompleted(4) ? 'border-green-200 bg-green-50/30 dark:border-green-900/30 dark:bg-green-900/10' : 'border-gray-200 bg-gray-50/50 dark:border-gray-700 dark:bg-gray-800/50'}`}>
+            <div className={`p-5 rounded-xl border ${(!hasVisaDetails || isStepCompleted(4)) ? 'border-green-200 bg-green-50/30 dark:border-green-900/30 dark:bg-green-900/10' : 'border-gray-200 bg-gray-50/50 dark:border-gray-700 dark:bg-gray-800/50'}`}>
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-3">
-                  <div className={`p-2 rounded-lg ${isStepCompleted(4) ? 'bg-green-100 text-green-600 dark:bg-green-900/50 dark:text-green-400' : 'bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-400'}`}>
+                  <div className={`p-2 rounded-lg ${(!hasVisaDetails || isStepCompleted(4)) ? 'bg-green-100 text-green-600 dark:bg-green-900/50 dark:text-green-400' : 'bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-400'}`}>
                     <ClipboardCheck size={20} />
                   </div>
                   <div>
@@ -331,16 +333,20 @@ const OffboardingChecklist = () => {
                     <p className="text-xs text-gray-500 dark:text-gray-400">Immigration Status</p>
                   </div>
                 </div>
-                {isStepCompleted(4) ? <CheckCircle2 className="text-green-500" size={24} /> : <Circle className="text-gray-300 dark:text-gray-600" size={24} />}
+                {(!hasVisaDetails || isStepCompleted(4)) ? <CheckCircle2 className="text-green-500" size={24} /> : <Circle className="text-gray-300 dark:text-gray-600" size={24} />}
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm mt-4 pl-12 border-t border-gray-100 dark:border-gray-700/50 pt-4">
                  <div>
                   <span className="text-gray-500 dark:text-gray-400 block mb-1">Visa Cancellation Date</span>
-                  <span className="font-medium text-gray-800 dark:text-gray-200">{currentOffboarding?.visa_cancellation_date || currentOffboarding?.cancellation_date || 'N/A'}</span>
+                  <span className="font-medium text-gray-800 dark:text-gray-200">
+                    {!hasVisaDetails ? 'Not Applicable' : (currentOffboarding?.visa_cancellation_date || currentOffboarding?.cancellation_date || 'N/A')}
+                  </span>
                 </div>
                 <div>
                   <span className="text-gray-500 dark:text-gray-400 block mb-1">Status</span>
-                  <span className="font-medium text-gray-800 dark:text-gray-200 capitalize">{currentOffboarding?.visa_cancellation_status || currentOffboarding?.cancellation_status || 'Pending / N/A'}</span>
+                  <span className="font-medium text-gray-800 dark:text-gray-200 capitalize">
+                    {!hasVisaDetails ? 'Not Applicable' : (currentOffboarding?.visa_cancellation_status || currentOffboarding?.cancellation_status || 'Pending / N/A')}
+                  </span>
                 </div>
               </div>
             </div>

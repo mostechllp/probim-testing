@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { CheckCircle2 } from "lucide-react";
 import { useLocation } from "react-router-dom";
+import { useSelector } from "react-redux";
 
 const STEPS = [
   { id: 1, name: "Initiation" },
@@ -20,6 +21,7 @@ const OffboardingProgressBox = ({
 }) => {
   const [isVisaRequired, setIsVisaRequired] = useState(true);
   const location = useLocation();
+  const { currentProgress, currentOffboarding } = useSelector((state) => state.offboarding);
 
   useEffect(() => {
     const savedVisaSponsorship = localStorage.getItem("offboarding_visa_sponsorship");
@@ -47,15 +49,28 @@ const OffboardingProgressBox = ({
     return id;
   };
 
-  const adjustedCurrent = getAdjustedStepId(currentStep);
-  // Subtract 1 because if you are ON step 1, 0 are complete. If on step 4, 3 are complete.
-  // Exception: If currentStep is somehow greater than totalSteps, max out at totalSteps.
-  const completedSteps = Math.min(totalSteps, Math.max(0, adjustedCurrent - 1));
-  const progressPercentage = totalSteps > 0 ? Math.round((completedSteps / totalSteps) * 100) : 0;
+  const combinedStatus = currentProgress?.status ?? currentOffboarding?.status;
+  
+  let apiCalculatedStep = null;
+  if (combinedStatus) {
+     if (combinedStatus === "completed" || currentProgress?.progress_percentage === 100) apiCalculatedStep = 8;
+     else if (combinedStatus.includes("visa")) apiCalculatedStep = 4;
+     else if (combinedStatus.includes("checklist")) apiCalculatedStep = 7;
+     else if (combinedStatus.includes("asset")) apiCalculatedStep = 2;
+     else if (combinedStatus.includes("interview")) apiCalculatedStep = 5;
+     else if (combinedStatus.includes("settlement")) apiCalculatedStep = 3;
+     else if (combinedStatus.includes("letter")) apiCalculatedStep = 6;
+  }
+
+  const effectiveStep = apiCalculatedStep || currentStep;
+  const adjustedCurrent = getAdjustedStepId(effectiveStep);
+  
+  const completedSteps = currentProgress?.completed_steps ?? Math.min(totalSteps, Math.max(0, adjustedCurrent - 1));
+  const progressPercentage = currentProgress?.progress_percentage ?? (totalSteps > 0 ? Math.round((completedSteps / totalSteps) * 100) : 0);
 
   const displayProgressPercentage = apiProgressPercentage !== undefined ? apiProgressPercentage : progressPercentage;
   const displayCompletedSteps = completedStepsFromApi !== undefined ? completedStepsFromApi : completedSteps;
-  const displayTotalSteps = totalStepsFromApi !== undefined ? totalStepsFromApi : totalSteps;
+  const displayTotalSteps = totalStepsFromApi !== undefined ? totalStepsFromApi : (currentProgress?.total_steps ?? totalSteps);
 
   return (
     <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700/80 rounded-2xl shadow-soft p-6 sm:p-8 space-y-6">

@@ -211,82 +211,99 @@ const OffboardingDashboard = () => {
     dispatch(fetchAllOffboarding({ page: 1, perPage: 50 }));
   }, [dispatch]);
 
-  // Fetch progress for each offboarding record
-  useEffect(() => {
-    const fetchProgressForAll = async () => {
-      if (offboardings && offboardings.length > 0) {
-        const progressMap = {};
-        for (const offboarding of offboardings) {
-          try {
-            const result = await dispatch(
-              fetchOffboardingProgress(offboarding.id),
-            ).unwrap();
-            if (result) {
-              // ✅ FIX: Create a new object instead of modifying the read-only result
-              let processedResult = { ...result };
+  // Track which offboarding IDs we have fetched progress for
+  // Track which offboarding IDs we have fetched progress for
+const fetchedProgressIds = React.useRef(new Set());
 
-              // If steps is not an array, create a steps array
-              if (!Array.isArray(processedResult.steps)) {
-                // If steps is a number, create a default steps array
-                const totalSteps = processedResult.steps || 7;
-                const stepOrder = [
-                  "initiation",
-                  "checklist",
-                  "visa",
-                  "assets",
-                  "interview",
-                  "settlement",
-                  "letters",
-                ];
-                const currentStatus =
-                  processedResult.current_status || "initiation";
-                const currentIndex = stepOrder.indexOf(currentStatus);
+// Fetch progress for each offboarding record
+useEffect(() => {
+  const fetchProgressForAll = async () => {
+    // ✅ FIX: Define progressMap inside the function
+    const progressMap = {};
+    
+    if (offboardings && offboardings.length > 0) {
+      for (const offboarding of offboardings) {
+        try {
+          // Check if we already have progress for this offboarding to avoid re-fetching
+          if (fetchedProgressIds.current.has(offboarding.id)) continue;
+          
+          // Mark as fetching/fetched
+          fetchedProgressIds.current.add(offboarding.id);
 
-                processedResult.steps = stepOrder.map((stepKey, index) => {
-                  let status = "pending";
-                  if (index < currentIndex) {
-                    status = "completed";
-                  } else if (index === currentIndex) {
-                    status = "in_progress";
-                  }
-                  return {
-                    key: stepKey,
-                    status: status,
-                    name: getStepName(stepKey),
-                  };
-                });
+          const result = await dispatch(
+            fetchOffboardingProgress(offboarding.id),
+          ).unwrap();
+          
+          if (result) {
+            // Create a new object instead of modifying the read-only result
+            let processedResult = { ...result };
 
-                // Update total_steps if needed
-                if (!processedResult.total_steps) {
-                  processedResult.total_steps = stepOrder.length;
+            // If steps is not an array, create a steps array
+            if (!Array.isArray(processedResult.steps)) {
+              // If steps is a number, create a default steps array
+              const totalSteps = processedResult.steps || 7;
+              const stepOrder = [
+                "initiation",
+                "checklist",
+                "visa",
+                "assets",
+                "interview",
+                "settlement",
+                "letters",
+              ];
+              const currentStatus =
+                processedResult.current_status || "initiation";
+              const currentIndex = stepOrder.indexOf(currentStatus);
+
+              processedResult.steps = stepOrder.map((stepKey, index) => {
+                let status = "pending";
+                if (index < currentIndex) {
+                  status = "completed";
+                } else if (index === currentIndex) {
+                  status = "in_progress";
                 }
+                return {
+                  key: stepKey,
+                  status: status,
+                  name: getStepName(stepKey),
+                };
+              });
+
+              // Update total_steps if needed
+              if (!processedResult.total_steps) {
+                processedResult.total_steps = stepOrder.length;
               }
-
-              progressMap[offboarding.id] = processedResult;
             }
-          } catch (error) {
-            console.error(
-              `Failed to fetch progress for offboarding ${offboarding.id}:`,
-              error,
-            );
-            // Set default progress
-            progressMap[offboarding.id] = {
-              steps: [],
-              progress_percentage: 0,
-              completed_steps: 0,
-              total_steps: 7,
-              current_status: "initiation",
-            };
+
+            progressMap[offboarding.id] = processedResult;
           }
+        } catch (error) {
+          // Remove from set if failed so it can be retried if needed
+          fetchedProgressIds.current.delete(offboarding.id);
+          console.error(
+            `Failed to fetch progress for offboarding ${offboarding.id}:`,
+            error,
+          );
+          // Set default progress
+          progressMap[offboarding.id] = {
+            steps: [],
+            progress_percentage: 0,
+            completed_steps: 0,
+            total_steps: 7,
+            current_status: "initiation",
+          };
         }
-        setProgressData(progressMap);
       }
-    };
+    }
+    
+    // ✅ FIX: Set progress data after all fetches are complete
+    setProgressData(progressMap);
+  };
 
-    fetchProgressForAll();
-  }, [offboardings, dispatch]);
+  fetchProgressForAll();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [offboardings, dispatch]);
 
-  // Process offboarding data
   // Process offboarding data
   useEffect(() => {
     if (!offboardingLoading && offboardings) {
@@ -315,6 +332,7 @@ const OffboardingDashboard = () => {
 
         const progress = progressData[off.id];
 
+        const combinedStatus = progress?.status ?? off.status;
         let calculatedCurrentStep = off.current_step || "initiation";
 
         // ✅ FIX: Check if progress and steps exist and is an array
@@ -345,8 +363,14 @@ const OffboardingDashboard = () => {
               calculatedCurrentStep = progress.current_status;
             }
           }
-        } else if (off.status === "completed") {
-          calculatedCurrentStep = "Completed";
+        } else {
+           if (progress?.progress_percentage === 100 || combinedStatus === "completed") calculatedCurrentStep = "Completed";
+           else if (combinedStatus?.includes("visa")) calculatedCurrentStep = "visa";
+           else if (combinedStatus?.includes("checklist")) calculatedCurrentStep = "checklist";
+           else if (combinedStatus?.includes("asset")) calculatedCurrentStep = "assets";
+           else if (combinedStatus?.includes("interview")) calculatedCurrentStep = "interview";
+           else if (combinedStatus?.includes("settlement")) calculatedCurrentStep = "settlement";
+           else if (combinedStatus?.includes("letter")) calculatedCurrentStep = "letters";
         }
 
         // Determine completed steps count
@@ -367,7 +391,7 @@ const OffboardingDashboard = () => {
           employeeId: off.employee_id,
           department: department,
           lastDay: off.last_working_day,
-          status: off.status,
+          status: progress?.status ?? off.status,
           currentStep: calculatedCurrentStep,
           progressPercentage: progressPercentage,
           completedSteps: completedSteps,
@@ -727,17 +751,6 @@ const OffboardingDashboard = () => {
             <FileText size={18} className="text-gray-500" />
             Recent Offboarding Requests
           </h2>
-          <button
-            onClick={() => {
-              localStorage.removeItem("offboarding_id");
-              localStorage.removeItem("offboarding_draft");
-              navigate("/admin/employees/offboarding-initiation");
-            }}
-            className="text-xs md:text-sm font-semibold text-green-600 dark:text-green-400 hover:text-green-700 flex items-center gap-1"
-          >
-            View all
-            <ArrowRight size={12} />
-          </button>
         </div>
 
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-x-auto shadow-soft">

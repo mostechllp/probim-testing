@@ -25,6 +25,7 @@ import {
   fetchOffboardingProgress,
   fetchOffboardingById,
   updateOffboarding,
+  clearCurrentOffboarding,
 } from "../../store/slices/offboardingSlice";
 import apiClient from "../../../utils/apiClient";
 
@@ -217,6 +218,8 @@ const OffboardingInitiation = () => {
 
     if (isEditMode) {
       loadExistingOffboarding();
+    } else {
+      dispatch(clearCurrentOffboarding());
     }
   }, [offboardingId, location.state, isEditMode, dispatch]);
 
