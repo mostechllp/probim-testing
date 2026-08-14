@@ -51,21 +51,14 @@ const AddProjectModal = ({
         const response = await apiClient.get(
           "/admin/projects/eligible-managers",
         );
-        console.log("Eligible managers response: ", response);
         if (response.data && response.data.status === "success") {
           const managers = (response.data.data || []).map((emp) => {
-            console.log("Original manager:", {
-              id: emp.id,
-              user_id: emp.user_id,
-              name: emp.full_name,
-            });
             return {
               ...emp,
               id: emp.user_id,
               original_employee_id: emp.id,
             };
           });
-          console.log("Mapped managers with user_id as id:", managers);
           setEligibleManagers(managers);
         }
       } catch (err) {
@@ -80,21 +73,14 @@ const AddProjectModal = ({
         const response = await apiClient.get(
           "/admin/projects/eligible-team-leads",
         );
-        console.log("Eligible team leads response: ", response);
         if (response.data && response.data.status === "success") {
           const teamLeads = (response.data.data || []).map((emp) => {
-            console.log("Original team lead:", {
-              id: emp.id,
-              user_id: emp.user_id,
-              name: emp.full_name,
-            });
             return {
               ...emp,
               id: emp.user_id,
               original_employee_id: emp.id,
             };
           });
-          console.log("Mapped team leads with user_id as id:", teamLeads);
           setEligibleTeamLeads(teamLeads);
         }
       } catch (err) {
@@ -165,16 +151,6 @@ const AddProjectModal = ({
       setError("Total Cost must be a valid positive number.");
       return;
     }
-
-    console.log("=== SUBMITTING PROJECT DATA ===");
-    console.log("Project Name:", trimmedName);
-    console.log("Description:", description.trim());
-    console.log("Status:", status);
-    console.log("Manager ID:", managerId);
-    console.log("Team Lead ID:", teamLeadId);
-    console.log("Total Hours:", totalHours);
-    console.log("Total Cost:", totalCost);
-    console.log("Currency:", currency);
 
     onSave({
       id: project?.id,

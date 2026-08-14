@@ -759,10 +759,6 @@ const AddEmployee = () => {
   const onSubmit = async (data) => {
     setLoading(true);
 
-    console.log("=== FORM SUBMISSION DEBUG ===");
-    console.log("data.role:", data.role);
-    console.log("data.role type:", typeof data.role);
-    console.log("============================");
 
     // Helper function to convert date from dd/mm/yyyy to YYYY-MM-DD
     const convertDateToBackend = (dateString) => {

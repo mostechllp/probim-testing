@@ -177,7 +177,6 @@ const EditAgreement = () => {
           let fullUrl = `${baseUrl}/storage/${encodedPath}`;
 
           setFileUrl(fullUrl);
-          console.log("File URL built:", fullUrl);
         } else {
           console.warn("Invalid file_path format:", currentDocument.file_path);
           setFileUrl(null);
@@ -338,7 +337,6 @@ const EditAgreement = () => {
       documentData.file_path = tempFilePath;
     }
 
-    console.log("Submitting document data:", documentData);
 
     const result = await dispatch(
       updateDocument({

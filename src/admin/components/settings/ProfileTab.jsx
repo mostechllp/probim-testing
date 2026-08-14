@@ -65,9 +65,6 @@ const ProfileTab = () => {
   const fetchUser = async () => {
     try {
       const result = await dispatch(fetchUserProfile());
-      console.log("Auth/me response:", result);
-      console.log("Response payload:", result.payload);
-      console.log("Full response structure:", JSON.stringify(result, null, 2));
     } catch (error) {
       console.error("Error fetching user:", error);
     }
@@ -216,7 +213,6 @@ const ProfileTab = () => {
   const avatarUrl = getAvatarUrl();
   const userInitials = (profileData.username || profileData.email || "U").charAt(0).toUpperCase();
 
-  console.log("Current avatar URL being used:", avatarUrl);
 
   return (
     <div>

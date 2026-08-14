@@ -150,12 +150,10 @@ export const fetchLeaves = createAsyncThunk(
         leavesData = [];
       }
 
-      console.log("Raw leaves data:", leavesData); // Debug log
 
       // Transform each leave to a consistent format
       const transformedLeaves = leavesData.map(transformAdminLeaveData);
 
-      console.log("Transformed leaves:", transformedLeaves); // Debug log
 
       return transformedLeaves;
     } catch (error) {
@@ -208,7 +206,6 @@ export const updateLeaveStatus = createAsyncThunk(
         payload.approved_by = approved_by;
       }
 
-      console.log("Update leave status payload:", payload);
 
       const response = await apiClient.post(`/admin/leaves/${id}/status`, payload);
 
@@ -231,7 +228,6 @@ export const fetchLeaveBalances = createAsyncThunk(
       const response = await apiClient.get(
         `/admin/leave-allocations/${employee_id}`,
       );
-      console.log("Fetch leave balances response:", response.data);
       
       if (response.data && response.data.status === "success") {
         return response.data.data;
@@ -251,7 +247,6 @@ export const fetchLeaveAllocations = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const response = await apiClient.get("/admin/leave-allocations");
-      console.log("Leave allocations response:", response.data);
 
       if (response.data?.data?.employees) {
         return response.data.data.employees;
@@ -399,12 +394,7 @@ export const updateLeaveRequest = createAsyncThunk(
     try {
       // If formData is FormData, send as FormData (not JSON)
       if (formData instanceof FormData) {
-        console.log(`Admin updating leave request ${id} with FormData`);
         
-        // Log FormData contents for debugging
-        for (let [key, value] of formData.entries()) {
-          console.log(`FormData: ${key} =`, value);
-        }
 
         const response = await apiClient.post(`/admin/leaves/${id}`, formData, {
           headers: { 
@@ -412,7 +402,6 @@ export const updateLeaveRequest = createAsyncThunk(
           },
         });
         
-        console.log("Admin update leave response:", response.data);
 
         if (response.data && response.data.status === "success") {
           await dispatch(fetchLeaves());
@@ -424,13 +413,11 @@ export const updateLeaveRequest = createAsyncThunk(
         }
       } else {
         // If it's a plain object, send as JSON
-        console.log(`Admin updating leave request ${id} with payload:`, formData);
 
         const response = await apiClient.post(`/admin/leaves/${id}`, formData, {
           headers: { "Content-Type": "application/json" },
         });
         
-        console.log("Admin update leave response:", response.data);
 
         if (response.data && response.data.status === "success") {
           await dispatch(fetchLeaves());
@@ -461,10 +448,8 @@ export const deleteLeaveRequest = createAsyncThunk(
   "leaves/deleteRequest",
   async (id, { rejectWithValue, dispatch }) => {
     try {
-      console.log(`Admin deleting leave request ${id}`);
 
       const response = await apiClient.delete(`/admin/leaves/${id}`);
-      console.log("Admin delete leave response:", response.data);
 
       if (response.data && response.data.status === "success") {
         // Refresh leaves after successful deletion

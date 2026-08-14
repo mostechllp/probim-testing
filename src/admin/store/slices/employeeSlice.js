@@ -22,22 +22,10 @@ export const addEmployee = createAsyncThunk(
   "employees/add",
   async (employeeData, { rejectWithValue }) => {
     try {
-      console.log("========== API REQUEST DEBUG ==========");
-      console.log("Sending to backend:", employeeData);
 
-      // Log FormData contents if it's FormData
-      if (employeeData instanceof FormData) {
-        console.log("FormData contents:");
-        for (let pair of employeeData.entries()) {
-          console.log(`  ${pair[0]}: ${pair[1]}`);
-        }
-      }
 
       const response = await apiClient.post("/admin/employees", employeeData);
 
-      console.log("API Response status:", response.status);
-      console.log("API Response data:", response.data);
-      console.log("========== API REQUEST DEBUG END ==========");
 
       return response.data.data;
     } catch (error) {
@@ -60,29 +48,13 @@ export const fetchEmployeeById = createAsyncThunk(
   "employees/fetchById",
   async (id, { rejectWithValue }) => {
     try {
-      console.log(`========== FETCH EMPLOYEE ${id} DEBUG ==========`);
       const response = await apiClient.get(`/admin/employees/${id}`);
 
-      console.log("Fetch response status:", response.status);
-      console.log("Fetch response data:", response.data);
 
       if (response.data && response.data.status === "success") {
         const employee = response.data.data;
 
-        // Log specific step 3 fields from response
-        console.log("Step 3 fields in response:");
-        console.log("  - visa_number:", employee.visa_number);
-        console.log("  - visa_type:", employee.visa_type);
-        console.log("  - visa_issued_date:", employee.visa_issued_date);
-        console.log("  - visa_expiry_date:", employee.visa_expiry_date);
-        console.log("  - labor_number:", employee.labor_number);
-        console.log("  - labor_issued_date:", employee.labor_issued_date);
-        console.log("  - labor_expiry_date:", employee.labor_expiry_date);
-        console.log("  - eid_number:", employee.eid_number);
-        console.log("  - eid_issued_date:", employee.eid_issued_date);
-        console.log("  - eid_expiry_date:", employee.eid_expiry_date);
-
-        console.log("========== FETCH EMPLOYEE DEBUG END ==========");
+       
         return employee;
       } else {
         return rejectWithValue(
@@ -143,12 +115,8 @@ export const updateEmployee = createAsyncThunk(
         const formDataObj = {};
         for (let pair of data.entries()) {
           if (pair[1] instanceof File) {
-            console.log(
-              `  - ${pair[0]}: [FILE] ${pair[1].name} (${(pair[1].size / 1024).toFixed(2)} KB)`,
-            );
             formDataObj[pair[0]] = `[FILE: ${pair[1].name}]`;
           } else {
-            console.log(`  - ${pair[0]}: ${pair[1]}`);
             formDataObj[pair[0]] = pair[1];
           }
         }
@@ -330,7 +298,6 @@ const employeeSlice = createSlice({
           ...employeeData,
           avatar: avatarValue,
         };
-        console.log("Mapped employee with avatar:", state.currentEmployee);
       })
       .addCase(fetchEmployeeById.rejected, (state, action) => {
         state.loading = false;

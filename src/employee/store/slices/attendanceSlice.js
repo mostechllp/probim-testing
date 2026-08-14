@@ -8,7 +8,6 @@ export const fetchDashboardData = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const response = await apiClient.get("/employee/dashboard");
-      console.log("Dashboard data:", response.data);
 
       if (response.data && response.data.status === "success") {
         return response.data.data;
@@ -52,7 +51,6 @@ export const punchIn = createAsyncThunk(
         }
       }
 
-      console.log("Punch In Payload:", payload);
       const response = await apiClient.post("/employee/punch-in", payload);
 
       if (response.data && response.data.status === "success") {
@@ -86,7 +84,6 @@ export const punchOut = createAsyncThunk(
         })
       );
 
-      console.log("time", data);
 
       const payload = {
         project_times: formattedProjectTimes,
@@ -127,7 +124,6 @@ export const punchOut = createAsyncThunk(
         }
       }
 
-      console.log("PUNCH OUT PAYLOAD:", JSON.stringify(payload, null, 2));
       const response = await apiClient.post("/employee/punch-out", payload);
 
       if (response.data && response.data.status === "success") {

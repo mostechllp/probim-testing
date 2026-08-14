@@ -7,12 +7,10 @@ export const fetchTaskReports = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const response = await apiClient.get('/employee/task-reports');
-      console.log("Fetch task reports response:", response.data);
       
       if (response.data?.status === "success") {
         // Make sure we return the data array
         const reports = response.data.data || [];
-        console.log("Reports to store:", reports);
         return reports;
       }
       return rejectWithValue(response.data?.message || "Failed to fetch task reports");
@@ -34,7 +32,6 @@ export const saveTaskReport = createAsyncThunk(
         tasks_completed,
         plan_tomorrow
       });
-      console.log("Save task report response:", response.data);
       
       if (response.data?.status === "success") {
         // Refresh the list after saving
@@ -85,19 +82,15 @@ const taskReportsSlice = createSlice({
     builder
       // Fetch Task Reports
       .addCase(fetchTaskReports.pending, (state) => {
-        console.log("Fetch pending...");
         state.loading = true;
         state.error = null;
       })
       .addCase(fetchTaskReports.fulfilled, (state, action) => {
-        console.log("Fetch fulfilled, payload:", action.payload);
         state.loading = false;
         state.taskReports = action.payload; // Make sure this is set correctly
         state.error = null;
-        console.log("Updated state.taskReports:", state.taskReports);
       })
       .addCase(fetchTaskReports.rejected, (state, action) => {
-        console.log("Fetch rejected:", action.payload);
         state.loading = false;
         state.error = action.payload;
       })
@@ -107,7 +100,6 @@ const taskReportsSlice = createSlice({
         state.error = null;
       })
       .addCase(saveTaskReport.fulfilled, (state) => {
-        console.log("Save fulfilled");
         state.error = null;
       })
       .addCase(saveTaskReport.rejected, (state, action) => {

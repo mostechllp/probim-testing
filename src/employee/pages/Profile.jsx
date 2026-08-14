@@ -430,12 +430,6 @@ const Profile = () => {
   const avatarUrl = getAvatarUrl();
   const userInitials = (formData.fullName || employee?.name || "U").charAt(0).toUpperCase();
 
-  console.log("Current avatar URL:", avatarUrl);
-  console.log("AuthUser:", authUser);
-  console.log("Employee data:", employee);
-  console.log("Phone from employee:", employee?.phone_number || employee?.personal_number);
-  console.log("Address from employee:", employee?.address);
-  console.log("Form data:", formData);
 
   if (loading && !profile) {
     return (

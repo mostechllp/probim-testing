@@ -323,7 +323,6 @@ const AssetManagement = () => {
     setIsSubmitting(true);
     try {
       const result = await dispatch(createAssetType(assetTypeData)).unwrap();
-      console.log("Asset type created:", result);
       showToast("Asset type added successfully", "success");
       setShowAssetTypeModal(false);
       resetAssetTypeForm();
@@ -372,7 +371,6 @@ const AssetManagement = () => {
     setIsSubmitting(true);
     try {
       const result = await dispatch(createAsset(formData)).unwrap();
-      console.log("Asset created:", result);
       showToast("Asset added successfully", "success");
       setShowAddModal(false);
       resetForm();
@@ -396,7 +394,6 @@ const AssetManagement = () => {
       const result = await dispatch(
         updateAsset({ id: selectedAsset.id, assetData: formData }),
       ).unwrap();
-      console.log("Asset updated:", result);
       showToast("Asset updated successfully", "success");
       setShowEditModal(false);
       resetForm();
@@ -433,7 +430,6 @@ const AssetManagement = () => {
           },
         }),
       ).unwrap();
-      console.log("Asset assigned:", result);
 
       showToast(
         `Asset assigned to ${assignmentData.employeeName} successfully`,
@@ -475,7 +471,6 @@ const AssetManagement = () => {
       const result = await dispatch(
         revokeAsset({ id: assetToRevoke.id, reason: "Offboarding completion" }),
       ).unwrap();
-      console.log("Asset unassigned:", result);
 
       // Show success message
       if (result.message) {

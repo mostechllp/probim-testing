@@ -127,10 +127,6 @@ export const uploadDocument = createAsyncThunk(
   async ({ formData, file }, { rejectWithValue }) => {
     try {
       const dataToSend = transformDocumentForAPI(formData, file, false);
-      console.log("Uploading document data:");
-      for (let [key, value] of dataToSend.entries()) {
-        console.log(key, ":", value);
-      }
       const response = await apiClient.post("/admin/documents", dataToSend, {
         headers: {
           "Content-Type": "multipart/form-data",
@@ -153,11 +149,6 @@ export const updateDocument = createAsyncThunk(
     try {
       const dataToSend = transformDocumentForAPI(formData, file, true);
       
-      console.log("Updating document ID:", id);
-      console.log("Form data being sent:");
-      for (let [key, value] of dataToSend.entries()) {
-        console.log(key, ":", value);
-      }
       
       // Use POST with _method=PUT in the form data, NOT in the URL
       const response = await apiClient.post(`/admin/documents/${id}`, dataToSend, {
@@ -178,7 +169,6 @@ export const updateDocument = createAsyncThunk(
       // If POST with _method doesn't work, try PUT as fallback
       if (error.response?.status === 405) {
         try {
-          console.log("POST method failed, trying PUT as fallback...");
           const dataToSend = transformDocumentForAPI(formData, file, false);
           const response = await apiClient.put(`/admin/documents/${id}`, dataToSend, {
             headers: {
@@ -230,9 +220,6 @@ export const uploadToTemp = createAsyncThunk(
         headers: { "Content-Type": "multipart/form-data" },
       });
       
-      // Log the full response to see what you're getting
-      console.log("Full upload response:", response);
-      console.log("Response data:", response.data);
       
       const result = response.data;
       
@@ -362,8 +349,6 @@ export const fetchParties = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const response = await apiClient.get("/admin/parties");
-      console.log("Fetch parties response:", response.data);
-      console.log("Full response:", JSON.stringify(response.data));
 
       // Handle paginated response: { status, message, data: { current_page, data: [...] } }
       if (response.data?.data?.data) {

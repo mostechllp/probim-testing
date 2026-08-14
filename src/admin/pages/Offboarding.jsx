@@ -591,8 +591,6 @@ useEffect(() => {
           }
         }
 
-        console.log("Progress data:", progress);
-        console.log("Steps array:", steps);
 
         // Determine which step is currently in progress or pending
         let currentStepKey = "initiation"; // default
@@ -620,7 +618,6 @@ useEffect(() => {
           currentStepKey = progress.current_status;
         }
 
-        console.log("Current step to navigate:", currentStepKey);
 
         // Fetch full offboarding data
         const result = await dispatch(

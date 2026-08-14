@@ -81,7 +81,6 @@ const EditEmployee = () => {
   const { currentEmployee, loading: employeeLoading } = useSelector(
     (state) => state.employees || {},
   );
-  console.log("Current emp: ", currentEmployee);
   const { organizations = [] } = useSelector(
     (state) => state.organizations || {},
   );
@@ -466,7 +465,6 @@ const EditEmployee = () => {
       const company = companies.find(
         (comp) => comp.id === parseInt(watchCompanyId),
       );
-      console.log("Company details from watch:", company);
       setSelectedCompanyDetails(company || null);
 
       if (company && company.raw?.trade_license === "freezone") {
@@ -476,10 +474,6 @@ const EditEmployee = () => {
       }
     } else if (watchCompanyId && companies.length === 0) {
       if (currentEmployee?.user?.company) {
-        console.log(
-          "Setting company from currentEmployee:",
-          currentEmployee.user.company,
-        );
         setSelectedCompanyDetails(currentEmployee.user.company);
       }
     } else {
@@ -501,10 +495,6 @@ const EditEmployee = () => {
           (comp) => comp.id === parseInt(companyId),
         );
         if (company) {
-          console.log(
-            "Setting company details after companies loaded:",
-            company,
-          );
           setSelectedCompanyDetails(company);
         }
       }
@@ -532,7 +522,6 @@ const EditEmployee = () => {
   useEffect(() => {
     if (currentEmployee && !formInitialized) {
       setIsInitializing(true);
-      console.log("Initializing form with employee data:", currentEmployee);
 
       setValue("first_name", currentEmployee.first_name || "");
       setValue("last_name", currentEmployee.last_name || "");
@@ -544,7 +533,6 @@ const EditEmployee = () => {
         currentEmployee.user?.company?.id ||
         currentEmployee.user?.company_id ||
         "";
-      console.log("Setting company_id to:", companyId);
       setValue("company_id", companyId);
 
       setValue("designation_id", currentEmployee.user?.designation_id || "");
@@ -698,7 +686,6 @@ const EditEmployee = () => {
           (comp) => comp.id === parseInt(companyId),
         );
         if (company) {
-          console.log("Found company details:", company);
           setSelectedCompanyDetails(company);
         }
       }
@@ -1365,16 +1352,6 @@ const EditEmployee = () => {
     // Add _method for PUT
     formData.append("_method", "PUT");
 
-    console.log("=== FINAL FORM DATA TO BE SENT ===");
-    for (let pair of formData.entries()) {
-      if (pair[1] instanceof File) {
-        console.log(
-          `${pair[0]}: [FILE] ${pair[1].name} (${(pair[1].size / 1024).toFixed(2)} KB)`,
-        );
-      } else {
-        console.log(`${pair[0]}: ${pair[1]}`);
-      }
-    }
 
     if (!formData.has("employee_id")) {
       console.error("ERROR: employee_id is missing from form data!");
@@ -2135,7 +2112,6 @@ const EditEmployee = () => {
                             {...field}
                             value={field.value || ""}
                             onChange={(e) => {
-                              console.log("Role changed to:", e.target.value);
                               field.onChange(e.target.value);
                             }}
                             className="w-full px-3 md:px-4 py-2 md:py-3 bg-gray-50 border border-gray-200 rounded-lg"

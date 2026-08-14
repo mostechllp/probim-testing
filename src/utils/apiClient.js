@@ -572,10 +572,6 @@ export const setAuthToken = (
     token
   );
 
-  console.log(
-    `🔐 Authentication stored for ${userType}`
-  );
-
   return true;
 };
 
@@ -636,17 +632,12 @@ export const clearRefreshTimer = () => {
  */
 
 export const clearAllTokens = () => {
-  console.log('🧹 clearAllTokens() CALLED. admin-token before:', localStorage.getItem('admin-token'));
-
+ 
   clearRefreshTimer();
 
   TOKEN_KEYS.forEach((key) => {
     localStorage.removeItem(key);
   });
-
-  console.log('🧹 After TOKEN_KEYS removal loop. admin-token now:', localStorage.getItem('admin-token'));
-  console.log('🧹 TOKEN_KEYS was:', TOKEN_KEYS);
-
   const authStorageKeys = [
     "active-user-type", "user-type", "userType", "user-data", "user", "token",
     "admin-user", "hr-user", "employee-user", "manager-user", "team_lead-user", "team-lead-user",
@@ -659,7 +650,6 @@ export const clearAllTokens = () => {
 
   delete apiClient.defaults.headers.common.Authorization;
 
-  console.log('🧹 clearAllTokens() FINISHED. admin-token final:', localStorage.getItem('admin-token'));
 };
 
 /**
@@ -769,21 +759,6 @@ const doRefresh = async () => {
       currentToken
     );
 
-  console.log(
-    "🔄 Refreshing access token...",
-    {
-      userType:
-        activeType,
-
-      remainingSeconds:
-        remainingTime !== null
-          ? Math.round(
-              remainingTime /
-                1000
-            )
-          : null,
-    }
-  );
 
   try {
     /**
@@ -919,27 +894,6 @@ const doRefresh = async () => {
         newToken
       );
 
-    console.log(
-      "✅ Access token refreshed successfully",
-      {
-        userType:
-          newUserType,
-
-        expiresInSeconds:
-          newRemainingTime !==
-          null
-            ? Math.round(
-                newRemainingTime /
-                  1000
-              )
-            : null,
-
-        backendExpiresIn:
-          responseData
-            ?.expires_in,
-      }
-    );
-
     return newToken;
   } catch (error) {
     console.error(
@@ -1063,24 +1017,6 @@ export const scheduleTokenRefresh = (
           1000
     );
 
-  console.log(
-    "⏰ Token refresh scheduled",
-    {
-      expiresInSeconds:
-        Math.round(
-          remaining / 1000
-        ),
-
-      refreshInSeconds:
-        Math.round(
-          refreshDelay / 1000
-        ),
-
-      refreshBeforeExpiry:
-        REFRESH_BEFORE_EXPIRY_SECONDS,
-    }
-  );
-
   refreshTimer =
     setTimeout(
       async () => {
@@ -1123,9 +1059,6 @@ export const scheduleTokenRefresh = (
            * Schedule based on the new token.
            */
 
-          console.log(
-            "🔁 Token already refreshed by another process. Rescheduling."
-          );
 
           scheduleTokenRefresh(
             latestToken
@@ -1135,9 +1068,6 @@ export const scheduleTokenRefresh = (
         }
 
         try {
-          console.log(
-            "⏳ Token approaching expiration. Starting automatic refresh..."
-          );
 
           await refreshAccessToken();
         } catch (error) {
@@ -1463,10 +1393,6 @@ apiClient.interceptors.response.use(
       true;
 
     try {
-      console.log(
-        "🔄 API returned 401. Attempting token refresh..."
-      );
-
       /**
        * One shared refresh request.
        */

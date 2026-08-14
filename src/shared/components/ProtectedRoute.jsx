@@ -1,4 +1,5 @@
-import { Navigate, Outlet } from "react-router-dom";
+// protectedRoute.jsx
+import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useSelector } from "react-redux";
 import Loader from "../../admin/components/common/Loader";
 import {
@@ -24,6 +25,112 @@ const isValidToken = (token) => {
 
 /**
  * ============================================================
+ * ROUTE TO MODULE SLUG MAPPING
+ * ============================================================
+ */
+const ROUTE_TO_MODULE_MAP = {
+  // Admin routes
+  "/admin/dashboard": "dashboard",
+  "/admin/employees": "employees",
+  "/admin/employees/add-employee": "employees",
+  "/admin/employees/onboarding": "onboarding",
+  "/admin/employees/offboarding": "offboarding",
+  "/admin/employees/edit/:id": "employees",
+  "/admin/employees/:id": "employees",
+  "/admin/projects": "projects",
+  "/admin/projects/:id": "projects",
+  "/admin/project-assignments": "project-assignments",
+  "/admin/attendances": "attendance",
+  "/admin/attendance-requests": "attendance-requests",
+  "/admin/leaves": "leaves",
+  "/admin/leaves/leave-types": "leaves",
+  "/admin/leaves/allocations": "leaves",
+  "/admin/task-reports": "task-reports",
+  "/admin/reports": "reports",
+  "/admin/reports/employee-details": "reports",
+  "/admin/reports/attendance-reports": "reports",
+  "/admin/reports/project-report": "reports",
+  "/admin/reports/leave-requests-reports": "reports",
+  "/admin/reports/pending-leaves-reports": "reports",
+  "/admin/reports/employee-near-expiry": "reports",
+  "/admin/reports/employee-upcoming-renewals": "reports",
+  "/admin/reports/organization-near-expiry": "reports",
+  "/admin/reports/organization-upcoming-renewals": "reports",
+  "/admin/payroll": "payroll",
+  "/admin/payroll/list": "payroll",
+  "/admin/payroll/add": "payroll",
+  "/admin/payroll/:id": "payroll",
+  "/admin/payroll/edit/:id": "payroll",
+  "/admin/wfh": "wfh",
+  "/admin/settings": "settings",
+  "/admin/roles": "roles",
+  "/admin/modules": "modules",
+  "/admin/project-working-hours": "project-working-hours",
+  "/admin/organizations": "organizations",
+  "/admin/agreements": "agreements",
+  "/admin/notifications": "notifications",
+  "/admin/request-leave-for-employee": "leaves",
+  
+  // Employee routes
+  "/employee/dashboard": "dashboard",
+  "/employee/employees": "employees",
+  "/employee/employees/add-employee": "employees",
+  "/employee/employees/onboarding": "onboarding",
+  "/employee/employees/edit/:id": "employees",
+  "/employee/employees/:id": "employees",
+  "/employee/projects": "projects",
+  "/employee/projects/:id": "projects",
+  "/employee/project-assignments": "project-assignments",
+  "/employee/attendance": "attendance",
+  "/employee/attendance-requests": "attendance-requests",
+  "/employee/leaves": "my-leaves",
+  "/employee/request-leave": "my-leaves",
+  "/employee/leave-management": "leaves",
+  "/employee/task-reports": "my-tasks",
+  "/employee/my-tasks": "my-tasks",
+  "/employee/reports": "reports",
+  "/employee/payroll": "my-payroll",
+  "/employee/wfh": "my-wfh-requests",
+  "/employee/profile": "my-profile",
+  "/employee/settings": "settings",
+  "/employee/roles": "roles",
+  "/employee/modules": "modules",
+  "/employee/project-working-hours": "project-working-hours",
+  "/employee/organizations": "organizations",
+  "/employee/agreements": "documents",
+  "/employee/my-documents": "my-documents",
+  "/employee/onboarding": "onboarding",
+  "/employee/request-leave-for-employee": "leaves",
+};
+
+/**
+ * ============================================================
+ * CHECK IF ROUTE REQUIRES PERMISSION
+ * ============================================================
+ */
+const getModuleFromRoute = (pathname) => {
+  // Check exact match first
+  if (ROUTE_TO_MODULE_MAP[pathname]) {
+    return ROUTE_TO_MODULE_MAP[pathname];
+  }
+  
+  // Check pattern matches (for routes with params)
+  for (const [route, module] of Object.entries(ROUTE_TO_MODULE_MAP)) {
+    if (route.includes(":")) {
+      // Convert route pattern to regex
+      const pattern = route.replace(/:[^/]+/g, "([^/]+)");
+      const regex = new RegExp(`^${pattern}$`);
+      if (regex.test(pathname)) {
+        return module;
+      }
+    }
+  }
+  
+  return null;
+};
+
+/**
+ * ============================================================
  * PROTECTED ROUTE
  * ============================================================
  */
@@ -39,18 +146,12 @@ const ProtectedRoute = ({
     userType,
   } = useSelector((state) => state.auth);
 
-  /**
-   * ==========================================================
-   * GET USER TYPE
-   * ==========================================================
-   *
-   * Priority:
-   *
-   * 1. Redux user.type
-   * 2. Redux userType
-   * 3. localStorage active-user-type
-   * 4. localStorage user-type
-   */
+  // Get current location
+  const location = useLocation();
+
+  // ==========================================================
+  // GET USER TYPE
+  // ==========================================================
   const getResolvedUserType = () => {
     const localActiveType =
       localStorage.getItem("active-user-type");
@@ -72,29 +173,13 @@ const ProtectedRoute = ({
     );
   };
 
-  /**
-   * ==========================================================
-   * RESTORE ACTIVE USER TYPE
-   * ==========================================================
-   *
-   * Important:
-   *
-   * After refresh, the backend returns:
-   *
-   * data.access_token
-   * data.user.type
-   *
-   * Therefore, if active-user-type disappeared but Redux
-   * still knows the user type, restore it instead of logging
-   * the user out.
-   */
+  // ==========================================================
+  // RESTORE ACTIVE USER TYPE
+  // ==========================================================
   const restoreActiveUserType = () => {
     const existingActiveType =
       localStorage.getItem("active-user-type");
 
-    /**
-     * Existing active type is valid.
-     */
     if (
       existingActiveType &&
       USER_TYPES.includes(existingActiveType)
@@ -102,9 +187,6 @@ const ProtectedRoute = ({
       return existingActiveType;
     }
 
-    /**
-     * Try to recover from Redux.
-     */
     const resolvedType = getResolvedUserType();
 
     if (
@@ -115,14 +197,8 @@ const ProtectedRoute = ({
         "active-user-type",
         resolvedType
       );
-
       localStorage.setItem(
         "user-type",
-        resolvedType
-      );
-
-      console.log(
-        "🔄 ProtectedRoute: Restored active user type:",
         resolvedType
       );
 
@@ -132,71 +208,40 @@ const ProtectedRoute = ({
     return null;
   };
 
-  /**
-   * ==========================================================
-   * VALIDATE TOKEN CONSISTENCY
-   * ==========================================================
-   */
+  // ==========================================================
+  // VALIDATE TOKEN CONSISTENCY
+  // ==========================================================
   const validateTokenConsistency = () => {
-    /**
-     * First try to recover the active type.
-     */
     const activeType = restoreActiveUserType();
 
-    /**
-     * We cannot continue without knowing which token belongs
-     * to the current session.
-     */
     if (!activeType) {
       console.warn(
         "ProtectedRoute: No valid active user type."
       );
-
       return false;
     }
 
-    /**
-     * Make sure the type is supported.
-     */
     if (!USER_TYPES.includes(activeType)) {
       console.warn(
         "ProtectedRoute: Invalid active user type:",
         activeType
       );
-
       return false;
     }
 
-    /**
-     * ========================================================
-     * EXPECTED TOKEN
-     * ========================================================
-     */
     const expectedTokenKey =
       `${activeType}-token`;
 
     const token =
       localStorage.getItem(expectedTokenKey);
 
-    /**
-     * No token means the session is actually gone.
-     */
     if (!isValidToken(token)) {
       console.warn(
         `ProtectedRoute: No valid token found for ${activeType}`
       );
-
       return false;
     }
 
-    /**
-     * ========================================================
-     * REDUX USER TYPE CHECK
-     * ========================================================
-     *
-     * Do NOT reject the session merely because Redux is
-     * temporarily missing user information.
-     */
     if (
       user?.type &&
       USER_TYPES.includes(user.type) &&
@@ -209,15 +254,9 @@ const ProtectedRoute = ({
           activeUserType: activeType,
         }
       );
-
       return false;
     }
 
-    /**
-     * ========================================================
-     * REDUX userType CHECK
-     * ========================================================
-     */
     if (
       userType &&
       USER_TYPES.includes(userType) &&
@@ -230,24 +269,9 @@ const ProtectedRoute = ({
           activeUserType: activeType,
         }
       );
-
       return false;
     }
 
-    /**
-     * ========================================================
-     * API CLIENT TOKEN CHECK
-     * ========================================================
-     *
-     * getActiveTokenKey() may temporarily return null while
-     * Axios is being initialized.
-     *
-     * Therefore:
-     *
-     * - If it exists, it must match.
-     * - If it is null but localStorage has the correct token,
-     *   DO NOT log the user out.
-     */
     const activeTokenKey = getActiveTokenKey();
 
     if (
@@ -261,55 +285,83 @@ const ProtectedRoute = ({
           expectedTokenKey,
         }
       );
-
       return false;
     }
 
-    /**
-     * Make sure an active token actually exists.
-     */
     const activeToken = getActiveToken();
 
     if (!isValidToken(activeToken)) {
       console.warn(
         "ProtectedRoute: Active token unavailable."
       );
-
       return false;
     }
 
     return true;
   };
 
-  /**
-   * ==========================================================
-   * WAIT FOR AUTH INITIALIZATION
-   * ==========================================================
-   */
+  // ==========================================================
+  // CHECK PERMISSION FOR CURRENT ROUTE
+  // ==========================================================
+  const checkRoutePermission = () => {
+    // If user is admin or has all permissions, allow all
+    const hasAllPermissions = user?.permissions?.all === true;
+    if (user?.type === "admin" || hasAllPermissions) {
+      return true;
+    }
+
+    // Get the module for the current route
+    const currentPath = location.pathname;
+    const moduleSlug = getModuleFromRoute(currentPath);
+
+    // If no module mapping found, allow the route (it might be a public route)
+    if (!moduleSlug) {
+      return true;
+    }
+
+    // Check if user has read permission for this module
+    const permissions = user?.permissions || {};
+    const modulePermission = permissions[moduleSlug];
+
+    // Special handling for "my-" prefixed modules (employee personal modules)
+    if (moduleSlug.startsWith("my-")) {
+      // These are generally allowed for all authenticated users
+      return true;
+    }
+
+    // Check specific permission
+    if (modulePermission) {
+      return modulePermission.read === true;
+    }
+
+    // If no permission found, deny access
+    console.warn(
+      `ProtectedRoute: No permission found for module "${moduleSlug}"`,
+      {
+        path: currentPath,
+        userType: user?.type,
+        hasAllPermissions,
+        permissions: permissions
+      }
+    );
+    return false;
+  };
+
+  // ==========================================================
+  // WAIT FOR AUTH INITIALIZATION
+  // ==========================================================
   if (loading) {
     return <Loader fullScreen />;
   }
 
-  /**
-   * ==========================================================
-   * RESTORE ACTIVE TYPE BEFORE AUTH FAILURE
-   * ==========================================================
-   */
+  // ==========================================================
+  // RESTORE ACTIVE TYPE BEFORE AUTH FAILURE
+  // ==========================================================
   const activeType = restoreActiveUserType();
 
-  /**
-   * ==========================================================
-   * AUTHENTICATION VALIDATION
-   * ==========================================================
-   *
-   * Important change:
-   *
-   * We don't immediately clear everything simply because
-   * Redux says isAuthenticated === false.
-   *
-   * If a valid token exists, the session may have just been
-   * restored by the refresh endpoint.
-   */
+  // ==========================================================
+  // AUTHENTICATION VALIDATION
+  // ==========================================================
   const hasValidToken =
     activeType &&
     isValidToken(
@@ -318,9 +370,7 @@ const ProtectedRoute = ({
       )
     );
 
-  /**
-   * If Redux says authenticated, normal validation.
-   */
+  // If Redux says authenticated, normal validation
   if (isAuthenticated) {
     const tokenIsConsistent =
       validateTokenConsistency();
@@ -339,20 +389,36 @@ const ProtectedRoute = ({
         />
       );
     }
+
+    // CHECK PERMISSION FOR THE ROUTE
+    const hasRoutePermission = checkRoutePermission();
+    
+    if (!hasRoutePermission) {
+      console.warn(
+        "ProtectedRoute: User does not have permission for this route",
+        {
+          path: location.pathname,
+          userType: user?.type,
+          module: getModuleFromRoute(location.pathname)
+        }
+      );
+
+      // Redirect to appropriate dashboard
+      const isAdmin = activeType === "admin" || user?.type === "admin";
+      const redirectPath = isAdmin ? "/admin/dashboard" : "/employee/dashboard";
+      
+      return (
+        <Navigate
+          to={redirectPath}
+          replace
+        />
+      );
+    }
   }
 
-  /**
-   * ==========================================================
-   * REDUX NOT AUTHENTICATED BUT TOKEN STILL EXISTS
-   * ==========================================================
-   *
-   * This can happen during application startup / refresh
-   * restoration.
-   *
-   * Do NOT destroy the token.
-   *
-   * initializeAuth should restore Redux authentication.
-   */
+  // ==========================================================
+  // REDUX NOT AUTHENTICATED BUT TOKEN STILL EXISTS
+  // ==========================================================
   if (!isAuthenticated && !hasValidToken) {
     console.warn(
       "ProtectedRoute: No authenticated session found."
@@ -368,25 +434,16 @@ const ProtectedRoute = ({
     );
   }
 
-  /**
-   * If we don't have a resolved type even though a token
-   * exists, allow the auth initialization process to finish
-   * instead of immediately destroying the token.
-   */
   if (!activeType) {
     console.warn(
       "ProtectedRoute: Waiting for active user type..."
     );
-
     return <Loader fullScreen />;
   }
 
-  /**
-   * ==========================================================
-   * USER TYPE HELPERS
-   * ==========================================================
-   */
-
+  // ==========================================================
+  // USER TYPE HELPERS
+  // ==========================================================
   const isAdmin =
     activeType === "admin" ||
     user?.type === "admin";
@@ -411,96 +468,44 @@ const ProtectedRoute = ({
     activeType === "employee" ||
     user?.type === "employee";
 
-  /**
-   * ==========================================================
-   * EMPLOYEE-SIDE USERS
-   * ==========================================================
-   *
-   * HR
-   * Employee
-   * Manager
-   * Team Lead
-   *
-   * all use employee-side routes/layout.
-   */
   const isEmployeeType =
     isEmployee ||
     isHR ||
     isManager ||
     isTeamLead;
 
-  /**
-   * ==========================================================
-   * USER DASHBOARD
-   * ==========================================================
-   */
+  // ==========================================================
+  // USER DASHBOARD
+  // ==========================================================
   const getUserDashboard = () => {
     if (isAdmin) {
       return "/admin/dashboard";
     }
-
     return "/employee/dashboard";
   };
 
-  /**
-   * ==========================================================
-   * REQUIRED USER TYPE
-   * ==========================================================
-   */
+  // ==========================================================
+  // REQUIRED USER TYPE
+  // ==========================================================
   if (requiredType) {
     let hasRequiredType = false;
 
     switch (requiredType) {
-      /**
-       * ------------------------------------------------------
-       * ADMIN
-       * ------------------------------------------------------
-       */
       case "admin":
         hasRequiredType = isAdmin;
         break;
-
-      /**
-       * ------------------------------------------------------
-       * EMPLOYEE SIDE
-       * ------------------------------------------------------
-       */
       case "employee":
         hasRequiredType = isEmployeeType;
         break;
-
-      /**
-       * ------------------------------------------------------
-       * HR
-       * ------------------------------------------------------
-       */
       case "hr":
         hasRequiredType = isHR;
         break;
-
-      /**
-       * ------------------------------------------------------
-       * MANAGER
-       * ------------------------------------------------------
-       */
       case "manager":
         hasRequiredType = isManager;
         break;
-
-      /**
-       * ------------------------------------------------------
-       * TEAM LEAD
-       * ------------------------------------------------------
-       */
       case "team_lead":
         hasRequiredType = isTeamLead;
         break;
-
-      /**
-       * ------------------------------------------------------
-       * FUTURE TYPES
-       * ------------------------------------------------------
-       */
       default:
         hasRequiredType =
           activeType === requiredType ||
@@ -508,24 +513,15 @@ const ProtectedRoute = ({
         break;
     }
 
-    /**
-     * User does not have required type.
-     */
     if (!hasRequiredType) {
-      const redirectPath =
-        getUserDashboard();
+      const redirectPath = getUserDashboard();
 
       console.warn(
         "ProtectedRoute: User type authorization failed",
         {
-          currentPath:
-            window.location.pathname,
+          currentPath: location.pathname,
           requiredType,
           activeType,
-          reduxUserType:
-            user?.type,
-          reduxUserTypeState:
-            userType,
           redirectPath,
         }
       );
@@ -539,11 +535,9 @@ const ProtectedRoute = ({
     }
   }
 
-  /**
-   * ==========================================================
-   * PERMISSION VALIDATION
-   * ==========================================================
-   */
+  // ==========================================================
+  // PERMISSION VALIDATION (for requiredPermission prop)
+  // ==========================================================
   if (requiredPermission) {
     const permissions =
       user?.permissions || {};
@@ -576,11 +570,9 @@ const ProtectedRoute = ({
     }
   }
 
-  /**
-   * ==========================================================
-   * AUTHORIZED
-   * ==========================================================
-   */
+  // ==========================================================
+  // AUTHORIZED
+  // ==========================================================
   return children || <Outlet />;
 };
 

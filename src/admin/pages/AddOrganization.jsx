@@ -131,17 +131,8 @@ const AddOrganization = () => {
       submitData.append("logo", selectedLogoFile);
     }
 
-    console.log("Sending organization data as FormData");
-    for (let pair of submitData.entries()) {
-      if (pair[0] === "logo") {
-        console.log(`logo: File - ${pair[1].name} (${pair[1].size} bytes)`);
-      } else {
-        console.log(`${pair[0]}: ${pair[1]}`);
-      }
-    }
 
     const result = await dispatch(addOrganization(submitData));
-    console.log("Result: ", result)
     setLoading(false);
 
     if (addOrganization.fulfilled.match(result)) {

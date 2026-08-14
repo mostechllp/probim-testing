@@ -77,13 +77,10 @@ const AddAgreement = () => {
   const uploadFileToTemp = async (file) => {
     setUploadingToTemp(true);
     try {
-      console.log("Uploading file to temp:", file.name);
       const result = await dispatch(uploadToTemp(file));
-      console.log("Upload result:", result);
       
       if (uploadToTemp.fulfilled.match(result)) {
         const { path, filename } = result.payload;
-        console.log("Temp file uploaded successfully. Path:", path);
         setTempFilePath(path);
         
         // Auto-populate name if empty

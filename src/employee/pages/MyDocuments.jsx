@@ -29,7 +29,6 @@ const MyDocuments = () => {
       try {
         setLoadingDocs(true);
         const response = await apiClient.get('/employee/my-documents');
-        console.log("Documents API Response:", response.data);
 
         if (response.data?.status === 'success' && response.data?.data?.documents) {
           setDocs(response.data.data.documents);

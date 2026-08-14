@@ -73,7 +73,6 @@ const ProjectWorkingHours = () => {
   const fetchWorkingTimeData = async (isInitialFetch = false) => {
     // Prevent multiple simultaneous fetches
     if (isFetchingRef.current) {
-      console.log("Fetch already in progress, skipping...");
       return;
     }
     
@@ -106,17 +105,15 @@ const ProjectWorkingHours = () => {
           const userId = emp.user_id || emp.user?.id || null;
           
           if (!userId) {
-            console.log(`No user_id found for employee ${emp.id}, skipping`);
             return null;
           }
           
           try {
-            console.log(`Fetching working time for employee ${emp.id} with user_id: ${userId}`);
+           
             const result = await dispatch(
               fetchEmployeeProjectWorkingTime(userId)
             ).unwrap();
             
-            console.log(`Result for employee ${emp.id}:`, result);
             
             return { 
               employeeId: emp.id, 
@@ -136,7 +133,6 @@ const ProjectWorkingHours = () => {
         }
       });
       
-      console.log("Final dataMap:", dataMap);
       setEmployeeWorkingData(dataMap);
       setHasLoaded(true);
       if (isInitialFetch) {
@@ -154,7 +150,6 @@ const ProjectWorkingHours = () => {
   // Auto-fetch on mount - only once
   useEffect(() => {
     if (employees.length > 0 && projects.length > 0 && !initialFetchDone && !isFetchingRef.current) {
-      console.log("Initial fetch triggered");
       fetchWorkingTimeData(true);
     }
   }, [employees, projects]);
@@ -163,7 +158,6 @@ const ProjectWorkingHours = () => {
   useEffect(() => {
     if (initialFetchDone && !isFetchingRef.current) {
       const timer = setTimeout(() => {
-        console.log("Filter change triggered fetch");
         fetchWorkingTimeData();
       }, 500);
       return () => clearTimeout(timer);

@@ -51,7 +51,6 @@ const LocationModal = ({ isOpen, onClose, onConfirm, type = "punch-in" }) => {
 
       // Get country from timezone
       const countryFromTimezone = getCountryFromTimezone(locationData.timezone);
-      console.log("🌍 Country from timezone:", countryFromTimezone);
 
       // Try to get address
       let countryFromAddress = null;
@@ -74,7 +73,6 @@ const LocationModal = ({ isOpen, onClose, onConfirm, type = "punch-in" }) => {
               addressData.display_name?.split(",").pop()?.trim() ||
               null;
 
-            console.log("📍 Country from address:", countryFromAddress);
           }
         } catch (err) {
           console.warn(
@@ -106,7 +104,6 @@ const LocationModal = ({ isOpen, onClose, onConfirm, type = "punch-in" }) => {
         source = "address";
       }
 
-      console.log(`✅ Final country: "${finalCountry}" (from ${source})`);
       setCountry(finalCountry);
       setCountrySource(source);
       setManualCountry(finalCountry);
@@ -118,10 +115,6 @@ const LocationModal = ({ isOpen, onClose, onConfirm, type = "punch-in" }) => {
       try {
         const fallbackCountry = getCountryFromTimezone(browserTimezone);
         if (fallbackCountry && fallbackCountry !== "Unknown") {
-          console.log(
-            "🔄 Fallback: Using timezone for country:",
-            fallbackCountry,
-          );
           setCountry(fallbackCountry);
           setCountrySource("timezone-fallback");
           setManualCountry(fallbackCountry);
@@ -137,7 +130,6 @@ const LocationModal = ({ isOpen, onClose, onConfirm, type = "punch-in" }) => {
 
   // Handle map location selection
   const handleMapLocationSelect = (selectedLocation) => {
-    console.log("📍 Map selected location:", selectedLocation);
 
     setManualLatitude(selectedLocation.lat.toString());
     setManualLongitude(selectedLocation.lng.toString());
@@ -256,7 +248,6 @@ const LocationModal = ({ isOpen, onClose, onConfirm, type = "punch-in" }) => {
         country_source: "manual-edit",
       };
 
-      console.log("📍 Confirming manually edited location:", locationPayload);
       onConfirm(locationPayload);
     } else {
       // Use detected location
@@ -283,7 +274,6 @@ const LocationModal = ({ isOpen, onClose, onConfirm, type = "punch-in" }) => {
         country_source: countrySource,
       };
 
-      console.log("📍 Confirming detected location:", locationPayload);
       onConfirm(locationPayload);
     }
   };

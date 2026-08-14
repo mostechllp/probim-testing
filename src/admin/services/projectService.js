@@ -150,12 +150,8 @@ class ProjectService {
    */
   async getProjectAssignments() {
     try {
-      console.log(`[API REQUEST] GET ${BASE_PATH}/project-assignments`);
       const response = await apiClient.get(`${BASE_PATH}/project-assignments`);
-      console.log(
-        `[API RESPONSE] GET ${BASE_PATH}/project-assignments | Status: ${response.status} | Data length:`,
-        response.data?.data?.length || response.data?.length || 0,
-      );
+      
       return response.data;
     } catch (error) {
       console.error(
@@ -170,12 +166,8 @@ class ProjectService {
    */
   async getEmployeesForProjectAssignments() {
     try {
-      console.log(`[API REQUEST] GET ${BASE_PATH}/project-assignments/employees`);
       const response = await apiClient.get(`${BASE_PATH}/project-assignments/employees`);
-      console.log(
-        `[API RESPONSE] GET ${BASE_PATH}/project-assignments/employees | Status: ${response.status} | Data length:`,
-        response.data?.data?.length || response.data?.length || 0,
-      );
+  
       return response.data;
     } catch (error) {
       console.error(
@@ -196,17 +188,9 @@ class ProjectService {
         employee_id: employeeId,
         project_ids: projectIds,
       };
-      console.log(
-        `[API REQUEST] POST ${BASE_PATH}/employees/projects | Payload:`,
-        payload,
-      );
       const response = await apiClient.post(
         `${BASE_PATH}/employees/projects`,
         payload,
-      );
-      console.log(
-        `[API RESPONSE] POST ${BASE_PATH}/employees/projects | Status: ${response.status} | Data:`,
-        response.data,
       );
       return response.data;
     } catch (error) {
@@ -224,17 +208,9 @@ class ProjectService {
    */
   async getEmployeeProjects(employeeId) {
     try {
-      console.log(
-        `[API REQUEST] GET ${BASE_PATH}/employees/projects | Param employee_id:`,
-        employeeId,
-      );
       const response = await apiClient.get(`${BASE_PATH}/employees/projects`, {
         params: { employee_id: employeeId },
       });
-      console.log(
-        `[API RESPONSE] GET ${BASE_PATH}/employees/projects | Status: ${response.status} | Data:`,
-        response.data,
-      );
       return response.data;
     } catch (error) {
       console.error(
@@ -256,17 +232,9 @@ class ProjectService {
         project_id: projectId,
         ...assignmentData,
       };
-      console.log(
-        `[API REQUEST] PUT ${BASE_PATH}/employees/projects | Payload:`,
-        payload,
-      );
       const response = await apiClient.put(
         `${BASE_PATH}/employees/projects`,
         payload,
-      );
-      console.log(
-        `[API RESPONSE] PUT ${BASE_PATH}/employees/projects | Status: ${response.status} | Data:`,
-        response.data,
       );
       return response.data;
     } catch (error) {
@@ -288,19 +256,11 @@ class ProjectService {
         employee_id: employeeId,
         project_id: projectId,
       };
-      console.log(
-        `[API REQUEST] DELETE ${BASE_PATH}/employees/projects | Payload:`,
-        payload,
-      );
       const response = await apiClient.delete(
         `${BASE_PATH}/employees/projects`,
         {
           data: payload,
         },
-      );
-      console.log(
-        `[API RESPONSE] DELETE ${BASE_PATH}/employees/projects | Status: ${response.status} | Data:`,
-        response.data,
       );
       return response.data;
     } catch (error) {
@@ -318,15 +278,8 @@ class ProjectService {
    */
   async getProjectEmployees(projectId) {
     try {
-      console.log(
-        `[API REQUEST] GET ${BASE_PATH}/projects/${projectId}/employees`,
-      );
       const response = await apiClient.get(
         `${BASE_PATH}/projects/${projectId}/employees`,
-      );
-      console.log(
-        `[API RESPONSE] GET ${BASE_PATH}/projects/${projectId}/employees | Status: ${response.status} | Data:`,
-        response.data,
       );
       return response.data;
     } catch (error) {
@@ -344,19 +297,11 @@ class ProjectService {
    */
   async assignEmployeesToProject(projectId, employeeIds) {
     try {
-      console.log(
-        `[API REQUEST] POST ${BASE_PATH}/projects/${projectId}/employees | Payload:`,
-        { employee_ids: employeeIds },
-      );
       const response = await apiClient.post(
         `${BASE_PATH}/projects/${projectId}/employees`,
         {
           employee_ids: employeeIds,
         },
-      );
-      console.log(
-        `[API RESPONSE] POST ${BASE_PATH}/projects/${projectId}/employees | Status: ${response.status} | Data:`,
-        response.data,
       );
       return response.data;
     } catch (error) {
@@ -374,15 +319,8 @@ class ProjectService {
    */
   async getEmployeeProjectWorkingTime(userId) {
     try {
-      console.log(
-        `[API REQUEST] GET ${BASE_PATH}/project-assignments/${userId}/working-time`,
-      );
       const response = await apiClient.get(
         `${BASE_PATH}/project-assignments/${userId}/working-time`,
-      );
-      console.log(
-        `[API RESPONSE] GET ${BASE_PATH}/project-assignments/${userId}/working-time | Status: ${response.status} | Data:`,
-        response.data,
       );
       return response.data;
     } catch (error) {
@@ -399,15 +337,8 @@ class ProjectService {
    */
   async removeAllEmployeeProjects(employeeId) {
     try {
-      console.log(
-        `[API REQUEST] DELETE ${BASE_PATH}/project-assignments/${employeeId}/all`,
-      );
       const response = await apiClient.delete(
         `${BASE_PATH}/project-assignments/${employeeId}/all`,
-      );
-      console.log(
-        `[API RESPONSE] DELETE ${BASE_PATH}/project-assignments/${employeeId}/all | Status: ${response.status} | Data:`,
-        response.data,
       );
       return response.data;
     } catch (error) {

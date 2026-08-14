@@ -201,16 +201,6 @@ const Agreements = () => {
     }
   });
 
-  // Debug: Log permissions to console
-  console.log('=== PERMISSIONS DEBUG ===');
-  console.log('User type:', user?.type);
-  console.log('Is Admin:', isAdmin);
-  console.log('Has All Permissions:', hasAllPermissions);
-  console.log('Module Permissions:', modulePermissions);
-  console.log('Can Edit:', canEdit);
-  console.log('Can Delete:', canDelete);
-  console.log('Can View:', canView);
-  console.log('========================');
 
   return (
     <div className="w-full overflow-x-hidden">

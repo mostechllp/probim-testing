@@ -57,8 +57,6 @@ export const updateUserProfile = createAsyncThunk(
   "auth/updateProfile",
   async (profileData, { rejectWithValue, getState }) => {
     try {
-      console.log("========== PROFILE UPDATE START ==========");
-      console.log("Profile data received:", profileData);
       
       // Split full name into first and last name
       const nameParts = profileData.fullName.trim().split(" ");
@@ -71,11 +69,9 @@ export const updateUserProfile = createAsyncThunk(
         email: profileData.email,
       };
       
-      console.log("Sending to API:", requestData);
       
       const response = await apiClient.post("/employee/update-profile", requestData);
 
-      console.log("API Response:", response.data);
 
       if (response.data.status === "success") {
         // Get current user from state
@@ -96,12 +92,10 @@ export const updateUserProfile = createAsyncThunk(
           }
         };
         
-        console.log("New user data to store:", newUserData);
         
         // Update localStorage
         localStorage.setItem("hr-user", JSON.stringify(newUserData));
         
-        console.log("========== PROFILE UPDATE SUCCESS ==========");
         
         return newUserData;
       } else {

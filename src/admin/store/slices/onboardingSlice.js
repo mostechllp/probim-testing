@@ -36,8 +36,6 @@ export const fetchEmployeeSalaryPackages = createAsyncThunk(
       if (!userId) {
         return rejectWithValue("User ID is required to fetch salary packages");
       }
-
-      console.log("[onboarding] Fetching salary packages for userId:", userId);
       const response = await onboardingService.getSalaryPackages(userId);
 
       let packagesData = [];
@@ -50,8 +48,7 @@ export const fetchEmployeeSalaryPackages = createAsyncThunk(
       } else if (response?.success !== false) {
         packagesData = response?.data || response || [];
       }
-
-      console.log("[onboarding] Extracted packages data:", packagesData);
+    
 
       return {
         data: packagesData,
@@ -103,7 +100,6 @@ export const saveOnboardingSalary = createAsyncThunk(
   async (payload, { rejectWithValue, getState }) => {
     try {
       const data = await onboardingService.saveSalary(payload);
-      console.log("[onboarding] saveOnboardingSalary response:", data);
       return data;
     } catch (error) {
       console.error("[onboarding] saveOnboardingSalary error:", error);
@@ -123,7 +119,6 @@ export const saveOnboardingBanks = createAsyncThunk(
   async (payload, { rejectWithValue }) => {
     try {
       const data = await onboardingService.saveBanks(payload);
-      console.log("[onboarding] saveOnboardingBanks response:", data);
       return data;
     } catch (error) {
       console.error("[onboarding] saveOnboardingBanks error:", error);
@@ -504,7 +499,6 @@ const onboardingSlice = createSlice({
       .addCase(saveOnboardingSalary.fulfilled, (state, action) => {
         state.isLoading = false;
 
-        console.log("[onboarding] Processing salary response:", action.payload);
 
         const responseData = action.payload?.data;
         if (responseData?.packages) {
@@ -586,7 +580,6 @@ const onboardingSlice = createSlice({
       .addCase(saveOnboardingBanks.fulfilled, (state, action) => {
         state.isLoading = false;
 
-        console.log("[onboarding] Processing bank response:", action.payload);
 
         const responseData = action.payload?.data;
         if (responseData?.bank_details) {

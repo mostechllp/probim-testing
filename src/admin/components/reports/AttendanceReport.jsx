@@ -87,7 +87,6 @@ const AttendanceReport = () => {
         params.employee_id = isNaN(empId) ? appliedEmployeeFilter : empId;
       }
 
-      console.log("Fetch attendance with applied params:", params);
 
       await dispatch(fetchAttendanceReport(params));
     };
@@ -141,7 +140,6 @@ const AttendanceReport = () => {
         params.employee_id = isNaN(empId) ? appliedEmployeeFilter : empId;
       }
 
-      console.log("Fetch attendance with applied params:", params);
 
       await dispatch(fetchAttendanceReport(params));
     };
@@ -314,8 +312,6 @@ const AttendanceReport = () => {
       if (exportType === "all") {
         filters.export_all = true;
       }
-
-      console.log("Export filters:", filters);
 
       const result = await dispatch(
         exportReport({

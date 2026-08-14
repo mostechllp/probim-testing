@@ -7,7 +7,6 @@ export const fetchDepartments = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const response = await apiClient.get("/admin/departments");
-      console.log("Departments response: ", response.data);
       return response.data.data;
     } catch (error) {
       return rejectWithValue(

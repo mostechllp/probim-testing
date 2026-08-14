@@ -14,9 +14,7 @@ export const submitAttendanceRequest = createAsyncThunk(
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       };
 
-      console.log("Submitting attendance request:", payload);
       const response = await apiClient.post("/employee/attendance-requests", payload);
-      console.log("Attendance request response:", response.data);
 
       if (response.data?.status === "success") {
         return response.data.data;
@@ -45,7 +43,6 @@ export const fetchAttendanceRequests = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const response = await apiClient.get("/employee/attendance-requests");
-      console.log("Fetch attendance requests response:", response.data);
 
       if (response.data?.status === "success") {
         return response.data.data || [];
@@ -136,7 +133,7 @@ export const updateAttendanceRequestStatus = createAsyncThunk(
   async ({ id, status }, { rejectWithValue }) => {
     try {
       const response = await apiClient.put(`/admin/attendance-requests/${id}/status`, { status });
-      console.log("Update attendance request status response:", response.data);
+
 
       if (response.data?.status === "success") {
         return { id, status };

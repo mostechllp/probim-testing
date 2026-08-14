@@ -36,7 +36,6 @@ const AddCompany = () => {
   // Handle company error
   useEffect(() => {
     if (companyError) {
-      console.log("Company error received:", companyError);
 
       // Handle validation errors
       if (companyError && typeof companyError === "object") {
@@ -105,12 +104,6 @@ const AddCompany = () => {
         return;
       }
 
-      console.log("Selected file:", {
-        name: file.name,
-        type: file.type,
-        size: file.size,
-      });
-
       setFormData({ ...formData, logo: file });
 
       // Create preview
@@ -151,18 +144,6 @@ const AddCompany = () => {
       // Only append logo if it exists
       if (formData.logo) {
         submitData.append("logo", formData.logo);
-      }
-
-      // Log FormData contents for debugging
-      console.log("Submitting company with FormData:");
-      for (let pair of submitData.entries()) {
-        if (pair[0] === "logo") {
-          console.log(
-            `logo: File - ${pair[1].name} (${pair[1].size} bytes, ${pair[1].type})`,
-          );
-        } else {
-          console.log(`${pair[0]}: ${pair[1]}`);
-        }
       }
 
       const result = await dispatch(addCompany(submitData));

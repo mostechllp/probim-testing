@@ -30,7 +30,6 @@ export const addCompany = createAsyncThunk(
     try {
       // Don't set headers here - let the interceptor handle it
       const response = await apiClient.post("/admin/companies", companyData);
-      console.log("Company add response:", response.data);
       return response.data.data;
     } catch (error) {
       console.error("Company add error:", error.response?.data);

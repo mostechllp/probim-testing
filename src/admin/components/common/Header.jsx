@@ -182,13 +182,10 @@ const Header = ({ onMenuClick }) => {
 
 const handleConfirmLogout = async () => {
   setLogoutLoading(true);
-  console.log('🚪 BEFORE logout, admin-token:', localStorage.getItem('admin-token'));
   try {
     await dispatch(logoutUser()).unwrap();
-    console.log('🚪 AFTER logoutUser resolved, admin-token:', localStorage.getItem('admin-token'));
     setShowLogoutConfirm(false);
     setTimeout(() => {
-      console.log('🚪 RIGHT BEFORE navigate, admin-token:', localStorage.getItem('admin-token'));
       navigate("/login", { replace: true });
     }, 100);
   } catch (err) {

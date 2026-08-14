@@ -180,7 +180,6 @@ export const exportReport = createAsyncThunk(
         requestBody.export_all = true;
       }
 
-      console.log("Export Request Body:", requestBody);
 
       const response = await apiClient.post(
         "/admin/reports/export",
@@ -261,7 +260,6 @@ export const fetchEmployeesForFilter = createAsyncThunk(
 
       const employees = response.data?.data?.data || response.data?.data || [];
 
-      console.log("Employees data:", employees);
 
       return employees.map((emp) => ({
         // Use user_id (which is the actual user ID) for filtering
@@ -531,7 +529,6 @@ export const fetchLeavesReport = createAsyncThunk(
           search: params.search,
         },
       });
-      console.log("Leave Request Report API Response:", response.data);
       return response.data;
     } catch (error) {
       return rejectWithValue(
@@ -976,9 +973,6 @@ const reportSlice = createSlice({
       })
       .addCase(fetchReportCounts.fulfilled, (state, action) => {
         state.countsLoading = false;
-        console.log("========== API REPORT COUNTS ==========");
-        console.log(action.payload);
-        console.log("=======================================");
         
         const payload = action.payload;
         let countsList = null;
@@ -1183,9 +1177,6 @@ const reportSlice = createSlice({
       .addCase(fetchEmployeeDetailsReport.fulfilled, (state, action) => {
         state.employeeDetailsLoading = false;
         
-        console.log("========== API EMPLOYEE DETAILS ==========");
-        console.log(action.payload);
-        console.log("==========================================");
         
         const responseData = action.payload?.data || action.payload;
         
@@ -1221,9 +1212,6 @@ const reportSlice = createSlice({
       .addCase(fetchEmployeeNearestExpiryReport.fulfilled, (state, action) => {
         state.employeeNearestExpiryLoading = false;
         
-        console.log("========== API EMPLOYEE NEAREST EXPIRY ==========");
-        console.log(action.payload);
-        console.log("=================================================");
         
         const responseData = action.payload?.data || action.payload;
         
@@ -1369,9 +1357,6 @@ const reportSlice = createSlice({
       })
       .addCase(fetchPendingLeavesReport.fulfilled, (state, action) => {
         state.pendingLeavesLoading = false;
-        console.log("========== API PENDING LEAVES ==========");
-        console.log(action.payload);
-        console.log("========================================");
         
         const payload = action.payload;
         let leavesList = [];

@@ -48,7 +48,6 @@ export const fetchMyProjects = createAsyncThunk(
         empId = user?.employee?.id || user?.id;
       }
       
-      console.log("Fetching projects for employee ID in slice:", empId);
       
       if (!empId) {
         throw new Error("Employee ID is required");
@@ -56,7 +55,6 @@ export const fetchMyProjects = createAsyncThunk(
       
       const response = await employeeProjectService.getMyProjects(empId);
       
-      console.log("Projects API response:", response);
       
       // Handle different response structures
       let projects = [];
@@ -72,10 +70,8 @@ export const fetchMyProjects = createAsyncThunk(
         projects = response;
       }
       
-      console.log("Extracted projects array:", projects);
       
       const mappedProjects = projects.map(mapProjectFromApi);
-      console.log("Mapped projects:", mappedProjects);
       
       return mappedProjects;
     } catch (error) {

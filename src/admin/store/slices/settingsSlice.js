@@ -4,7 +4,6 @@ import apiClient from "../../../utils/apiClient";
 export const updateProfile = createAsyncThunk(
   "settings/updateProfile",
   async ({ formData, constructedAvatarUrl }, { rejectWithValue, dispatch }) => {
-    console.log("=== updateProfile thunk called ===");
     
     try {
       const isFormData = formData instanceof FormData;
@@ -12,7 +11,6 @@ export const updateProfile = createAsyncThunk(
       
       const response = await apiClient.post("/employee/update-profile", formData, { headers });
       
-      console.log("Update successful:", response.data);
       
       const responseData = response.data.data || response.data;
       const updatedUser = responseData.user || responseData;
@@ -21,7 +19,6 @@ export const updateProfile = createAsyncThunk(
       
       if (!avatarUrl && constructedAvatarUrl) {
         avatarUrl = constructedAvatarUrl;
-        console.log("📸 Using constructed avatar URL:", avatarUrl);
       }
       
       const userData = {
@@ -36,7 +33,6 @@ export const updateProfile = createAsyncThunk(
         ...updatedUser
       };
       
-      console.log("Final userData with avatar:", userData.avatar);
       
       dispatch({
         type: "auth/updateUser",
@@ -198,7 +194,6 @@ export const fetchWorkingHours = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const response = await apiClient.get("/admin/working-hours");
-      console.log("Working hours fetched:", response.data);
       
       // Extract the working hours array from response
       let workingHoursArray = response.data.data?.working_hours || response.data.working_hours || response.data.data;
@@ -212,7 +207,6 @@ export const fetchWorkingHours = createAsyncThunk(
       
       // Convert array to object format for component use
       const workingHoursObject = convertArrayToObject(workingHoursArray);
-      console.log("Converted working hours object:", workingHoursObject);
       
       return workingHoursObject;
     } catch (error) {
@@ -244,13 +238,11 @@ export const saveWorkingHours = createAsyncThunk(
       // Convert object format to array format for API
       const workingHoursArray = convertObjectToArray(workingHoursObject);
       
-      console.log("Saving working hours array:", workingHoursArray);
       
       const response = await apiClient.post("/admin/working-hours", {
         working_hours: workingHoursArray
       });
       
-      console.log("Working hours saved:", response.data);
       return workingHoursObject;
     } catch (error) {
       console.error("Save working hours error:", error);

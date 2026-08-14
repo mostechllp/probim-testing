@@ -10,7 +10,6 @@ import EarlyCheckinModal from "../modals/EarlyCheckinModal";
 const Sidebar = ({ isOpen, onClose }) => {
   const location = useLocation();
   const { user } = useAppSelector((state) => state.auth);
-  console.log("User: ", user)
 
   // Modal states
   const [showEarlyCheckin, setShowEarlyCheckin] = useState(false);

@@ -43,7 +43,6 @@ const EmployeeProjectsModal = ({
     if (isOpen && userId && !hasFetched) {
       // Check if we already have the data in Redux
       if (employeeWorkingTime && employeeWorkingTime[userId]) {
-        console.log("Using cached working time for userId:", userId);
         setWorkingTimeData(employeeWorkingTime[userId]);
         setHasFetched(true);
         return;
@@ -53,11 +52,9 @@ const EmployeeProjectsModal = ({
       const fetchWorkingTime = async () => {
         setIsLoadingTime(true);
         try {
-          console.log("Fetching working time for userId:", userId);
           const result = await dispatch(
             fetchEmployeeProjectWorkingTime(userId),
           ).unwrap();
-          console.log("Working time result:", result);
           setWorkingTimeData(result.data);
           setHasFetched(true);
         } catch (error) {
@@ -143,8 +140,6 @@ const EmployeeProjectsModal = ({
       ? projectsWithDetails.filter((p) => projectIds.includes(String(p.id)))
       : [];
 
-  console.log("Assigned projects:", assignedProjects);
-  console.log("Working time data:", workingTimeData);
 
   // Helper to get working time for a project
   const getProjectWorkingTime = (projectId) => {
@@ -152,14 +147,11 @@ const EmployeeProjectsModal = ({
       return null;
     }
 
-    console.log("Looking for projectId:", projectId);
-    console.log("Available workingTimeData:", workingTimeData);
 
     const projectTime = workingTimeData.find(
       (item) => String(item.project_id) === String(projectId),
     );
 
-    console.log("Found projectTime:", projectTime);
     return projectTime;
   };
 

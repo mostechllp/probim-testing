@@ -277,8 +277,6 @@ useEffect(() => {
   if (currentPayroll && !isDataLoaded) {
     const stepData = currentPayroll.step_data || {};
     
-    console.log("Current Payroll Data:", currentPayroll);
-    console.log("Step Data:", stepData);
 
     // ✅ Set employee info from payroll data
     if (currentPayroll.employee_id) {
@@ -1017,8 +1015,6 @@ useEffect(() => {
         pay_period_year: data.pay_period_year || year,
       };
 
-      console.log("Saving step with user_id:", selectedUserId);
-      console.log("Step data:", enrichedData);
 
       const result = await dispatch(
         savePayrollStep({
@@ -1031,9 +1027,6 @@ useEffect(() => {
       dispatch(updateStepData({ step, data: enrichedData }));
       dispatch(markStepCompleted(step));
 
-      if (result.data && result.data.current_step) {
-        console.log("Current step from server:", result.data.current_step);
-      }
 
       showToast(result.message || "Step data saved successfully", "success");
       return true;
@@ -1282,15 +1275,6 @@ useEffect(() => {
         },
       };
 
-      console.log("Updating payroll with CONVERTED amounts:", {
-        gross_salary: convertedGrossSalary,
-        overtime: convertedOvertime,
-        deductions: convertedDeductions,
-        net_pay: convertedNetPay,
-        currency: primaryCurrency,
-        calculation: `${convertedGrossSalary} + ${convertedOvertime} - ${convertedDeductions} = ${convertedNetPay}`,
-      });
-
       await dispatch(submitPayroll(payload)).unwrap();
 
       showToast("Payroll updated successfully!", "success");
@@ -1447,22 +1431,7 @@ useEffect(() => {
     }
   }, [summaryData]);
 
-  // Debug effect
-  useEffect(() => {
-    console.log("Current state:", {
-      selectedUserId,
-      employeeId,
-      employeeName,
-      payPeriodMonth,
-      payPeriodYear,
-      totalWorkingDays,
-      daysPresent,
-      countries,
-      isDataLoaded,
-      currentPayroll: currentPayroll?.id,
-    });
-  }, [selectedUserId, employeeId, employeeName, payPeriodMonth, payPeriodYear, totalWorkingDays, daysPresent, countries, isDataLoaded, currentPayroll]);
-
+ 
   if (isLoading || !isDataLoaded) {
   return (
     <div className="w-full overflow-x-hidden px-4 md:px-6">
@@ -2156,7 +2125,6 @@ if (!currentPayroll && !isLoading && isDataLoaded) {
                       net_salary: selectedTotalEarnings,
                     };
 
-                    console.log("Saving only selected packages:", step2Data);
 
                     const saved = await handleSaveStep(2, step2Data);
                     if (saved) {

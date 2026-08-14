@@ -66,7 +66,7 @@ const getPHPCompatibleTimezone = (browserTimezone) => {
 const getCurrentTimezone = () => {
   const browserTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const phpTimezone = getPHPCompatibleTimezone(browserTimezone);
-  console.log(`🌍 MapPicker - Browser timezone: ${browserTimezone} -> PHP timezone: ${phpTimezone}`);
+ 
   return phpTimezone;
 };
 

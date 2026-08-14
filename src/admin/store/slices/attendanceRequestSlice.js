@@ -17,7 +17,6 @@ export const fetchAttendanceRequests = createAsyncThunk(
   async (params = {}, { rejectWithValue }) => {
     try {
       const response = await apiClient.get(`/admin/attendance-requests`, { params });
-      console.log("Admin attendance requests response:", response);
       
       let requests = [];
       let total = 0;

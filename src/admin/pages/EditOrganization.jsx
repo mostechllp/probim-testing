@@ -100,7 +100,6 @@ const EditOrganization = () => {
           existingLogo: existingLogoUrl,
         };
 
-        console.log("Set form data:", newFormData);
         // eslint-disable-next-line react-hooks/set-state-in-effect
         setFormData(newFormData);
         setLogoPreview(existingLogoUrl);
@@ -229,10 +228,6 @@ const EditOrganization = () => {
         submitData.append("logo", formData.logo);
       }
 
-      console.log("Submitting update with FormData:");
-      for (let pair of submitData.entries()) {
-        console.log(`  ${pair[0]}: ${pair[1] instanceof File ? pair[1].name : pair[1]}`);
-      }
 
       const result = await dispatch(
         updateOrganization({

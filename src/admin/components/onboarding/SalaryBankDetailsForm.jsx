@@ -669,7 +669,6 @@ const SalaryBankDetailsForm = () => {
         return;
       }
 
-      console.log("[SalaryBankDetailsForm] User ID:", userId);
 
       // ─── Prepare Salary Data ────────────────────────────────────────────────
       const salaryPayload = {
@@ -704,13 +703,10 @@ const SalaryBankDetailsForm = () => {
         });
       }
 
-      console.log("[SalaryBankDetailsForm] Saving salary payload:", JSON.stringify(salaryPayload, null, 2));
-
       // ─── Save Salary to API ──────────────────────────────────────────────────
       let salaryResult;
       try {
         salaryResult = await dispatch(saveOnboardingSalary(salaryPayload)).unwrap();
-        console.log("[SalaryBankDetailsForm] Salary saved:", salaryResult);
         showToast("Salary packages saved successfully!", "success");
       } catch (salaryError) {
         console.error("[SalaryBankDetailsForm] Salary save error:", salaryError);
@@ -797,13 +793,10 @@ const SalaryBankDetailsForm = () => {
         })),
       };
 
-      console.log("[SalaryBankDetailsForm] Saving bank payload:", JSON.stringify(bankPayload, null, 2));
-
       // ─── Save Banks to API ───────────────────────────────────────────────────
       let bankResult;
       try {
         bankResult = await dispatch(saveOnboardingBanks(bankPayload)).unwrap();
-        console.log("[SalaryBankDetailsForm] Banks saved:", bankResult);
         showToast("Bank details saved successfully!", "success");
       } catch (bankError) {
         console.error("[SalaryBankDetailsForm] Bank save error:", bankError);

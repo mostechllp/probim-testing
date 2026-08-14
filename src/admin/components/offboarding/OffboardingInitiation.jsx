@@ -226,7 +226,6 @@ const OffboardingInitiation = () => {
   // Helper function to populate form with existing data
   // Helper function to populate form with existing data
   const populateFormWithData = (data, currentEmployees = employees) => {
-    console.log("========== populateFormWithData RECEIVED DATA ==========", data);
 
     // Extract employee info from nested object
     let employeeData = data.employee || {};
@@ -235,19 +234,11 @@ const OffboardingInitiation = () => {
     // The backend API might not return department, designation, or reporting_manager in the offboarding details response.
     // Try to find the full employee record from Redux state to get these details!
     if (currentEmployees && currentEmployees.length > 0) {
-      console.log("Found currentEmployees, length:", currentEmployees.length);
       foundFullEmployee = currentEmployees.find(emp => emp.id === employeeData.id || emp.id === data.employee_id || String(emp.employee_id) === String(data.employee_id) || String(emp.user_id) === String(employeeData.user_id));
       if (foundFullEmployee) {
-        console.log("Matched fullEmployee:", foundFullEmployee);
         employeeData = { ...foundFullEmployee, ...employeeData }; // Merge, preferring any specific data returned by the API if present
-      } else {
-        console.log("Could not match employeeData.id:", employeeData.id, "in currentEmployees.");
-      }
-    } else {
-      console.log("currentEmployees is empty or undefined!");
+      } 
     }
-    
-    console.log("Final employeeData:", employeeData);
 
     // Set form values based on actual API response structure
     setValue("employeeId", employeeData.employee_id || data.employee_id || "", {
@@ -270,14 +261,13 @@ const OffboardingInitiation = () => {
     const departmentName =
       employeeData.department?.name || employeeData.department || foundFullEmployee?.department?.name || foundFullEmployee?.department || data.department?.name || data.department || "";
     const finalDepartment = typeof departmentName === 'object' ? departmentName?.name || "" : departmentName;
-    console.log("Resolved Department:", finalDepartment);
     setValue("department", finalDepartment, { shouldValidate: true });
 
     // Designation from employee or direct
     const designationName =
       employeeData.designation?.name || employeeData.designation || foundFullEmployee?.designation?.name || foundFullEmployee?.designation || data.designation?.name || data.designation || "";
     const finalDesignation = typeof designationName === 'object' ? designationName?.name || "" : designationName;
-    console.log("Resolved Designation:", finalDesignation);
+
     setValue("designation", finalDesignation, { shouldValidate: true });
 
     // Email from employee or direct
@@ -301,7 +291,6 @@ const OffboardingInitiation = () => {
         }
       }
     }
-    console.log("Resolved Reporting Manager:", reportingManagerName);
     setValue(
       "reportingManager",
       reportingManagerName,

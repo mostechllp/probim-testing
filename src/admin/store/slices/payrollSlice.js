@@ -9,7 +9,6 @@ export const fetchPayrolls = createAsyncThunk(
   async (params = {}, { rejectWithValue }) => {
     try {
       const response = await apiClient.get("/admin/payroll", { params });
-      console.log("Fetch payrolls response:", response.data);
 
       const responseData = response.data;
 
@@ -58,7 +57,6 @@ export const deletePayroll = createAsyncThunk(
   async (id, { rejectWithValue }) => {
     try {
       const response = await apiClient.delete(`/admin/payroll/${id}`);
-      console.log("Delete payroll response:", response.data);
 
       if (response.data?.success === true) {
         return id;
@@ -90,7 +88,6 @@ export const generatePayslip = createAsyncThunk(
         }
       );
 
-      console.log("Generate payslip response:", response);
 
       const blob = response.data;
 
@@ -108,7 +105,6 @@ export const generatePayslip = createAsyncThunk(
         }
       }
 
-      console.log("Backend filename:", filename);
 
       // Download using backend filename
       saveAs(blob, filename);
@@ -165,7 +161,6 @@ export const fetchPayrollById = createAsyncThunk(
   async (id, { rejectWithValue }) => {
     try {
       const response = await apiClient.get(`/admin/payroll/${id}`);
-      console.log("Fetch payroll by ID response:", response.data);
       return response.data?.data || response.data;
     } catch (error) {
       console.error("Fetch payroll by ID error:", error);
@@ -182,7 +177,6 @@ export const fetchDraftPayroll = createAsyncThunk(
   async (userId, { rejectWithValue }) => {
     try {
       const response = await apiClient.get(`/admin/payroll/draft/${userId}`);
-      console.log("Fetch draft payroll response:", response.data);
 
       if (response.data?.success === true) {
         return response.data.data;
@@ -204,17 +198,11 @@ export const savePayrollStep = createAsyncThunk(
   "payroll/saveStep",
   async ({ userId, step, stepData }, { rejectWithValue }) => {
     try {
-      console.log("API CALL savePayrollStep payload:", {
-        userId,
-        step,
-        stepData,
-      });
       const response = await apiClient.post("/admin/payroll/save-step", {
         user_id: userId,
         step: step,
         step_data: stepData,
       });
-      console.log("Save payroll step response:", response.data);
 
       if (response.data?.success === true) {
         return {
@@ -279,16 +267,10 @@ export const submitPayroll = createAsyncThunk(
         user_id: parseInt(payload.user_id),
       };
 
-      console.log(
-        "Submitting payroll with formatted payload:",
-        formattedPayload,
-      );
-
       const response = await apiClient.post(
         "/admin/payroll/submit",
         formattedPayload,
       );
-      console.log("Submit payroll response:", response.data);
 
       if (response.data?.success === true) {
         return response.data;
@@ -345,13 +327,11 @@ export const convertSalary = createAsyncThunk(
         })),
       };
 
-      console.log("Convert salary payload:", payload);
 
       const response = await apiClient.post(
         "/admin/payroll/convert-salary",
         payload,
       );
-      console.log("Convert salary response:", response.data);
 
       if (response.data?.success) {
         return response.data.data;
@@ -382,7 +362,6 @@ export const fetchPayrollHistory = createAsyncThunk(
       const response = await apiClient.get("/admin/payroll/history", {
         params,
       });
-      console.log("Fetch payroll history response:", response.data);
 
       if (response.data?.success === true) {
         return response.data.data || [];
@@ -409,7 +388,6 @@ export const fetchWorkingDays = createAsyncThunk(
           month: month,
         },
       });
-      console.log("Fetch working days response:", response.data);
 
       if (response.data?.success) {
         return response.data.data;
@@ -435,7 +413,6 @@ export const saveDraftPayroll = createAsyncThunk(
         "/admin/payroll/draft",
         payrollData,
       );
-      console.log("Save draft payroll response:", response.data);
 
       if (response.data?.success === true) {
         return response.data.data;
@@ -456,7 +433,6 @@ export const fetchPayrollStats = createAsyncThunk(
   async (params = {}, { rejectWithValue }) => {
     try {
       const response = await apiClient.get("/admin/payroll/stats", { params });
-      console.log("Fetch payroll stats response:", response.data);
       return response.data?.data || response.data;
     } catch (error) {
       console.error("Fetch payroll stats error:", error);
@@ -475,7 +451,6 @@ export const updatePayrollStatus = createAsyncThunk(
       const response = await apiClient.patch(`/admin/payrolls/${id}/status`, {
         status,
       });
-      console.log("Update payroll status response:", response.data);
       return response.data;
     } catch (error) {
       console.error("Update payroll status error:", error);
@@ -519,7 +494,6 @@ export const calculateSalarySplit = createAsyncThunk(
         "/admin/payroll/calculate",
         payload,
       );
-      console.log("Calculate salary split response:", response.data);
 
       if (response.data?.success) {
         return response.data.data;
@@ -548,7 +522,6 @@ export const fetchOvertimeData = createAsyncThunk(
       };
 
       const response = await apiClient.post("/admin/payroll/overtime", payload);
-      console.log("Fetch overtime data response:", response.data);
 
       if (response.data?.success) {
         // The API returns data directly as an array
@@ -578,7 +551,6 @@ export const fetchPayrollSummary = createAsyncThunk(
       };
 
       const response = await apiClient.post("/admin/payroll/summary", payload);
-      console.log("Fetch summary response:", response.data);
 
       if (response.data?.success) {
         return response.data.data;
@@ -603,7 +575,6 @@ export const sendPayslip = createAsyncThunk(
       const response = await apiClient.post(
         `/admin/payroll/${id}/send-payslip`,
       );
-      console.log("Send payslip response:", response.data);
 
       if (response.data?.success === true) {
         return response.data;
@@ -626,11 +597,9 @@ export const fetchEmployeeSalaryPackages = createAsyncThunk(
   "payroll/fetchEmployeeSalaryPackages",
   async (employeeId, { rejectWithValue }) => {
     try {
-      console.log("Fetching salary packages for employee:", employeeId);
       const response = await apiClient.get(
         `/admin/employees/salary-packages/${employeeId}`,
       );
-      console.log("Fetch employee salary packages response:", response.data);
 
       // The response might be nested differently
       let packagesData = [];
@@ -643,8 +612,6 @@ export const fetchEmployeeSalaryPackages = createAsyncThunk(
       } else if (response.data?.success !== false) {
         packagesData = response.data?.data || response.data || [];
       }
-
-      console.log("Extracted packages data:", packagesData);
 
       return {
         data: packagesData,

@@ -11,7 +11,6 @@ const employeeProjectService = {
         employeeId = user.employee?.id || user.id;
       }
       
-      console.log("Fetching projects for employee ID:", employeeId);
       
       if (!employeeId) {
         throw new Error("Employee ID is required");
@@ -19,7 +18,6 @@ const employeeProjectService = {
       
       // Use the project-assignments endpoint with the employee ID
       const response = await apiClient.get(`/admin/project-assignments/${employeeId}`);
-      console.log("Projects API response:", response.data);
       return response.data;
     } catch (error) {
       console.error("Error fetching employee projects:", error);

@@ -37,12 +37,6 @@ const Login = () => {
     const hasEmployeeToken = localStorage.getItem('employee-token');
     const activeType = localStorage.getItem('active-user-type');
     
-    console.log('🔑 Tokens found:', { 
-      admin: !!hasAdminToken, 
-      hr: !!hasHrToken, 
-      employee: !!hasEmployeeToken,
-      activeType 
-    });
     
     // If there are tokens but no active type, clear everything
     if ((hasAdminToken || hasHrToken || hasEmployeeToken) && !activeType) {
@@ -65,7 +59,6 @@ const Login = () => {
 
   // Redirect based on user type after successful login
   useEffect(() => {
-    console.log('🔄 Redirect effect triggered:', { isAuthenticated, userType, user });
     
     if (isAuthenticated && userType) {
       // Check if token exists for this user type
@@ -73,7 +66,6 @@ const Login = () => {
       const tokenExists = localStorage.getItem(tokenKey);
       const activeType = localStorage.getItem('active-user-type');
       
-      console.log('🔍 Token check:', { tokenKey, tokenExists, activeType });
       
       if (!tokenExists || (activeType && activeType !== userType)) {
         console.warn('⚠️ Token mismatch or missing, clearing and redirecting to login');
@@ -84,7 +76,6 @@ const Login = () => {
       }
       
       const redirectPath = userType === "admin" ? "/admin/dashboard" : "/employee/dashboard";
-      console.log(`✅ Redirecting to: ${redirectPath}`);
       navigate(redirectPath, { replace: true });
     }
   }, [isAuthenticated, userType, user, navigate]);
@@ -115,10 +106,8 @@ const handleSubmit = async (e) => {
   dispatch(setRememberMe(rememberMe));
   
   try {
-    console.log('📤 Attempting login for:', email);
     const result = await dispatch(loginUser({ email, password })).unwrap();
     
-    console.log('📥 Login response:', result);
     
     // The loginUser thunk already handles token storage
     // No need to store tokens again here
@@ -133,7 +122,7 @@ const handleSubmit = async (e) => {
     }
     
   } catch (error) {
-    console.log('❌ Login failed:', error);
+    console.log('Login failed:', error);
   }
 };
   

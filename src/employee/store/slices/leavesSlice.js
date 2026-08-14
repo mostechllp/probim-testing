@@ -7,12 +7,10 @@ export const fetchEmployeeLeaves = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const response = await apiClient.get("/employee/leaves");
-      console.log("Fetched leaves response:", response.data);
 
       if (response.data && response.data.status === "success") {
         // The leaves array is inside data.leaves
         const leavesData = response.data.data?.leaves || [];
-        console.log("Leaves data extracted:", leavesData);
         return leavesData;
       } else {
         return rejectWithValue(
@@ -32,9 +30,7 @@ export const fetchLeaveById = createAsyncThunk(
   "leaves/fetchLeaveById",
   async (id, { rejectWithValue }) => {
     try {
-      console.log(`Fetching leave with ID: ${id}`);
       const response = await apiClient.get(`/employee/leaves/${id}`);
-      console.log("Fetch leave by ID response:", response.data);
 
       if (response.data && response.data.status === "success") {
         const leaveData = response.data.data || response.data;
@@ -60,12 +56,10 @@ export const fetchEmployeesForLeave = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const response = await apiClient.get("/admin/employees");
-      console.log("Fetched employees for leave:", response.data);
 
       if (response.data && response.data.status === "success") {
         // The employees array is inside data.data
         const employeesData = response.data.data?.data || [];
-        console.log("Employees data extracted:", employeesData);
         return employeesData;
       } else {
         return rejectWithValue(
@@ -89,7 +83,6 @@ export const addLeaveRequestForEmployee = createAsyncThunk(
       const response = await apiClient.post("/employee/leaves", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
-      console.log("Add leave for employee response:", response.data);
 
       if (response.data && response.data.status === "success") {
         return response.data.data;
@@ -119,7 +112,6 @@ export const fetchLeaveTypes = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const response = await apiClient.get("/employee/leave-types");
-      console.log("Leave types response:", response.data);
 
       if (response.data && response.data.status === "success") {
         // The API might return leave types in different formats
@@ -139,7 +131,6 @@ export const fetchLeaveTypes = createAsyncThunk(
           leaveTypes = response.data.data || [];
         }
 
-        console.log("Extracted leave types:", leaveTypes);
         return leaveTypes;
       }
       return [];
@@ -158,35 +149,22 @@ export const fetchLeaveBalance = createAsyncThunk(
   async (_, { rejectWithValue, getState }) => {
     try {
       const state = getState();
-      console.log("Current state for leave balance:", state);
 
       let employeeId = null;
 
       // 1. Try from auth.user.employee.id (most reliable)
       if (state.auth?.user?.employee?.id) {
         employeeId = state.auth.user.employee.id;
-        console.log(
-          "Found employee ID from auth.user.employee.id:",
-          employeeId,
-        );
       }
 
       // 2. Try from auth.user.employee_id (if exists)
       if (!employeeId && state.auth?.user?.employee_id) {
         employeeId = state.auth.user.employee_id;
-        console.log(
-          "Found employee_id from auth.user.employee_id:",
-          employeeId,
-        );
       }
 
       // 3. Try from employee slice
       if (!employeeId && state.employee?.currentEmployee?.employee_id) {
         employeeId = state.employee.currentEmployee.employee_id;
-        console.log(
-          "Found employee_id from employee.currentEmployee.employee_id:",
-          employeeId,
-        );
       }
 
       if (!employeeId) {
@@ -194,12 +172,10 @@ export const fetchLeaveBalance = createAsyncThunk(
         return {};
       }
 
-      console.log("Fetching leave balance for employee ID:", employeeId);
 
       const response = await apiClient.get(
         `/employee/leave-allocations/${employeeId}`,
       );
-      console.log("Leave balance response:", response.data);
 
       if (response.data && response.data.status === "success") {
         const data = response.data.data;
@@ -222,7 +198,6 @@ export const fetchLeaveBalance = createAsyncThunk(
 const transformLeaveBalanceData = (data) => {
   const leaveBalances = {};
 
-  console.log("Transforming leave balance data:", data);
 
   // Get leave types balance from the response
   const leaveTypesBalance = data.leaveTypesBalance || [];
@@ -231,13 +206,6 @@ const transformLeaveBalanceData = (data) => {
   const totalAllocated = parseFloat(data.leaves_allocated) || 0;
   const totalLeavesTaken = parseFloat(data.leaves_taken) || 0;
   const totalLeaveBalance = parseFloat(data.leave_balance) || 0;
-
-  console.log("Total stats:", {
-    totalAllocated,
-    totalLeavesTaken,
-    totalLeaveBalance,
-    leaveTypesBalance,
-  });
 
   // Process each leave type from leaveTypesBalance
   leaveTypesBalance.forEach((item) => {
@@ -267,7 +235,6 @@ const transformLeaveBalanceData = (data) => {
     remaining: totalLeaveBalance,
   };
 
-  console.log("Processed leave balances:", leaveBalances);
   return leaveBalances;
 };
 
@@ -338,12 +305,10 @@ export const addLeaveRequest = createAsyncThunk(
         headers = { "Content-Type": "application/json" };
       }
 
-      console.log("Submitting leave request with payload:", payload);
 
       const response = await apiClient.post("/employee/leaves", payload, {
         headers,
       });
-      console.log("Store leave response:", response.data);
 
       if (response.data && response.data.status === "success") {
         // Refresh balance after successful submission
@@ -397,12 +362,10 @@ export const updateLeaveRequest = createAsyncThunk(
         headers = { "Content-Type": "application/json" };
       }
 
-      console.log(`Updating leave request ${id} with payload:`, payload);
 
       const response = await apiClient.post(`/employee/leaves/${id}`, payload, {
         headers,
       });
-      console.log("Update leave response:", response.data);
 
       if (response.data && response.data.status === "success") {
         // Refresh balance and leaves after successful update
@@ -434,10 +397,8 @@ export const deleteLeaveRequest = createAsyncThunk(
   "leaves/deleteLeaveRequest",
   async (id, { rejectWithValue, dispatch }) => {
     try {
-      console.log(`Deleting leave request ${id}`);
 
       const response = await apiClient.delete(`/employee/leaves/${id}`);
-      console.log("Delete leave response:", response.data);
 
       if (response.data && response.data.status === "success") {
         // Refresh balance and leaves after successful deletion

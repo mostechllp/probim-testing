@@ -108,7 +108,6 @@ export const saveAssignment = createAsyncThunk(
         ids,
       );
 
-      console.log("Save assignment response:", response);
 
       // Get the updated projects from the response
       let updatedProjectIds = [];
@@ -129,9 +128,6 @@ export const saveAssignment = createAsyncThunk(
           employeeRecordId = Number(data.id);
         }
       }
-
-      console.log("Updated project IDs:", updatedProjectIds);
-      console.log("Employee record ID:", employeeRecordId);
 
       // Create the updated assignment object
       const updatedAssignment = {
@@ -223,7 +219,6 @@ export const fetchEmployeeProjectWorkingTime = createAsyncThunk(
     try {
       const response =
         await projectService.getEmployeeProjectWorkingTime(userId);
-      console.log("Working time API response:", response);
 
       // Extract project_times from the response - FIXED
       let projectTimes = [];
@@ -239,7 +234,6 @@ export const fetchEmployeeProjectWorkingTime = createAsyncThunk(
         projectTimes = response.project_times;
       }
 
-      console.log("Extracted project times:", projectTimes);
       return { userId, data: projectTimes };
     } catch (error) {
       console.error("Error fetching working time:", error);
@@ -444,7 +438,6 @@ const projectAssignmentSlice = createSlice({
       .addCase(fetchEmployeeProjectWorkingTime.fulfilled, (state, action) => {
         state.loading = false;
         const { userId, data } = action.payload;
-        console.log("Storing working time for userId:", userId, "data:", data);
         state.employeeWorkingTime[userId] = data;
       })
       .addCase(fetchEmployeeProjectWorkingTime.rejected, (state, action) => {
@@ -472,7 +465,6 @@ const projectAssignmentSlice = createSlice({
       .addCase(fetchEmployeesForAssignments.fulfilled, (state, action) => {
         state.loading = false;
         state.employeesForAssignment = action.payload;
-        console.log("Employees loaded:", action.payload); // Debug log
       })
       .addCase(fetchEmployeesForAssignments.rejected, (state, action) => {
         state.loading = false;

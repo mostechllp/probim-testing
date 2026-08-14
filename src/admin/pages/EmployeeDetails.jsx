@@ -325,7 +325,6 @@ const EmployeeDetails = () => {
         value: parseFloat(newComponent.value).toFixed(2),
       };
 
-      console.log("Adding salary component payload:", payload);
 
       const response = await apiClient.post(
         "/admin/salary-components",

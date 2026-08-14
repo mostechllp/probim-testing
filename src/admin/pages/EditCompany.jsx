@@ -95,7 +95,6 @@ const EditCompany = () => {
   // Set form data when company is loaded
   useEffect(() => {
     if (currentCompany) {
-      console.log("Current Company Data:", currentCompany); // Debug log
       
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setFormData({
@@ -107,7 +106,6 @@ const EditCompany = () => {
         organization_id: currentCompany.organization_id || organizationId,
       });
       
-      console.log("Trade license value:", currentCompany.trade_license); // Debug log
       
       if (currentCompany.logo) {
         setLogoPreview(getFullLogoUrl(currentCompany.logo));
@@ -172,7 +170,6 @@ const EditCompany = () => {
       organization_id: parseInt(organizationId),
     };
 
-    console.log("Submitting company data:", companyData); // Debug log
 
     const result = await dispatch(
       updateCompany({ id: parseInt(id), data: companyData }),

@@ -444,7 +444,6 @@ const OnboardingReview = () => {
         employeeFormData.append("special_days_date[]", specDate);
       }
 
-      console.log("[Onboarding] Submitting employee details...");
       let createdEmployee;
       try {
         const createRes = await saveEmployeeDetails(employeeFormData);
@@ -453,25 +452,17 @@ const OnboardingReview = () => {
         const userId = createdEmployee.user_id;
 
         setEmployeeId(employeeId);
-        console.log(
-          "[Onboarding] Employee created - Employee ID:",
-          employeeId,
-          "User ID:",
-          userId,
-        );
 
         if (!userId) {
           throw new Error("No user_id returned from employee creation");
         }
 
         // ─── Save salary details with packages ──────────────────────────────
-        console.log("[Onboarding] Saving salary details...");
         try {
           await saveSalaryDetails(userId, {
             packages: employeeDetails.packages || {},
             paymentCycle: employeeDetails.paymentCycle || "Monthly",
           });
-          console.log("[Onboarding] Salary details saved successfully");
         } catch (error) {
           console.error("[Onboarding] Failed to save salary details:", error);
           const errorData = error?.response?.data;
@@ -497,12 +488,10 @@ const OnboardingReview = () => {
         }
 
         // ─── Save bank details ──────────────────────────────────────────────
-        console.log("[Onboarding] Saving bank details...");
         try {
           await saveBankDetails(userId, {
             bankAccounts: employeeDetails.bankAccounts || [],
           });
-          console.log("[Onboarding] Bank details saved successfully");
         } catch (error) {
           console.error("[Onboarding] Failed to save bank details:", error);
           const errorData = error?.response?.data;
@@ -528,10 +517,8 @@ const OnboardingReview = () => {
         }
 
         // ─── Complete onboarding ─────────────────────────────────────────────
-        console.log("[Onboarding] Completing onboarding process...");
         try {
           await completeOnboardingProcess(userId);
-          console.log("[Onboarding] Onboarding completed successfully!");
 
           dispatch(fetchEmployees());
           dispatch(completeOnboarding());
@@ -634,18 +621,10 @@ const OnboardingReview = () => {
 
   // ─── Get packages from employeeDetails ──────────────────────────────────
   // Try multiple sources for packages data
-  console.log("[OnboardingReview] employeeDetails:", employeeDetails);
-  console.log(
-    "[OnboardingReview] packages from employeeDetails:",
-    employeeDetails.packages,
-  );
 
   const packages = employeeDetails.packages || {};
   const package1 = packages.package1 || {};
   const package2 = packages.package2 || {};
-
-  console.log("[OnboardingReview] package1:", package1);
-  console.log("[OnboardingReview] package2:", package2);
 
   const getPackagesFromLocalStorage = () => {
     try {
@@ -732,16 +711,11 @@ const finalPackages = (package1.packageId || package2.packageId) ? packages : (l
 const finalPackage1 = finalPackages.package1 || {};
 const finalPackage2 = finalPackages.package2 || {};
 
-console.log('[OnboardingReview] finalPackage1:', finalPackage1);
-console.log('[OnboardingReview] finalPackage2:', finalPackage2);
-
 
   // Check if packages exist and are saved
   const hasPackage1 = (finalPackage1.packageId || finalPackage1.id) && finalPackage1.isSaved;
 const hasPackage2 = (finalPackage2.packageId || finalPackage2.id) && finalPackage2.isSaved;
 
-console.log("[OnboardingReview] hasPackage1:", hasPackage1);
-console.log("[OnboardingReview] hasPackage2:", hasPackage2);
 
   return (
     <>

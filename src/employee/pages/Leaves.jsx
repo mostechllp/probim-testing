@@ -194,7 +194,6 @@ const Leaves = () => {
     }
 
     const fullUrl = getDocumentUrl(docPath);
-    console.log("Opening document URL:", fullUrl);
     window.open(fullUrl, "_blank");
   };
 
@@ -205,7 +204,6 @@ const Leaves = () => {
 
     try {
       const result = await dispatch(fetchLeaveById(leave.id)).unwrap();
-      console.log("Fetched leave for viewing:", result);
       setViewingLeave(result);
     } catch (error) {
       console.error("Failed to fetch leave details:", error);
@@ -392,7 +390,6 @@ const Leaves = () => {
 
     try {
       const result = await dispatch(fetchLeaveById(leave.id)).unwrap();
-      console.log("Fetched leave data for editing:", result);
 
       const leaveTypeId =
         typeof result.leave_type === "object"

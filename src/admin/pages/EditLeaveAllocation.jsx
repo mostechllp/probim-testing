@@ -57,7 +57,6 @@ const EditLeaveAllocation = () => {
         setFetchingBalances(true);
         try {
           const result = await dispatch(fetchLeaveBalances({ employee_id: parseInt(id) })).unwrap();
-          console.log("Fetched leave balances:", result);
           
           const data = result || {};
           const employeeInfo = data.employee || null;

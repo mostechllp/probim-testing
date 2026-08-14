@@ -318,11 +318,6 @@ const RequestLeaveForEmployee = () => {
       formDataToSend.append("document", selectedFile);
     }
 
-    console.log("Submitting leave request for employee with payload:");
-    for (let pair of formDataToSend.entries()) {
-      console.log(pair[0] + ": " + pair[1]);
-    }
-
     try {
       const result = await dispatch(addLeaveRequestForEmployee(formDataToSend));
 
@@ -333,7 +328,6 @@ const RequestLeaveForEmployee = () => {
       } else if (addLeaveRequestForEmployee.rejected.match(result)) {
         // Handle rejected action
         const errorPayload = result.payload;
-        console.log("Error payload:", errorPayload);
         
         // Extract error message from various possible formats
         let errorMessage = "Failed to submit leave request. Please try again.";

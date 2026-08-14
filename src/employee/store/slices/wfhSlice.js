@@ -7,7 +7,6 @@ export const fetchWFHRequests = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const response = await apiClient.get("/employee/wfh-requests");
-      console.log("WFH requests response:", response.data);
       
       if (response.data?.status === "success") {
         return response.data.data || [];
@@ -37,9 +36,7 @@ export const addWFHRequest = createAsyncThunk(
         payload.notes = formData.notes.trim();
       }
       
-      console.log("Sending payload:", payload);
       const response = await apiClient.post("/employee/wfh-requests", payload);
-      console.log("Add WFH response:", response.data);
       
       if (response.data?.status === "success") {
         return response.data.data;
@@ -68,7 +65,6 @@ export const updateWFHStatus = createAsyncThunk(
   async ({ id, status }, { rejectWithValue }) => {
     try {
       const response = await apiClient.put(`/admin/wfh-requests/${id}/status`, { status });
-      console.log("Update WFH status response:", response.data);
       
       if (response.data?.status === "success") {
         return { id, status };

@@ -31,7 +31,6 @@ const getAvailableFreeModels = async (openRouter) => {
       .filter(m => m.id && freeModelPatterns.some(pattern => m.id.includes(pattern)))
       .map(m => m.id);
     
-    console.log('📋 Available free models:', available);
     return available;
   } catch (error) {
     console.warn('Could not fetch model list, using fallback list:', error.message);
@@ -102,7 +101,7 @@ ${resumeText}
     attempts++;
     
     try {
-      console.log(`🔍 Trying free model: ${model} (Attempt ${attempts}/${maxFreeAttempts})`);
+     
       
       const result = await Promise.race([
         openRouter.chat.send({
@@ -119,7 +118,6 @@ ${resumeText}
       const content = result?.choices?.[0]?.message?.content;
       if (content) {
         const parsed = parseAIResponse(content);
-        console.log(`✅ Successfully parsed with free model: ${model}`);
         return parsed;
       }
     } catch (error) {
@@ -128,14 +126,12 @@ ${resumeText}
       // If rate limited, wait a bit
       if (error.code === 429 || error.message?.includes('rate-limited')) {
         const waitTime = error?.metadata?.retry_after_seconds || 3;
-        console.log(`⏳ Rate limited, waiting ${waitTime}s...`);
         await new Promise(resolve => setTimeout(resolve, waitTime * 1000));
       }
     }
   }
 
   // If free models fail, use the reliable paid model
-  console.log('🔄 Falling back to paid model...');
   try {
     const result = await Promise.race([
       openRouter.chat.send({
@@ -152,7 +148,6 @@ ${resumeText}
     const content = result?.choices?.[0]?.message?.content;
     if (content) {
       const parsed = parseAIResponse(content);
-      console.log('✅ Successfully parsed with paid model: openai/gpt-4o-mini');
       return parsed;
     }
   } catch (error) {

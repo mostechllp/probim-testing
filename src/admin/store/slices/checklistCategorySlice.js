@@ -7,7 +7,6 @@ export const fetchChecklistCategories = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const response = await apiClient.get("/admin/checklist-categories");
-      console.log("Checklist categories fetched:", response.data);
       
       // Handle both response formats
       if (response.data && response.data.status === "success") {
@@ -30,7 +29,6 @@ export const createChecklistCategory = createAsyncThunk(
   async (categoryData, { rejectWithValue }) => {
     try {
       const response = await apiClient.post("/admin/checklist-categories", categoryData);
-      console.log("Checklist category created:", response.data);
       
       // Handle both response formats
       if (response.data && (response.data.status === "success" || response.data.success === true)) {
@@ -50,7 +48,6 @@ export const fetchChecklistCategoryById = createAsyncThunk(
   async (id, { rejectWithValue }) => {
     try {
       const response = await apiClient.get(`/admin/checklist-categories/${id}`);
-      console.log("Checklist category fetched:", response.data);
       
       if (response.data && (response.data.status === "success" || response.data.success === true)) {
         return response.data.data;
@@ -69,7 +66,6 @@ export const updateChecklistCategory = createAsyncThunk(
   async ({ id, categoryData }, { rejectWithValue }) => {
     try {
       const response = await apiClient.put(`/admin/checklist-categories/${id}`, categoryData);
-      console.log("Checklist category updated:", response.data);
       
       // Handle both response formats - check for status === "success" OR success === true
       if (response.data && (response.data.status === "success" || response.data.success === true)) {
@@ -89,7 +85,6 @@ export const deleteChecklistCategory = createAsyncThunk(
   async (id, { rejectWithValue }) => {
     try {
       const response = await apiClient.delete(`/admin/checklist-categories/${id}`);
-      console.log("Checklist category deleted:", response.data);
       
       if (response.data && (response.data.status === "success" || response.data.success === true)) {
         return { id, message: response.data.message };
@@ -108,7 +103,6 @@ export const toggleChecklistCategoryStatus = createAsyncThunk(
   async ({ id, is_active }, { rejectWithValue }) => {
     try {
       const response = await apiClient.patch(`/admin/checklist-categories/${id}/toggle`, { is_active });
-      console.log("Checklist category toggled:", response.data);
       
       if (response.data && (response.data.status === "success" || response.data.success === true)) {
         return response.data.data;

@@ -42,7 +42,6 @@ const Leaves = () => {
   } = useSelector((state) => {
     return state.leaves || { leaves: [] };
   });
-  console.log(leaves);
 
   const [statusFilter, setStatusFilter] = useState("all");
   const [searchTerm, setSearchTerm] = useState("");
@@ -401,10 +400,9 @@ const Leaves = () => {
     setShowEditModal(true);
 
     try {
-      // ✅ Fetch the complete leave data by ID
+      // Fetch the complete leave data by ID
       const result = await dispatch(fetchLeaveById(leave.id)).unwrap();
 
-      console.log("Fetched leave data for editing:", result);
 
       const leaveTypeId = result.leave_type_id || result.leave_type?.id;
 
@@ -446,7 +444,6 @@ const Leaves = () => {
 const handleEditSubmit = async (e) => {
   e.preventDefault();
 
-  console.log("Submitting edit form with data:", editFormData);
 
   // Validate form data
   if (!editFormData.leave_type_id) {
@@ -479,25 +476,15 @@ const handleEditSubmit = async (e) => {
     formDataToSend.append("session1", editFormData.session1);
     formDataToSend.append("session2", editFormData.session2);
 
-    // ✅ Add document if selected - THIS IS THE KEY PART
+    // Add document if selected - THIS IS THE KEY PART
     if (editFile) {
       formDataToSend.append("document", editFile);
-      console.log("Document attached:", editFile.name, editFile.size, editFile.type);
     }
 
-    // ✅ If no new document but there's an existing one, we might want to keep it
+    // If no new document but there's an existing one, we might want to keep it
     // If you want to allow removing the document, add a flag
     // For now, if no new file, we don't send anything (keep existing)
 
-    // Log FormData contents for debugging
-    console.log("FormData contents:");
-    for (let [key, value] of formDataToSend.entries()) {
-      if (key === 'document' && value instanceof File) {
-        console.log(`${key}: ${value.name} (${value.size} bytes, ${value.type})`);
-      } else {
-        console.log(`${key}: ${value}`);
-      }
-    }
 
     const result = await dispatch(
       updateLeaveRequest({
@@ -532,12 +519,10 @@ const handleEditSubmit = async (e) => {
 
   // Handle date changes from DateInput
   const handleStartDateChange = (dateValue) => {
-    console.log("Start date changed:", dateValue);
     setEditFormData({ ...editFormData, start_date: dateValue || "" });
   };
 
   const handleEndDateChange = (dateValue) => {
-    console.log("End date changed:", dateValue);
     setEditFormData({ ...editFormData, end_date: dateValue || "" });
   };
 

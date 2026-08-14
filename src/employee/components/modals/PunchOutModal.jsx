@@ -230,13 +230,6 @@ const PunchOutModal = ({
     const maxHours = Math.max(0, Math.min(roundedHours, 24));
     setMaxWorkingHours(maxHours);
 
-    // Debug logging
-    console.log("Punch In Date:", punchInDateObj);
-    console.log("Punch Out Date:", punchOutDateObj);
-    console.log("Difference (ms):", diffMs);
-    console.log("Difference (hours):", diffHours);
-    console.log("Rounded hours:", roundedHours);
-    console.log("Max hours:", maxHours);
   };
 
   // Fetch projects

@@ -8,7 +8,6 @@ export const fetchNotifications = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const res = await apiClient.get("/admin/notifications/all");
-      console.log("All notifications API response:", res.data);
       
       let notificationsData = [];
       
@@ -32,7 +31,6 @@ export const fetchUnreadNotifications = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const res = await apiClient.get("/admin/notifications");
-      console.log("Unread notifications API response:", res.data);
       
       let notificationsData = [];
       
@@ -56,7 +54,6 @@ export const fetchReadNotifications = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const res = await apiClient.get("/admin/notifications/read");
-      console.log("Read notifications API response:", res.data);
       
       let notificationsData = [];
       
@@ -80,7 +77,6 @@ export const fetchNotificationById = createAsyncThunk(
   async (id, { rejectWithValue }) => {
     try {
       const res = await apiClient.get(`/admin/notifications/${id}`);
-      console.log("Notification detail API response:", res.data);
       return res.data?.data || res.data;
     } catch (err) {
       console.error("Fetch notification detail error:", err);
@@ -95,7 +91,6 @@ export const markNotificationAsRead = createAsyncThunk(
   async (id, { rejectWithValue }) => {
     try {
       const res = await apiClient.post(`/admin/notifications/${id}/mark-as-read`);
-      console.log("Mark as read response:", res.data);
       return id; // Just return the ID to remove it from the list
     } catch (err) {
       return rejectWithValue(err.response?.data || "Error");
@@ -109,7 +104,6 @@ export const markAllNotificationsAsRead = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const res = await apiClient.post("/admin/notifications/mark-all-as-read");
-      console.log("Mark all as read response:", res.data);
       return res.data;
     } catch (err) {
       return rejectWithValue(err.response?.data || "Error");
@@ -225,7 +219,6 @@ const notificationSlice = createSlice({
       .addCase(fetchUnreadNotifications.fulfilled, (state, action) => {
         state.loading = false;
         const rawNotifications = action.payload || [];
-        console.log("Raw unread notifications:", rawNotifications);
         
         // Transform notifications
         const transformedNotifications = rawNotifications.map((n) => {
@@ -274,8 +267,6 @@ const notificationSlice = createSlice({
         
         state.notifications = transformedNotifications;
         state.unreadCount = transformedNotifications.length;
-        console.log("Processed unread notifications:", state.notifications);
-        console.log("Unread count:", state.unreadCount);
       })
       .addCase(fetchUnreadNotifications.rejected, (state, action) => {
         state.loading = false;
@@ -348,8 +339,6 @@ const notificationSlice = createSlice({
         if (state.selectedNotification?.id === id) {
           state.selectedNotification = null;
         }
-        console.log("Notification removed (marked as read):", id);
-        console.log("Remaining unread count:", state.unreadCount);
       })
       .addCase(markNotificationAsRead.rejected, (state, action) => {
         console.error("Mark notification as read failed:", action.payload);
@@ -363,7 +352,6 @@ const notificationSlice = createSlice({
         state.loading = false;
         state.notifications = [];
         state.unreadCount = 0;
-        console.log("All notifications cleared (marked all as read)");
       })
       .addCase(markAllNotificationsAsRead.rejected, (state, action) => {
         state.loading = false;

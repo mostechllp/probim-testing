@@ -17,12 +17,6 @@ const mapProjectFromApi = (apiProj) => {
     return null;
   };
   
-  console.log("=== MAPPING PROJECT FROM API ===");
-  console.log("Raw project_manager_id:", projectData.project_manager_id);
-  console.log("Raw team_lead_id:", projectData.team_lead_id);
-  console.log("Raw total_hours:", projectData.total_hours);
-  console.log("Raw total_cost:", projectData.total_cost);
-  console.log("Raw currency:", projectData.currency);
   
   const managerId = extractId(projectData.project_manager_id) || 
                      extractId(projectData.managerId) || null;
@@ -238,19 +232,6 @@ const projectSlice = createSlice({
         state.projects = action.payload;
         state.stats = calculateStats(action.payload);
 
-        // DEBUG: Log what projects were fetched
-        console.log("=== FETCHED PROJECTS FROM API ===");
-        action.payload.forEach((project, index) => {
-          console.log(`Project ${index + 1}:`, {
-            id: project.id,
-            name: project.name,
-            managerId: project.managerId,
-            project_manager_id: project.project_manager_id,
-            teamLeadId: project.teamLeadId,
-            team_lead_id: project.team_lead_id,
-            raw: project.raw,
-          });
-        });
       })
       .addCase(fetchProjects.rejected, (state, action) => {
         state.loading = false;
@@ -296,17 +277,6 @@ const projectSlice = createSlice({
         state.projects.unshift(action.payload);
         state.stats = calculateStats(state.projects);
 
-        // DEBUG: Log what was created
-        console.log("=== PROJECT CREATED ===");
-        console.log("Created project:", {
-          id: action.payload.id,
-          name: action.payload.name,
-          managerId: action.payload.managerId,
-          project_manager_id: action.payload.project_manager_id,
-          teamLeadId: action.payload.teamLeadId,
-          team_lead_id: action.payload.team_lead_id,
-          raw: action.payload.raw,
-        });
       })
       .addCase(addProject.rejected, (state, action) => {
         state.actionLoading = false;

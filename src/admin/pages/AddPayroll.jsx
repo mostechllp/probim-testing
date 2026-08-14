@@ -269,7 +269,6 @@ function AddPayroll() {
           }),
         ).unwrap();
 
-        console.log("Working days data:", result);
 
         if (result) {
           // ✅ Update total working days from API
@@ -534,11 +533,9 @@ function AddPayroll() {
         const result = await dispatch(fetchEmployeeById(employeeId)).unwrap();
         if (result && result.user_id) {
           setSelectedUserId(result.user_id.toString());
-          console.log("Fetching salary packages for user_id:", result.user_id);
           const packagesResult = await dispatch(
             fetchEmployeeSalaryPackages(result.user_id),
           ).unwrap();
-          console.log("Packages result:", packagesResult);
         }
       } catch (error) {
         console.error("Failed to fetch employee details:", error);
@@ -673,7 +670,6 @@ function AddPayroll() {
 
   // Update countries based on selected packages
   useEffect(() => {
-    console.log("Employee packages received:", employeePackages);
 
     if (employeePackages && employeePackages.length > 0) {
       setAvailablePackages(employeePackages);
@@ -681,7 +677,6 @@ function AddPayroll() {
       if (selectedPackageIds.length === 0) {
         const allPackageIds = employeePackages.map((pkg) => pkg.id);
         setSelectedPackageIds(allPackageIds);
-        console.log("Selected all packages:", allPackageIds);
       }
     } else {
       setAvailablePackages([]);
@@ -715,7 +710,6 @@ function AddPayroll() {
   useEffect(() => {
     if (calculatedCountries) {
       const data = calculatedCountries;
-      console.log("Calculated countries data:", data);
 
       // ─── SET TOTALS FROM API ──────────────────────────────────────────
       if (data.total_earnings !== undefined) {
@@ -763,18 +757,12 @@ function AddPayroll() {
           };
         });
 
-        console.log(
-          "Extracted packages from salary_packages:",
-          extractedPackages,
-        );
-
         if (extractedPackages.length > 0) {
           setAvailablePackages(extractedPackages);
           // Select all packages by default
           if (selectedPackageIds.length === 0) {
             const allPackageIds = extractedPackages.map((pkg) => pkg.id);
             setSelectedPackageIds(allPackageIds);
-            console.log("Selected all packages:", allPackageIds);
           }
         }
       }
@@ -1238,8 +1226,6 @@ function AddPayroll() {
         pay_period_year: data.pay_period_year || year,
       };
 
-      console.log("Saving step with user_id:", selectedUserId);
-      console.log("Step data:", enrichedData);
 
       const result = await dispatch(
         savePayrollStep({
@@ -1252,12 +1238,6 @@ function AddPayroll() {
       dispatch(updateStepData({ step, data: enrichedData }));
       dispatch(markStepCompleted(step));
 
-      if (result.data && result.data.current_step) {
-        console.log("Current step from server:", result.data.current_step);
-        if (result.data.current_step === 6) {
-          console.log("Payroll data is complete and ready for submission");
-        }
-      }
 
       showToast(result.message || "Step data saved successfully", "success");
       return true;
@@ -1434,15 +1414,6 @@ function AddPayroll() {
           },
         },
       };
-
-      console.log("Submitting payroll with CONVERTED amounts:", {
-        gross_salary: convertedGrossSalary,
-        overtime: convertedOvertime,
-        deductions: convertedDeductions,
-        net_pay: convertedNetPay,
-        currency: primaryCurrency,
-        calculation: `${convertedGrossSalary} + ${convertedOvertime} - ${convertedDeductions} = ${convertedNetPay}`,
-      });
 
       const result = await dispatch(submitPayroll(payload)).unwrap();
 
@@ -2259,7 +2230,6 @@ function AddPayroll() {
                       net_salary: selectedNetSalary,
                     };
 
-                    console.log("Saving only selected packages:", step2Data);
 
                     const saved = await handleSaveStep(2, step2Data);
                     if (saved) {

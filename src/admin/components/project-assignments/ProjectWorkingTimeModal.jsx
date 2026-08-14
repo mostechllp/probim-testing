@@ -21,21 +21,16 @@ const ProjectWorkingTimeModal = ({
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    if (isOpen && userId && project) {
-      console.log("ProjectWorkingTimeModal - userId:", userId);
-      console.log("ProjectWorkingTimeModal - project:", project);
+    if (isOpen && userId && project) 
       
       // Check if we already have the data in Redux
       if (employeeWorkingTime && employeeWorkingTime[userId]) {
-        console.log("Found cached working time for userId:", userId);
-        console.log("Cached data:", employeeWorkingTime[userId]);
         
         const projectTime = employeeWorkingTime[userId].find(
           (item) => String(item.project_id) === String(project.id)
         );
         
         if (projectTime) {
-          console.log("Found project time:", projectTime);
           setWorkingTimeData(projectTime);
           setError(null);
           return;
@@ -47,13 +42,10 @@ const ProjectWorkingTimeModal = ({
         setIsLoading(true);
         setError(null);
         try {
-          console.log("Fetching working time for userId:", userId);
           const result = await dispatch(
             fetchEmployeeProjectWorkingTime(userId)
           ).unwrap();
           
-          console.log("Working time fetch result:", result);
-          console.log("Result data:", result.data);
           
           // Find the specific project's working time
           const projectTime = result.data.find(
@@ -61,10 +53,8 @@ const ProjectWorkingTimeModal = ({
           );
           
           if (projectTime) {
-            console.log("Found project working time:", projectTime);
             setWorkingTimeData(projectTime);
           } else {
-            console.log("No working time found for project:", project.id);
             setWorkingTimeData(null);
           }
         } catch (error) {

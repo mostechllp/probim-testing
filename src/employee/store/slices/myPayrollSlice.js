@@ -49,7 +49,6 @@ export const downloadMyPayslip = createAsyncThunk(
         responseType: "blob",
       });
 
-      console.log("Download my payslip response:", response);
 
       const blob = response.data;
 
@@ -67,7 +66,6 @@ export const downloadMyPayslip = createAsyncThunk(
         }
       }
 
-      console.log("Backend filename:", filename);
 
       // Download using backend filename
       const url = window.URL.createObjectURL(blob);

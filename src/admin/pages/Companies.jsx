@@ -64,11 +64,6 @@ const Companies = () => {
       fullUrl = `${baseUrl}/storage/${cleanPath}`;
     }
 
-    console.log("Logo URL constructed:", {
-      original: logoPath,
-      baseUrl,
-      fullUrl,
-    });
 
     return fullUrl;
   };
@@ -140,7 +135,6 @@ const Companies = () => {
   };
 
   const handleImageError = (companyId) => {
-    console.log(`Failed to load logo for company ID: ${companyId}`);
     setFailedImages((prev) => ({ ...prev, [companyId]: true }));
   };
 

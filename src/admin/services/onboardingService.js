@@ -37,9 +37,7 @@ class OnboardingService {
    */
   async getSalaryPackages(userId) {
     try {
-      console.log('[OnboardingService] Fetching salary packages for userId:', userId);
       const response = await apiClient.get(`${BASE_PATH}/employees/salary-packages/${userId}`);
-      console.log('[OnboardingService] Salary packages response:', response.data);
       return response.data;
     } catch (error) {
       console.error('[OnboardingService] getSalaryPackages error:', error);
@@ -60,16 +58,13 @@ class OnboardingService {
       let response;
       
       if (employeeId) {
-        // ✅ UPDATE existing draft employee
-        console.log(`[Onboarding] PUT /employees/${employeeId} | Updating draft employee`);
+        // UPDATE existing draft employee
         response = await apiClient.put(`${BASE_PATH}/employees/${employeeId}`, payload);
       } else {
-        // ✅ CREATE new employee
-        console.log('[Onboarding] POST /employees/onboard/details | Creating new employee');
+        // CREATE new employee
         response = await apiClient.post(`${BASE_PATH}/employees/onboard/details`, payload);
       }
       
-      console.log('[Onboarding] saveDetails response:', response.data);
       return response.data;
     } catch (error) {
       throw handleError(error, 'Failed to save employee details');
@@ -82,9 +77,7 @@ class OnboardingService {
    */
   async saveSalary(payload) {
     try {
-      console.log('[Onboarding] POST /employees/onboard/salary | Payload:', JSON.stringify(payload, null, 2));
       const response = await apiClient.post(`${BASE_PATH}/employees/onboard/salary`, payload);
-      console.log('[Onboarding] save-salary response:', response.data);
       return response.data;
     } catch (error) {
       console.error('[Onboarding] saveSalary error:', error);
@@ -98,9 +91,7 @@ class OnboardingService {
    */
   async saveBanks(payload) {
     try {
-      console.log('[Onboarding] POST /employees/onboard/banks | Payload:', payload);
       const response = await apiClient.post(`${BASE_PATH}/employees/onboard/banks`, payload);
-      console.log('[Onboarding] save-banks response:', response.data);
       return response.data;
     } catch (error) {
       throw handleError(error, 'Failed to save bank details');
@@ -121,16 +112,13 @@ class OnboardingService {
       let response;
       
       if (employeeId) {
-        // ✅ UPDATE existing draft employee to complete
-        console.log(`[Onboarding] PUT /employees/${employeeId}/complete | Finalizing onboarding`);
+        // UPDATE existing draft employee to complete
         response = await apiClient.put(`${BASE_PATH}/employees/${employeeId}/complete`, restPayload);
       } else {
-        // ✅ Create new employee from onboarding
-        console.log('[Onboarding] POST /employees/onboard/complete | Creating employee');
+        // Create new employee from onboarding
         response = await apiClient.post(`${BASE_PATH}/employees/onboard/complete`, restPayload);
       }
       
-      console.log('[Onboarding] complete response:', response.data);
       return response.data;
     } catch (error) {
       throw handleError(error, 'Failed to complete onboarding');
@@ -143,9 +131,7 @@ class OnboardingService {
 
   async updateBankDetail(id, payload) {
     try {
-      console.log(`[Onboarding] PUT /bank-details/${id} | Payload:`, payload);
       const response = await apiClient.put(`${BASE_PATH}/bank-details/${id}`, payload);
-      console.log(`[Onboarding] updateBankDetail response:`, response.data);
       return response.data;
     } catch (error) {
       throw handleError(error, 'Failed to update bank detail');
@@ -154,9 +140,7 @@ class OnboardingService {
 
   async deleteBankDetail(id) {
     try {
-      console.log(`[Onboarding] DELETE /bank-details/${id}`);
       const response = await apiClient.delete(`${BASE_PATH}/bank-details/${id}`);
-      console.log(`[Onboarding] deleteBankDetail response:`, response.data);
       return response.data;
     } catch (error) {
       throw handleError(error, 'Failed to delete bank detail');
@@ -169,9 +153,7 @@ class OnboardingService {
 
   async updateSalaryComponent(id, payload) {
     try {
-      console.log(`[Onboarding] PUT /salary-components/${id} | Payload:`, payload);
       const response = await apiClient.put(`${BASE_PATH}/salary-components/${id}`, payload);
-      console.log(`[Onboarding] updateSalaryComponent response:`, response.data);
       return response.data;
     } catch (error) {
       throw handleError(error, 'Failed to update salary component');
@@ -180,9 +162,7 @@ class OnboardingService {
 
   async deleteSalaryComponent(id) {
     try {
-      console.log(`[Onboarding] DELETE /salary-components/${id}`);
       const response = await apiClient.delete(`${BASE_PATH}/salary-components/${id}`);
-      console.log(`[Onboarding] deleteSalaryComponent response:`, response.data);
       return response.data;
     } catch (error) {
       throw handleError(error, 'Failed to delete salary component');

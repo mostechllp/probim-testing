@@ -144,7 +144,7 @@ class ErrorHandler {
 
   // Extract error message from various formats
   extractErrorMessage(error) {
-    console.log('🔍 Extracting message from:', error);
+    console.log('Extracting message from:', error);
 
     // If error is a string
     if (typeof error === 'string') {
@@ -219,7 +219,7 @@ class ErrorHandler {
   parseError(error) {
     // Extract the error message
     const errorMessage = this.extractErrorMessage(error) || '';
-    console.log('📝 Extracted message:', errorMessage);
+    console.log('Extracted message:', errorMessage);
 
     const statusCode = error?.response?.status || error?.status || error?.payload?.status || null;
     const errorData = error?.response?.data || error?.data || error?.payload || {};
@@ -312,7 +312,7 @@ class ErrorHandler {
   // Get user-friendly error object
   getFriendlyError(error) {
     const errorType = this.parseError(error);
-    console.log('🏷️ Error type determined:', errorType);
+    console.log('Error type determined:', errorType);
     
     let defaultError = this.errorMessages[errorType];
     
@@ -369,7 +369,7 @@ class ErrorHandler {
   // Handle error with callback actions
   handleError(error, callbacks = {}) {
     const friendlyError = this.getFriendlyError(error);
-    console.log('✅ Friendly error:', friendlyError);
+    console.log('Friendly error:', friendlyError);
     
     // Log error for debugging
     console.error('Error occurred:', {

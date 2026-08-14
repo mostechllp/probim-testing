@@ -9,7 +9,6 @@ const ProjectDetailsModal = ({ isOpen, onClose, project, employees = [] }) => {
   const getEmployeeDetails = (empId) => {
     if (!empId) return { name: "Not Assigned", avatar: null, designation: "-" };
 
-    console.log(`Looking for employee details with ID: ${empId}`);
 
     // IMPORTANT: Search by user_id FIRST since that's what projects store
     let emp = employees.find((e) => String(e.user_id) === String(empId));

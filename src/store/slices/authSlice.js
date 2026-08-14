@@ -533,12 +533,10 @@ export const logoutUser = createAsyncThunk(
   "auth/logout",
 
   async () => {
-    console.log('🚪 logoutUser THUNK BODY ENTERED');
-    console.log('🚪 clearAuthStorage function source:', clearAuthStorage.toString());
 
     clearAuthStorage();
 
-    console.log('🚪 clearAuthStorage() call finished. admin-token now:', localStorage.getItem('admin-token'));
+   
 
     return null;
   }

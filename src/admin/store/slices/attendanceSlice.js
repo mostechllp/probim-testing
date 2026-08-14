@@ -16,7 +16,6 @@ const isValidPunch = (value) => value && value !== "-" && value.trim() !== "";
 // FIXED: Improved extractAttendanceRecords function - PRESERVES EXACT STATUS
 const extractAttendanceRecords = (response) => {
   try {
-    console.log("Extracting attendance records from response:", response);
 
     let attendanceData = [];
     let meta = {};
@@ -35,9 +34,6 @@ const extractAttendanceRecords = (response) => {
     } else {
       attendanceData = [];
     }
-
-    console.log("Attendance data extracted:", attendanceData);
-    console.log("Meta:", meta);
 
     // Map the records - PRESERVE EXACT STATUS FROM API
     const records = attendanceData.map((record, idx) => {
@@ -148,9 +144,7 @@ export const fetchAttendanceRecords = createAsyncThunk(
   async (params = {}, { rejectWithValue }) => {
     try {
       const response = await apiClient.get(`/admin/attendance`, { params });
-      console.log("Fetch attendance response:", response.data);
       const result = extractAttendanceRecords(response);
-      console.log("Extracted attendance result:", result);
       return result;
     } catch (error) {
       console.error("Fetch attendance error:", error);
@@ -171,11 +165,6 @@ export const uploadAttendanceFile = createAsyncThunk(
         {
           headers: { "Content-Type": "multipart/form-data" },
         },
-      );
-
-      console.log(
-        "Upload response full:",
-        JSON.stringify(response.data, null, 2),
       );
 
       const uploadId = response.data?.data?.id || null;
@@ -215,11 +204,6 @@ export const fetchUploadStatus = createAsyncThunk(
       const response = await apiClient.get(
         `/admin/attendance/upload-status/${id}`,
       );
-      console.log(
-        "Upload status response:",
-        JSON.stringify(response.data, null, 2),
-      );
-
       const processingStatus = response.data?.data?.status || "pending";
 
       let normalizedStatus;
@@ -283,7 +267,6 @@ export const fetchLateComers = createAsyncThunk(
   async () => {
     try {
       const response = await apiClient.get(`/admin/attendance/late-comers`);
-      console.log("Late comers response:", response.data);
       return extractData(response);
     } catch (error) {
       console.error("Error fetching late comers:", error);
@@ -297,7 +280,6 @@ export const fetchAbsentees = createAsyncThunk(
   async () => {
     try {
       const response = await apiClient.get(`/admin/attendance/absentees`);
-      console.log("Absentees response:", response.data);
       return extractData(response);
     } catch (error) {
       console.error("Error fetching absentees:", error);
@@ -312,7 +294,6 @@ export const fetchAttendanceStats = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const response = await apiClient.get(`/admin/attendance/stats`);
-      console.log("Attendance stats response:", response.data);
 
       // Extract data from response
       const data = response.data?.data || response.data;
@@ -492,14 +473,12 @@ const attendanceSlice = createSlice({
         state.punchOutToday = [];
       })
       .addCase(fetchLateComers.fulfilled, (state, action) => {
-        console.log("Late comers data set:", action.payload);
         state.lateComers = action.payload;
       })
       .addCase(fetchLateComers.rejected, (state) => {
         state.lateComers = [];
       })
       .addCase(fetchAbsentees.fulfilled, (state, action) => {
-        console.log("Absentees data set:", action.payload);
         state.absentees = action.payload;
       })
       .addCase(fetchAbsentees.rejected, (state) => {

@@ -121,15 +121,9 @@ const RequestLeave = () => {
   // Fetch leaves and balance on mount
   useEffect(() => {
     const fetchData = async () => {
-      console.log(
-        "Employee ID from auth.user.employee.id:",
-        authState?.user?.employee?.id,
-      );
-      console.log("Final employeeId:", employeeId);
       // Only fetch balance if we have an employee ID
       if (employeeId || authState?.user?.employee_id) {
         const result = await dispatch(fetchLeaveBalance());
-        console.log("Fetch balance result:", result);
       } else {
         console.warn("No employee ID available, skipping balance fetch");
       }
@@ -297,11 +291,6 @@ const RequestLeave = () => {
 
     if (selectedFile) {
       formDataToSend.append("document", selectedFile);
-    }
-
-    console.log("Submitting leave request with payload:");
-    for (let pair of formDataToSend.entries()) {
-      console.log(pair[0] + ": " + pair[1]);
     }
 
     const result = await dispatch(addLeaveRequest(formDataToSend));

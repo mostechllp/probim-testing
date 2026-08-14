@@ -6,14 +6,12 @@ export const initiateOffboarding = createAsyncThunk(
   "offboarding/initiate",
   async (offboardingData, { rejectWithValue }) => {
     try {
-      console.log("Initiating offboarding with data:", offboardingData);
 
       const response = await apiClient.post(
         "/admin/offboarding/initiate",
         offboardingData,
       );
 
-      console.log("Offboarding initiated response:", response.data);
 
       if (
         response.data &&
@@ -50,7 +48,6 @@ export const fetchAllOffboarding = createAsyncThunk(
 
       const response = await apiClient.get(`/admin/offboarding?${params}`);
 
-      console.log("All offboarding requests response:", response.data);
 
       if (response.data && response.data.status === "success") {
         return response.data.data;
@@ -73,11 +70,8 @@ export const fetchOffboardingById = createAsyncThunk(
   "offboarding/fetchById",
   async (id, { rejectWithValue }) => {
     try {
-      console.log(`Fetching offboarding details for ID: ${id}`);
 
       const response = await apiClient.get(`/admin/offboarding/${id}`);
-
-      console.log("Offboarding details response:", response.data);
 
       if (response.data && response.data.status === "success") {
         return response.data.data;
@@ -100,13 +94,11 @@ export const fetchOffboardingProgress = createAsyncThunk(
   "offboarding/fetchProgress",
   async (id, { rejectWithValue }) => {
     try {
-      console.log(`Fetching offboarding progress for ID: ${id}`);
 
       const response = await apiClient.get(`/admin/offboarding/${id}/progress`);
 
-      console.log("Offboarding progress response:", response.data);
 
-      // ✅ FIX: Check for status === "success" instead of success === true
+      // Check for status === "success" instead of success === true
       if (response.data && response.data.status === "success") {
         return response.data.data;
       } else {
@@ -133,7 +125,6 @@ export const updateOffboarding = createAsyncThunk(
         offboarding_id: id
       });
 
-      console.log("Offboarding updated response:", response.data);
 
       if (response.data && response.data.status === "success") {
         return response.data.data;
@@ -158,7 +149,6 @@ export const deleteOffboarding = createAsyncThunk(
     try {
       const response = await apiClient.delete(`/admin/offboarding/${id}`);
 
-      console.log("Offboarding deleted response:", response.data);
 
       if (response.data && response.data.status === "success") {
         return { id, message: response.data.message };
@@ -186,8 +176,6 @@ export const updateVisaStatus = createAsyncThunk(
         visaData,
       );
 
-      console.log("Visa status updated:", response.data);
-
       if (response.data && (response.data.status === "success" || response.data.success === true)) {
         return response.data.data ? { id, ...response.data.data } : { id };
       } else {
@@ -214,7 +202,6 @@ export const updateChecklist = createAsyncThunk(
         checklistData,
       );
 
-      console.log("Checklist updated:", response.data);
 
       if (response.data && (response.data.status === "success" || response.data.success === true)) {
         return response.data.data ? { id, ...response.data.data } : { id };
@@ -242,7 +229,6 @@ export const updateAssets = createAsyncThunk(
         assetsData,
       );
 
-      console.log("Assets updated:", response.data);
 
       if (response.data && (response.data.status === "success" || response.data.success === true)) {
         return response.data.data ? { id, ...response.data.data } : { id };
@@ -270,8 +256,6 @@ export const submitInterview = createAsyncThunk(
         interviewData,
       );
 
-      console.log("Interview submitted:", response.data);
-
       if (response.data && (response.data.status === "success" || response.data.success === true)) {
         return response.data.data ? { id, ...response.data.data } : { id };
       } else {
@@ -298,7 +282,6 @@ export const updateSettlement = createAsyncThunk(
         settlementData,
       );
 
-      console.log("Settlement updated:", response.data);
 
       if (response.data && response.data.status === "success") {
         return response.data.data;
@@ -326,7 +309,6 @@ export const generateLetters = createAsyncThunk(
         lettersData,
       );
 
-      console.log("Letters generated:", response.data);
 
       if (response.data && response.data.status === "success") {
         return response.data.data;
@@ -351,7 +333,6 @@ export const cancelOffboarding = createAsyncThunk(
     try {
       const response = await apiClient.delete(`/admin/offboarding/${id}`);
 
-      console.log("Offboarding cancelled:", response.data);
 
       if (response.data && response.data.status === "success") {
         return { id, message: response.data.message };
@@ -379,7 +360,6 @@ export const saveOffboardingDraft = createAsyncThunk(
         draftData,
       );
 
-      console.log("Draft saved:", response.data);
 
       if (response.data && response.data.status === "success") {
         return response.data.data;
@@ -404,7 +384,6 @@ export const completeOffboarding = createAsyncThunk(
     try {
       const response = await apiClient.post(`/admin/offboarding/${id}/complete`);
       
-      console.log("Offboarding completed:", response.data);
 
       if (response.data && (response.data.status === "success" || response.data.success === true)) {
         return { id, ...response.data.data };

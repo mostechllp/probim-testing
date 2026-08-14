@@ -81,9 +81,8 @@ const ProjectAssignments = () => {
   // Submit operations
   const handleSaveForm = async ({ employeeId, projectIds }) => {
   try {
-    console.log('Saving assignment for employee:', employeeId, 'with projects:', projectIds);
+  
     const result = await dispatch(saveAssignment({ employeeId, projectIds })).unwrap();
-    console.log('Save result:', result);
     
     showToast("Project assignments saved successfully!", "success");
     handleCloseModal();
@@ -106,20 +105,9 @@ const ProjectAssignments = () => {
     }
   };
 
-  // Enrich assignments with employee data (including employee_id)
-  // In ProjectAssignments.js, before enriching assignments
-  console.log("Raw assignments from Redux:", assignments);
-  console.log("Employees from Redux:", employees);
 
-  // In the enrichedAssignments mapping
   const enrichedAssignments = assignments.map((assign) => {
     const employee = getEmployeeById(employees, assign.employeeId);
-    console.log(
-      "Mapping assignment:",
-      assign.employeeId,
-      "Found employee:",
-      employee,
-    );
 
     return {
       ...assign,

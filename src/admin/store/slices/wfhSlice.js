@@ -9,7 +9,6 @@ export const fetchAdminWFHRequests = createAsyncThunk(
   async (params = {}, { rejectWithValue }) => {
     try {
       const response = await apiClient.get("/admin/wfh-requests", { params });
-      console.log("Admin WFH requests response:", response.data);
       
       if (response.data?.status === "success") {
         return response.data.data?.data || [];
@@ -30,7 +29,6 @@ export const fetchWFHRequestById = createAsyncThunk(
   async (id, { rejectWithValue }) => {
     try {
       const response = await apiClient.get(`/admin/wfh-requests/${id}`);
-      console.log("WFH request by ID response:", response.data);
       
       if (response.data?.status === "success") {
         return response.data.data;
@@ -62,7 +60,6 @@ export const updateWFHRequestStatus = createAsyncThunk(
       const response = await apiClient.post(`/admin/wfh-requests/${id}/status`, { 
         status: formattedStatus 
       });
-      console.log("Update WFH status response:", response.data);
       
       if (response.data?.status === "success") {
         // Return the original status (lowercase) for consistent state management

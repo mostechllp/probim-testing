@@ -421,18 +421,6 @@ const Attendances = () => {
     };
   }, [safeRecords]);
 
-  // Add this useEffect in the component to debug
-  useEffect(() => {
-    console.log("All records:", safeRecords);
-    console.log(
-      "Records with Holiday status:",
-      safeRecords.filter(
-        (r) =>
-          r.status?.toLowerCase() === "holiday" ||
-          r.attendance_status?.toLowerCase() === "holiday",
-      ),
-    );
-  }, [safeRecords]);
 
   const getEmployeeAvatarUrl = (record, employees) => {
     if (!employees || !employees.length) return null;

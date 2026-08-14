@@ -8,7 +8,6 @@ export const fetchDashboard = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       const res = await apiClient.get("/admin/dashboard");
-      console.log("Dashboard API Response:", res.data);
       
       const responseData = res.data?.data?.data || res.data?.data || res.data || {};
       
@@ -55,10 +54,8 @@ export const fetchProjectTimeCost = createAsyncThunk(
       if (year) params.append('year', year);
       
       const url = `/admin/reports/project-cost-time${params.toString() ? '?' + params.toString() : ''}`;
-      console.log("Fetching project time & cost report:", url);
       
       const res = await apiClient.get(url);
-      console.log("Project time & cost response:", res.data);
       
       return res.data?.data || res.data || { projects: [] };
     } catch (err) {
@@ -77,10 +74,9 @@ export const fetchMonthlyHoursByProject = createAsyncThunk(
       if (projectId) params.append('project_id', projectId);
       
       const url = `/admin/project-assignments/monthly-hours${params.toString() ? '?' + params.toString() : ''}`;
-      console.log("Fetching monthly hours for project:", url);
+
       
       const res = await apiClient.get(url);
-      console.log("Monthly hours response:", res.data);
       
       return res.data?.data || res.data || [];
     } catch (err) {
