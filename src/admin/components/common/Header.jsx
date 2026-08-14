@@ -7,7 +7,7 @@ import {
   markAllNotificationsAsRead,
   clearSelectedNotification,
 } from "../../store/slices/notificationSlice";
-import { logoutUser } from "../../store/slices/authSlice";
+import { logoutUser } from "../../../store/slices/authSlice";
 import ConfirmModal from "./ConfirmModal";
 import { showToast } from "../common/Toast";
 
@@ -180,19 +180,22 @@ const Header = ({ onMenuClick }) => {
     setShowLogoutConfirm(true);
   };
 
-  const handleConfirmLogout = async () => {
-    setLogoutLoading(true);
-    try {
-      await dispatch(logoutUser()).unwrap();
-      setShowLogoutConfirm(false);
-      setTimeout(() => {
-        navigate("/login", { replace: true });
-      }, 100);
-    } catch (err) {
-      console.error("Logout failed", err);
-      setLogoutLoading(false);
-    }
-  };
+const handleConfirmLogout = async () => {
+  setLogoutLoading(true);
+  console.log('🚪 BEFORE logout, admin-token:', localStorage.getItem('admin-token'));
+  try {
+    await dispatch(logoutUser()).unwrap();
+    console.log('🚪 AFTER logoutUser resolved, admin-token:', localStorage.getItem('admin-token'));
+    setShowLogoutConfirm(false);
+    setTimeout(() => {
+      console.log('🚪 RIGHT BEFORE navigate, admin-token:', localStorage.getItem('admin-token'));
+      navigate("/login", { replace: true });
+    }, 100);
+  } catch (err) {
+    console.error("Logout failed", err);
+    setLogoutLoading(false);
+  }
+};
 
   const userAvatar = getUserAvatar();
   const userInitials = getUserInitials();

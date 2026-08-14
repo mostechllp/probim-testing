@@ -74,6 +74,26 @@ let authExpiredHandled = false;
 
 /**
  * ============================================================
+ * LOGOUT GUARD
+ * ============================================================
+ *
+ * Prevents an in-flight token refresh (scheduled timer OR a
+ * 401-triggered refresh) from writing a token back into
+ * localStorage AFTER the user has logged out.
+ *
+ * Without this, the following race is possible:
+ *
+ * 1. Refresh request is sent (token about to expire).
+ * 2. User clicks logout -> clearAllTokens() wipes storage.
+ * 3. Refresh response arrives -> persistToken() re-saves the
+ *    token -> user appears logged in again after reload.
+ * ============================================================
+ */
+
+let isLoggingOut = false;
+
+/**
+ * ============================================================
  * TOKEN HELPERS
  * ============================================================
  */
@@ -425,6 +445,21 @@ const persistToken = (
     return false;
   }
 
+  /**
+   * A logout happened while this token was in flight
+   * (e.g. a scheduled refresh or a 401 retry that started
+   * before clearAllTokens() ran). Do NOT resurrect the
+   * session.
+   */
+
+  if (isLoggingOut) {
+    console.warn(
+      "persistToken: Ignored token write during/after logout"
+    );
+
+    return false;
+  }
+
   const activeType =
     userType ||
     getActiveUserType();
@@ -507,6 +542,13 @@ export const setAuthToken = (
 
     return false;
   }
+
+  /**
+   * A fresh, explicit login always wins over any stale
+   * logout state.
+   */
+
+  isLoggingOut = false;
 
   const saved =
     persistToken(
@@ -594,66 +636,30 @@ export const clearRefreshTimer = () => {
  */
 
 export const clearAllTokens = () => {
-  /**
-   * Stop automatic refresh.
-   */
+  console.log('🧹 clearAllTokens() CALLED. admin-token before:', localStorage.getItem('admin-token'));
 
   clearRefreshTimer();
 
-  /**
-   * Remove all token keys.
-   */
+  TOKEN_KEYS.forEach((key) => {
+    localStorage.removeItem(key);
+  });
 
-  TOKEN_KEYS.forEach(
-    (key) => {
-      localStorage.removeItem(
-        key
-      );
-    }
-  );
-
-  /**
-   * Remove authentication data.
-   */
+  console.log('🧹 After TOKEN_KEYS removal loop. admin-token now:', localStorage.getItem('admin-token'));
+  console.log('🧹 TOKEN_KEYS was:', TOKEN_KEYS);
 
   const authStorageKeys = [
-    "active-user-type",
-    "user-type",
-    "userType",
-    "user-data",
-    "user",
-    "token",
-
-    "admin-user",
-    "hr-user",
-    "employee-user",
-    "manager-user",
-    "team_lead-user",
-    "team-lead-user",
-
-    "remember-me",
-    "remembered-email",
+    "active-user-type", "user-type", "userType", "user-data", "user", "token",
+    "admin-user", "hr-user", "employee-user", "manager-user", "team_lead-user", "team-lead-user",
+    "remember-me", "remembered-email",
   ];
 
-  authStorageKeys.forEach(
-    (key) => {
-      localStorage.removeItem(
-        key
-      );
-    }
-  );
+  authStorageKeys.forEach((key) => {
+    localStorage.removeItem(key);
+  });
 
-  /**
-   * Remove Axios authorization.
-   */
+  delete apiClient.defaults.headers.common.Authorization;
 
-  delete apiClient.defaults
-    .headers.common
-    .Authorization;
-
-  console.log(
-    "🧹 All authentication data cleared"
-  );
+  console.log('🧹 clearAllTokens() FINISHED. admin-token final:', localStorage.getItem('admin-token'));
 };
 
 /**
@@ -707,6 +713,12 @@ export const clearAuthAndRedirect =
  */
 
 const doRefresh = async () => {
+  if (isLoggingOut) {
+    throw new Error(
+      "Logout in progress; refresh aborted"
+    );
+  }
+
   const activeType =
     getActiveUserType();
 

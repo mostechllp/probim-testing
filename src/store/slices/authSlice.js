@@ -529,21 +529,20 @@ export const loginUser =
 // LOGOUT
 // ============================================================
 
-export const logoutUser =
-  createAsyncThunk(
-    "auth/logout",
+export const logoutUser = createAsyncThunk(
+  "auth/logout",
 
-    async () => {
-      /*
-       * If backend logout endpoint is added later,
-       * it can be called here.
-       */
+  async () => {
+    console.log('🚪 logoutUser THUNK BODY ENTERED');
+    console.log('🚪 clearAuthStorage function source:', clearAuthStorage.toString());
 
-      clearAuthStorage();
+    clearAuthStorage();
 
-      return null;
-    }
-  );
+    console.log('🚪 clearAuthStorage() call finished. admin-token now:', localStorage.getItem('admin-token'));
+
+    return null;
+  }
+);
 
 // ============================================================
 // INITIALIZE AUTH
