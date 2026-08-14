@@ -68,7 +68,8 @@ Do NOT wrap the JSON in markdown code blocks (no \`\`\`json or \`\`\`), do NOT w
 
 Strict JSON Schema:
 {
-  "fullName": "First and last name of candidate (e.g. John Doe)",
+  "firstName": "Candidate's first name (e.g. John)",
+  "lastName": "Candidate's last name (e.g. Doe)",
   "email": "Valid email address (e.g. john.doe@example.com)",
   "phone": "Phone number, preferably in international format (e.g. +971 50 123 4567)",
   "nationality": "Select the closest matching country from this exact list: ['United Arab Emirates', 'India', 'Pakistan', 'United Kingdom', 'United States', 'Philippines']. If it matches another country not listed, use that country's proper name.",
@@ -157,7 +158,8 @@ ${resumeText}
   // If all models fail, return empty data with a flag
   console.warn('⚠️ All models failed, returning empty data');
   return {
-    fullName: "",
+    firstName: "",
+    lastName: "",
     email: "",
     phone: "",
     nationality: "",
@@ -193,7 +195,7 @@ const parseAIResponse = (content) => {
     const parsedData = JSON.parse(cleanJson);
     
     const requiredFields = [
-      "fullName", "email", "phone", "nationality", "address",
+      "firstName", "lastName", "email", "phone", "nationality", "address",
       "designation", "department", "skills", "experience", "education", "joiningDate"
     ];
     

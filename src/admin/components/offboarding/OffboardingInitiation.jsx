@@ -522,7 +522,7 @@ const OffboardingInitiation = () => {
         visa_sponsorship: data.visaSponsorship,
         nationality: data.nationality,
         reason_for_leaving: data.reasonForLeaving,
-        is_draft: false,
+        is_draft: 0,
       };
 
       let result;
@@ -601,13 +601,52 @@ const OffboardingInitiation = () => {
   };
 
   const handleSaveDraft = async () => {
-    const formData = watch();
+    const data = watch();
+    if (!data.backendEmployeeId || !data.reportingManagerId) {
+      showToast("Please select Employee and Manager first.", "warning");
+      return;
+    }
+    
+    setIsSubmitting(true);
+    
     try {
-      localStorage.setItem("offboarding_draft", JSON.stringify(formData));
-      showToast("Offboarding details saved as draft.", "success");
+      const payload = {
+        employee_id: data.backendEmployeeId ? parseInt(data.backendEmployeeId, 10) : null,
+        reporting_manager_id: data.reportingManagerId ? parseInt(data.reportingManagerId, 10) : null,
+        last_working_day: data.lastWorkingDay,
+        separation_type: data.separationType ? data.separationType.toLowerCase() : null,
+        resignation_date: data.resignationDate,
+        notice_period_days: data.noticePeriodDays ? parseInt(data.noticePeriodDays, 10) : 0,
+        notice_start_date: data.noticeStartDate,
+        visa_sponsorship: data.visaSponsorship,
+        nationality: data.nationality,
+        reason_for_leaving: data.reasonForLeaving,
+        is_draft: 1,
+      };
+
+      if (isEditMode && offboardingId) {
+        await dispatch(
+          updateOffboarding({ id: offboardingId, data: payload }),
+        ).unwrap();
+        showToast("Draft updated successfully", "success");
+      } else {
+        const result = await dispatch(initiateOffboarding(payload)).unwrap();
+        if (result && result.id) {
+          localStorage.setItem("offboarding_id", result.id);
+          localStorage.setItem("offboarding_employee_id", data.backendEmployeeId);
+          localStorage.setItem("offboarding_employee_name", data.employeeName);
+          
+          navigate(`/admin/employees/offboarding-initiation?id=${result.id}`, { replace: true });
+        }
+        showToast("Draft saved successfully", "success");
+      }
+      localStorage.removeItem("offboarding_draft");
     } catch (error) {
       console.error("Save draft error:", error);
-      showToast("Failed to save draft. Data saved locally.", "warning");
+      localStorage.setItem("offboarding_draft", JSON.stringify(data));
+      showToast("Failed to save draft to server. Data saved locally.", "warning");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 

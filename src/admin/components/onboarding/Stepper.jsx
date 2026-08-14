@@ -24,13 +24,13 @@ const Stepper = ({ currentStep }) => {
   ];
 
   const handleStepClick = (stepId) => {
-    if (stepId <= currentStep + 1 || stepId <= currentStep) {
+    if (stepId < currentStep) {
       dispatch(setStep(stepId));
     }
   };
 
   const canNavigateToStep = (stepId) => {
-    return stepId <= currentStep + 1;
+    return stepId < currentStep;
   };
 
   // Mobile view: Show only numbers, no labels

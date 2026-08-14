@@ -76,7 +76,7 @@ const OffboardingHeader = ({ currentStep }) => {
   if (combinedStatus) {
      if (combinedStatus === "completed" || currentProgress?.progress_percentage === 100) apiCalculatedStep = 8;
      else if (combinedStatus.includes("visa")) apiCalculatedStep = 4;
-     else if (combinedStatus.includes("checklist")) apiCalculatedStep = 7;
+     else if (combinedStatus.includes("checklist") || combinedStatus.includes("final") || combinedStatus.includes("clearance")) apiCalculatedStep = 7;
      else if (combinedStatus.includes("asset")) apiCalculatedStep = 2;
      else if (combinedStatus.includes("interview")) apiCalculatedStep = 5;
      else if (combinedStatus.includes("settlement")) apiCalculatedStep = 3;

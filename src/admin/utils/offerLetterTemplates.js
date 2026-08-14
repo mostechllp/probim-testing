@@ -60,8 +60,9 @@ export const TEMPLATES = {
 
 // Template content generator functions
 export const generateOfferLetterContent = (templateId, employeeData) => {
-  const {
-    fullName = '[Candidate Name]',
+  let {
+    firstName = '',
+    lastName = '',
     designation = '[Job Title]',
     joiningDate = '',
     basicSalary = '',
@@ -74,6 +75,9 @@ export const generateOfferLetterContent = (templateId, employeeData) => {
     nationality = ''
   } = employeeData;
 
+  const fullName = `${firstName} ${lastName}`.trim() || '[Candidate Name]';
+  firstName = firstName || 'Candidate';
+
   // Format date
   let formattedJoiningDate = joiningDate;
   if (joiningDate && joiningDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
@@ -82,7 +86,6 @@ export const generateOfferLetterContent = (templateId, employeeData) => {
   }
 
   const today = new Date().toLocaleDateString('en-GB');
-  const firstName = fullName.split(' ')[0] || 'Candidate';
   const formattedBasic = parseFloat(basicSalary || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const formattedAllowance = parseFloat(otherAllowance || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const formattedTotal = parseFloat(totalMonthlySalary || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });

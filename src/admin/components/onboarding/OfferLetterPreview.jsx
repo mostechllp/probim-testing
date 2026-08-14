@@ -135,7 +135,8 @@ const OfferLetterPreview = () => {
         y += lineHeight;
       }
 
-      const filename = `Offer_Letter_${employeeDetails.fullName?.replace(/\s+/g, "_") || "Candidate"}.pdf`;
+      const computedName = (employeeDetails.firstName || "") + (employeeDetails.lastName ? `_${employeeDetails.lastName}` : "");
+      const filename = `Offer_Letter_${computedName || "Candidate"}.pdf`;
       doc.save(filename);
     } catch (err) {
       console.error("PDF generation error:", err);
@@ -158,7 +159,7 @@ const OfferLetterPreview = () => {
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Offer Letter - ${employeeDetails.fullName || 'Candidate'}</title>
+          <title>Offer Letter - ${employeeDetails.firstName || 'Candidate'}</title>
           <style>
             body {
               font-family: ${templateConfig.fontFamily || 'Times New Roman, serif'};

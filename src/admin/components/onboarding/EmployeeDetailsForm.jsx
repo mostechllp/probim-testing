@@ -66,20 +66,23 @@ const EmployeeDetailsForm = () => {
     try {
       // ─── PREPARE PAYLOAD ──────────────────────────────────────────────────
       // Format the payload to match API expectations
+      // Find corresponding IDs for department and designation
+      const selectedDepartment = departments.find(d => d.name === data.department);
+      const selectedDesignation = designations.find(d => d.name === data.designation);
+
       const payload = {
-        fullName: data.fullName,
-        email: data.email,
-        // Use phone as personal_number (the API requires personal_number)
+        first_name: data.firstName || "",
+        last_name: data.lastName || "",
+        personal_email: data.email || "",
         personal_number: data.phone || data.personalNumber || "",
-        phone: data.phone || "", // Also send phone separately if needed
-        nationality: data.nationality,
-        address: data.address,
-        designation: data.designation,
-        department: data.department,
-        skills: data.skills,
-        experience: data.experience,
-        education: data.education,
-        joiningDate: data.joiningDate,
+        nationality: data.nationality || "",
+        address: data.address || "",
+        designation_id: selectedDesignation ? selectedDesignation.id : null,
+        department_id: selectedDepartment ? selectedDepartment.id : null,
+        key_skills: data.skills || "",
+        experience_level: data.experience || "",
+        highest_education: data.education || "",
+        joining_date: data.joiningDate || null,
         paymentCycle: data.paymentCycle || "Monthly",
         // Include packages if they exist
         packages: data.packages || {
@@ -281,8 +284,8 @@ const EmployeeDetailsForm = () => {
               disabled={loading}
             >
               <option value="">Select {label}</option>
-              {options.map(opt => (
-                <option key={typeof opt === 'object' ? opt.id : opt} value={typeof opt === 'object' ? opt.name : opt}>
+              {options.map((opt, idx) => (
+                <option key={typeof opt === 'object' ? opt.id : `${opt}-${idx}`} value={typeof opt === 'object' ? opt.name : opt}>
                   {typeof opt === 'object' ? opt.name : opt}
                 </option>
               ))}
@@ -415,21 +418,12 @@ const EmployeeDetailsForm = () => {
                 </div>
               </div>
             </div>
-
-            <button
-              type="button"
-              onClick={handleSaveDraft}
-              disabled={isSubmitting}
-              className="flex items-center gap-2 px-4 py-2 text-sm font-semibold text-green-600 bg-green-50 dark:bg-green-900/20 rounded-xl hover:bg-green-100 dark:hover:bg-green-900/40 transition-colors disabled:opacity-50"
-            >
-              <FiSave size={16} />
-              Save Draft
-            </button>
           </div>
 
           {/* Form Body */}
           <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
-            <InputField label="Full Name" name="fullName" placeholder="Enter full name" />
+            <InputField label="First Name" name="firstName" placeholder="Enter first name" />
+            <InputField label="Last Name" name="lastName" placeholder="Enter last name" />
             <InputField label="Email Address" name="email" type="email" placeholder="email@example.com" />
             
             {/* Phone Number - This will be sent as personal_number to the API */}

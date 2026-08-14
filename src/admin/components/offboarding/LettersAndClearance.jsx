@@ -513,11 +513,13 @@ const LettersAndClearance = () => {
     setIsGenerating(true);
     
     try {
-      // The letters are already generated (via POST /admin/offboarding/{id}/letters)
-      // The documents are already uploaded (via POST /admin/offboarding/{id}/letters/upload)
-      // The backend already has this state, so we simply refresh the progress and navigate.
+      const idToUse = offboardingId || localStorage.getItem("offboarding_id");
       
-      await dispatch(fetchOffboardingProgress(offboardingId || localStorage.getItem("offboarding_id")));
+      // Call the API to mark the letters step as completed
+      await apiClient.post(`/admin/offboarding/${idToUse}/letters/complete`);
+      
+      // Refresh the progress to update the UI
+      await dispatch(fetchOffboardingProgress(idToUse));
       
       showToast("Letters completed. Proceeding to Checklist.", "success");
       
@@ -526,7 +528,8 @@ const LettersAndClearance = () => {
       }, 2000);
     } catch (error) {
       console.error("Submit error:", error);
-      showToast(error || "Failed to complete offboarding. Please try again.", "error");
+      const errorMessage = error.response?.data?.message || error.message || "Failed to complete offboarding. Please try again.";
+      showToast(errorMessage, "error");
     } finally {
       setIsGenerating(false);
     }

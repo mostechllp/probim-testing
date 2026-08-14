@@ -85,9 +85,7 @@ export const saveOnboardingDetails = createAsyncThunk(
       const data = await onboardingService.saveDetails(payload, employeeId);
       return data;
     } catch (error) {
-      return rejectWithValue(
-        error.message || "Failed to save employee details",
-      );
+      return rejectWithValue(error);
     }
   },
 );
@@ -275,7 +273,8 @@ const initialState = {
   availablePackages: [],
   packagesLoading: false,
   employeeDetails: {
-    fullName: "",
+    firstName: "",
+    lastName: "",
     email: "",
     phone: "",
     nationality: "",

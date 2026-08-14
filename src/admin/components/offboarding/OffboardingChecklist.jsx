@@ -104,6 +104,17 @@ const OffboardingChecklist = () => {
           } catch (e) {
               console.warn("Pre-complete status sync failed", e);
           }
+          try {
+              // Try to mark the final clearance step as complete first
+              await apiClient.post(`/admin/offboarding/${currentOffboarding.id}/checklist/complete`);
+          } catch (e) {
+              console.warn("Checklist complete API failed, trying alternate route", e);
+              try {
+                  await apiClient.post(`/admin/offboarding/${currentOffboarding.id}/final-clearance/complete`);
+              } catch (err) {
+                  console.warn("Final clearance complete API failed", err);
+              }
+          }
           
           await dispatch(completeOffboarding(currentOffboarding.id)).unwrap();
       }
