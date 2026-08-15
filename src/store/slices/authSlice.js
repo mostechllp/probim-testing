@@ -6,6 +6,8 @@ import apiClient, {
   getActiveToken,
   setAuthToken,
   clearAllTokens,
+  beginLogout,   
+  endLogout, 
 } from "../../utils/apiClient";
 
 // ============================================================
@@ -288,32 +290,18 @@ const clearUserData = () => {
 // CLEAR AUTH STORAGE
 // ============================================================
 
+// replace the clearAuthStorage function with:
 const clearAuthStorage = () => {
-  /*
-   * Clear tokens through apiClient helper.
-   */
   try {
     clearAllTokens();
   } catch (error) {
-    console.error(
-      "Failed to clear authentication tokens:",
-      error
-    );
+    console.error("Failed to clear authentication tokens:", error);
   }
 
-  /*
-   * Clear user information.
-   */
   clearUserData();
 
-  /*
-   * Clear axios authorization header.
-   */
-  if (
-    apiClient?.defaults?.headers?.common
-  ) {
-    delete apiClient.defaults.headers
-      .common.Authorization;
+  if (apiClient?.defaults?.headers?.common) {
+    delete apiClient.defaults.headers.common.Authorization;
   }
 };
 
@@ -529,18 +517,26 @@ export const loginUser =
 // LOGOUT
 // ============================================================
 
-export const logoutUser = createAsyncThunk(
-  "auth/logout",
+// replace the logoutUser thunk with:
+export const logoutUser = createAsyncThunk("auth/logout", async () => {
+  // FIX: actually engage the logout guard so any in-flight
+  // refresh (scheduled timer or a 401 retry that started
+  // just before this ran) cannot write a token back into
+  // localStorage after we've cleared it below.
+  beginLogout();
 
-  async () => {
+  clearAuthStorage();
 
-    clearAuthStorage();
+  // Release the guard shortly after — long enough for any
+  // in-flight refresh promise to see isLoggingOut === true
+  // and bail out, short enough not to block a subsequent
+  // fresh login.
+  setTimeout(() => {
+    endLogout();
+  }, 3000);
 
-   
-
-    return null;
-  }
-);
+  return null;
+});
 
 // ============================================================
 // INITIALIZE AUTH

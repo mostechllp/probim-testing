@@ -297,7 +297,10 @@ useEffect(() => {
     }
     
     // ✅ FIX: Set progress data after all fetches are complete
-    setProgressData(progressMap);
+    setProgressData(prev => {
+      if (Object.keys(progressMap).length === 0) return prev;
+      return { ...prev, ...progressMap };
+    });
   };
 
   fetchProgressForAll();
@@ -528,23 +531,7 @@ useEffect(() => {
 
 
 
-        // Find the first step that is not completed (in_progress or pending)
-        for (const step of steps) {
-          if (step.status === "in_progress") {
-            currentStepKey = step.key;
-            break;
-          }
-        }
 
-        // If no step is in_progress, find the first pending step
-        if (currentStepKey === "initiation" && steps.length > 0) {
-          for (const step of steps) {
-            if (step.status === "pending") {
-              currentStepKey = step.key;
-              break;
-            }
-          }
-        }
 
         // If still no step found, use the current_status from API
         if (currentStepKey === "initiation" && progress.current_status) {

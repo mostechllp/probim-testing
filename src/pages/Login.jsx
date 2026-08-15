@@ -30,22 +30,23 @@ const Login = () => {
   const { primaryColor } = useAppTheme();
 
   // --- Token Cleanup on Mount ---
-  useEffect(() => {
-    // Check for stale tokens
-    const hasAdminToken = localStorage.getItem('admin-token');
-    const hasHrToken = localStorage.getItem('hr-token');
-    const hasEmployeeToken = localStorage.getItem('employee-token');
-    const activeType = localStorage.getItem('active-user-type');
-    
-    
-    // If there are tokens but no active type, clear everything
-    if ((hasAdminToken || hasHrToken || hasEmployeeToken) && !activeType) {
-      clearAllTokens();
-      localStorage.removeItem('remember-me');
-      localStorage.removeItem('remembered-email');
-      localStorage.removeItem('user-type');
-    }
-  }, []);
+  // replace the token-cleanup useEffect with:
+useEffect(() => {
+  // FIX: this previously only checked admin/hr/employee
+  // tokens, missing manager and team_lead — so stale
+  // sessions for those roles were never cleaned up here.
+  const hasAnyRoleToken = ["admin", "hr", "employee", "manager", "team_lead"]
+    .some((type) => localStorage.getItem(`${type}-token`));
+
+  const activeType = localStorage.getItem('active-user-type');
+
+  if (hasAnyRoleToken && !activeType) {
+    clearAllTokens();
+    localStorage.removeItem('remember-me');
+    localStorage.removeItem('remembered-email');
+    localStorage.removeItem('user-type');
+  }
+}, []);
 
   // Load remembered email if exists
   useEffect(() => {
