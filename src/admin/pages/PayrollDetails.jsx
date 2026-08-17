@@ -423,10 +423,10 @@ function PayrollView() {
                   payroll.status === "completed" || payroll.status === "paid"
                     ? "fa-check-circle"
                     : payroll.status === "generated"
-                    ? "fa-file-pdf"
-                    : payroll.status === "pending"
-                      ? "fa-clock"
-                      : "fa-file"
+                      ? "fa-file-pdf"
+                      : payroll.status === "pending"
+                        ? "fa-clock"
+                        : "fa-file"
                 } mr-2`}
               ></i>
               Status:{" "}
@@ -488,12 +488,19 @@ function PayrollView() {
                     src={avatarUrl}
                     alt={employeeName}
                     className="w-16 h-16 rounded-full object-cover border-2 border-emerald-200 dark:border-emerald-800"
+                    onError={(e) => {
+                      e.target.style.display = "none";
+                      e.target.parentElement.querySelector(
+                        ".avatar-fallback",
+                      ).style.display = "flex";
+                    }}
                   />
-                ) : (
-                  <div className="w-16 h-16 bg-emerald-50 dark:bg-emerald-900/30 border-2 border-emerald-200 dark:border-emerald-800 rounded-full flex items-center justify-center text-emerald-700 dark:text-emerald-400 font-extrabold text-2xl">
-                    {employeeName?.charAt(0) || "E"}
-                  </div>
-                )}
+                ) : null}
+                <div
+                  className={`w-16 h-16 rounded-full flex items-center justify-center text-white text-2xl font-semibold bg-gradient-to-br from-green-500 to-green-600 avatar-fallback ${avatarUrl ? "hidden" : ""}`}
+                >
+                  {employeeName?.charAt(0)?.toUpperCase() || "E"}
+                </div>
                 <div>
                   <h4 className="text-base font-bold text-gray-800 dark:text-gray-200">
                     {employeeName}
@@ -641,11 +648,17 @@ function PayrollView() {
                     {/* Total Leave Days */}
                     {leaveDetails.length > 0 && (
                       <tr className="bg-gray-50 dark:bg-gray-700/30 font-bold">
-                        <td colSpan="3" className="px-4 py-2.5 text-gray-700 dark:text-gray-300 text-right">
+                        <td
+                          colSpan="3"
+                          className="px-4 py-2.5 text-gray-700 dark:text-gray-300 text-right"
+                        >
                           Total Leave Days
                         </td>
                         <td className="px-4 py-2.5 text-center text-emerald-600 dark:text-emerald-400">
-                          {leaveDetails.reduce((sum, leave) => sum + (leave.days || 0), 0)}
+                          {leaveDetails.reduce(
+                            (sum, leave) => sum + (leave.days || 0),
+                            0,
+                          )}
                         </td>
                       </tr>
                     )}
@@ -667,20 +680,21 @@ function PayrollView() {
                   <p className="text-xs text-blue-600/80 dark:text-blue-400/80">
                     Converted from mixed currencies to {targetCurrencyDisplay}
                   </p>
-                  {step5.conversion_rates && step5.conversion_rates.length > 0 && (
-                    <div className="flex flex-wrap gap-2 mt-1">
-                      {Object.entries(step5.conversion_rates).map(
-                        ([currency, rate]) => (
-                          <span
-                            key={currency}
-                            className="text-[10px] bg-blue-100 dark:bg-blue-800/50 px-2 py-0.5 rounded text-blue-700 dark:text-blue-300"
-                          >
-                            {currency} → {targetCurrencyDisplay}: {rate}
-                          </span>
-                        ),
-                      )}
-                    </div>
-                  )}
+                  {step5.conversion_rates &&
+                    step5.conversion_rates.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mt-1">
+                        {Object.entries(step5.conversion_rates).map(
+                          ([currency, rate]) => (
+                            <span
+                              key={currency}
+                              className="text-[10px] bg-blue-100 dark:bg-blue-800/50 px-2 py-0.5 rounded text-blue-700 dark:text-blue-300"
+                            >
+                              {currency} → {targetCurrencyDisplay}: {rate}
+                            </span>
+                          ),
+                        )}
+                      </div>
+                    )}
                 </div>
               </div>
             </div>

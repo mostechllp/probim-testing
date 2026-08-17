@@ -1768,9 +1768,9 @@ if (!currentPayroll && !isLoading && isDataLoaded) {
                       }
                     >
                       <option value="">Select Payment Mode</option>
-                      <option value="NEFT">WPS</option>
-                      <option value="RTGS">Bank Transfer</option>
-                      <option value="RTGS">INR Transfer</option>
+                      <option value="WPS">WPS</option>
+                      <option value="Bank Transfer">Bank Transfer</option>
+                      <option value="INR Transfer">INR Transfer</option>
                       <option value="Cheque">Cheque</option>
                       <option value="Cash">Cash</option>
                     </select>
