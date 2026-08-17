@@ -9,7 +9,7 @@ import {
   fetchEmployeeNearestExpiryReport,
   selectEmployeeNearestExpiry,
   selectEmployeeNearestExpiryLoading,
-  selectEmployeeNearestExpiryPagination
+  selectEmployeeNearestExpiryPagination,
 } from "../../store/slices/reportSlice";
 import ExportModal from "../../../components/common/ExportModal";
 import { exportToCSV, formatDate } from "../../../utils/reportUtils";
@@ -40,11 +40,20 @@ const EmployeeNearestExpiryReport = () => {
         per_page: perPage,
         expiry_days: expiryDays,
         company: selectedCompany !== "all" ? selectedCompany : undefined,
-        department: selectedDepartment !== "all" ? selectedDepartment : undefined,
+        department:
+          selectedDepartment !== "all" ? selectedDepartment : undefined,
         search: searchTerm || undefined,
-      })
+      }),
     );
-  }, [dispatch, currentPage, perPage, expiryDays, selectedCompany, selectedDepartment, searchTerm]);
+  }, [
+    dispatch,
+    currentPage,
+    perPage,
+    expiryDays,
+    selectedCompany,
+    selectedDepartment,
+    searchTerm,
+  ]);
 
   // Reset to first page when filters change
   useEffect(() => {
@@ -62,7 +71,10 @@ const EmployeeNearestExpiryReport = () => {
     return {
       id: emp.id,
       emp_id: raw?.employee_id || emp?.emp_id || "-",
-      name: emp.name || raw?.first_name ? `${raw.first_name} ${raw.last_name || ''}`.trim() : "-",
+      name:
+        emp.name || raw?.first_name
+          ? `${raw.first_name} ${raw.last_name || ""}`.trim()
+          : "-",
       company_name: company?.company_name || company?.name || "-",
       department_name: department?.name || "-",
       passport_expiry: raw?.passport_expiry_date,
@@ -101,8 +113,15 @@ const EmployeeNearestExpiryReport = () => {
     const earliest = new Date(
       Math.min(...expiryDates.map((date) => new Date(date))),
     );
-    const diffDays = Math.ceil((earliest - new Date()) / (1000 * 60 * 60 * 24));
-    return { date: earliest, daysLeft: diffDays };
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const diffDays = Math.ceil((earliest - today) / (1000 * 60 * 60 * 24));
+
+    return {
+      date: earliest,
+      daysLeft: diffDays,
+      isExpired: diffDays < 0,
+    };
   };
 
   // Get employees with nearest expiry
@@ -222,14 +241,15 @@ const EmployeeNearestExpiryReport = () => {
       showToast("Employee expiry data exported successfully!", "success");
     } else if (format === "pdf") {
       try {
-        const response = await apiClient.post('/admin/reports/export', 
-          { report_type: 'employee_nearest_expiry', format: 'pdf' },
-          { responseType: 'blob' }
+        const response = await apiClient.post(
+          "/admin/reports/export",
+          { report_type: "employee_nearest_expiry", format: "pdf" },
+          { responseType: "blob" },
         );
         const url = window.URL.createObjectURL(new Blob([response.data]));
-        const link = document.createElement('a');
+        const link = document.createElement("a");
         link.href = url;
-        link.setAttribute('download', `${filename}.pdf`);
+        link.setAttribute("download", `${filename}.pdf`);
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -255,7 +275,7 @@ const EmployeeNearestExpiryReport = () => {
       return "bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400 font-semibold";
     if (diffDays <= 15)
       return "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400";
-    if (diffDays <= expiryDays)
+    if (diffDays <= 30)
       return "bg-yellow-50 text-yellow-700 dark:bg-yellow-900/20 dark:text-yellow-400";
     return "";
   };
@@ -278,19 +298,25 @@ const EmployeeNearestExpiryReport = () => {
   ];
 
   // Calculate stats
+  // Calculate stats
   const expiringWithin7Days = filteredEmployees.filter((emp) => {
     const earliest = getEarliestExpiry(emp);
-    return earliest && earliest.daysLeft <= 7;
+    return earliest && earliest.daysLeft >= 0 && earliest.daysLeft <= 7;
   }).length;
 
   const expiringWithin15Days = filteredEmployees.filter((emp) => {
     const earliest = getEarliestExpiry(emp);
-    return earliest && earliest.daysLeft <= 15 && earliest.daysLeft > 7;
+    return earliest && earliest.daysLeft >= 8 && earliest.daysLeft <= 15;
   }).length;
 
   const expiringWithin30Days = filteredEmployees.filter((emp) => {
     const earliest = getEarliestExpiry(emp);
-    return earliest && earliest.daysLeft <= 30 && earliest.daysLeft > 15;
+    return earliest && earliest.daysLeft >= 16 && earliest.daysLeft <= 30;
+  }).length;
+
+  const expiredCount = filteredEmployees.filter((emp) => {
+    const earliest = getEarliestExpiry(emp);
+    return earliest && earliest.isExpired;
   }).length;
 
   // Get document type stats
@@ -339,6 +365,21 @@ const EmployeeNearestExpiryReport = () => {
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+          <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  Expired Documents
+                </p>
+                <p className="text-2xl font-bold text-red-600 dark:text-red-400">
+                  {expiredCount}
+                </p>
+              </div>
+              <div className="w-10 h-10 bg-red-100 dark:bg-red-900/30 rounded-lg flex items-center justify-center">
+                <i className="fas fa-exclamation-triangle text-red-600 dark:text-red-400"></i>
+              </div>
+            </div>
+          </div>
           <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
             <div className="flex items-center justify-between">
               <div>
@@ -526,7 +567,8 @@ const EmployeeNearestExpiryReport = () => {
           </div>
           <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
             <i className="fas fa-info-circle mr-1"></i>
-            Showing employees with documents expiring within {expiryDays} days from today
+            Showing employees with documents expiring within {expiryDays} days
+            from today
           </div>
         </div>
 
@@ -652,15 +694,22 @@ const EmployeeNearestExpiryReport = () => {
                             <td className="px-3 md:px-4 py-2 md:py-3 text-xs md:text-sm">
                               {earliest ? (
                                 <span
-                                  className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold ${earliest.daysLeft <= 7
+                                  className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold ${
+                                    earliest.isExpired
                                       ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
-                                      : earliest.daysLeft <= 15
-                                        ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
-                                        : "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"
-                                    }`}
+                                      : earliest.daysLeft <= 7
+                                        ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+                                        : earliest.daysLeft <= 15
+                                          ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+                                          : "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"
+                                  }`}
                                 >
-                                  <i className="fas fa-hourglass-half text-[10px]"></i>
-                                  {earliest.daysLeft} days
+                                  <i
+                                    className={`fas ${earliest.isExpired ? "fa-exclamation-triangle" : "fa-hourglass-half"} text-[10px]`}
+                                  ></i>
+                                  {earliest.isExpired
+                                    ? `Expired ${Math.abs(earliest.daysLeft)} days ago`
+                                    : `${earliest.daysLeft} days left`}
                                 </span>
                               ) : (
                                 "-"

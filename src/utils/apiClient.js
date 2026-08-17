@@ -189,12 +189,11 @@ const decodeJwt = (token) => {
 
     const payload = parts[1];
     const base64 = payload.replace(/-/g, "+").replace(/_/g, "/");
-    const paddedBase64 =
-      base64 + "=".repeat((4 - (base64.length % 4)) % 4);
+    const paddedBase64 = base64 + "=".repeat((4 - (base64.length % 4)) % 4);
 
     const binary = atob(paddedBase64);
     const bytes = Uint8Array.from(binary, (character) =>
-      character.charCodeAt(0)
+      character.charCodeAt(0),
     );
 
     const json = new TextDecoder().decode(bytes);
@@ -511,7 +510,7 @@ const doRefresh = async () => {
           "Content-Type": "application/json",
         },
         timeout: 15000,
-      }
+      },
     );
 
     const responseData = response.data?.data;
@@ -568,7 +567,7 @@ const doRefresh = async () => {
   } catch (error) {
     console.error(
       "❌ Token refresh failed:",
-      error.response?.data || error.message
+      error.response?.data || error.message,
     );
     throw error;
   }
@@ -613,25 +612,21 @@ export const scheduleTokenRefresh = (token) => {
 
   const refreshDelay = Math.max(
     100,
-    remaining - REFRESH_BEFORE_EXPIRY_SECONDS * 1000
+    remaining - REFRESH_BEFORE_EXPIRY_SECONDS * 1000,
   );
 
   refreshTimer = setTimeout(async () => {
     if (isLoggingOut) return;
 
     const latestToken = getToken();
-
     if (isEmptyToken(latestToken)) return;
 
     const latestExpiration = getTokenExpiration(latestToken);
-
     if (latestExpiration && latestExpiration !== expiration) {
-      // Another refresh already happened — reschedule off the new token.
       scheduleTokenRefresh(latestToken);
       return;
     }
-
-    try {
+try {
       await refreshAccessToken();
     } catch (error) {
       console.error(
@@ -640,29 +635,54 @@ export const scheduleTokenRefresh = (token) => {
       );
 
       /**
-       * FIX: only force logout on a genuine hard auth failure
-       * (server said 401/403) or a token that's actually
-       * expired now. Any other error — network blip, timeout,
-       * transient local state — gets retried instead of
-       * logging the user out from under them.
+       * FIX: local clock state is NOT evidence the session is
+       * dead — it's only evidence we're past our own buffer.
+       * The only thing that proves the session is actually
+       * dead is the SERVER saying so. Removed `trulyExpired`
+       * from this condition entirely — only a genuine 401/403
+       * from the refresh endpoint forces logout. Everything
+       * else (network errors, timeouts, offline during
+       * sleep/wake) retries with backoff instead, no matter how
+       * "expired" the token looks locally.
        */
-      const currentToken = getToken();
-      const trulyExpired = !currentToken || isTokenExpired(currentToken);
-
-      if (isHardAuthFailure(error) || trulyExpired) {
+      if (isHardAuthFailure(error)) {
         clearAuthAndRedirect();
         return;
       }
 
-      refreshTimer = setTimeout(() => {
-        if (isLoggingOut) return;
-        const retryToken = getToken();
-        if (retryToken) {
-          scheduleTokenRefresh(retryToken);
-        }
-      }, 1000);
+      scheduleRefreshRetry(1);
     }
   }, refreshDelay);
+};
+
+/**
+ * Retry helper with capped exponential backoff. Never forces
+ * logout on its own — only feeds back into another refresh
+ * attempt, which is the only place a real 401/403 can end things.
+ */
+const scheduleRefreshRetry = (attempt) => {
+  if (isLoggingOut) return;
+
+  const retryToken = getToken();
+  if (!retryToken) return;
+
+  const delay = Math.min(30000, 1000 * Math.pow(2, attempt - 1)); // 1s,2s,4s,8s,16s,30s cap
+
+  refreshTimer = setTimeout(async () => {
+    if (isLoggingOut) return;
+
+    try {
+      await refreshAccessToken();
+      // success — doRefresh() already calls scheduleTokenRefresh(newToken)
+      // internally, nothing more to do here.
+    } catch (error) {
+      if (isHardAuthFailure(error)) {
+        clearAuthAndRedirect();
+        return;
+      }
+      scheduleRefreshRetry(attempt + 1);
+    }
+  }, delay);
 };
 
 /**
@@ -671,20 +691,21 @@ export const scheduleTokenRefresh = (token) => {
  * ============================================================
  */
 
+// ── initializeTokenRefresh (currently unused, but fix for correctness) ──
+
 export const initializeTokenRefresh = () => {
   const token = getToken();
-
   if (!token) return;
 
-  if (isTokenExpired(token)) {
-    console.warn("Stored access token has expired.");
-    clearAuthAndRedirect();
-    return;
-  }
-
+  /**
+   * FIX: don't short-circuit to logout just because the local
+   * clock says expired on page load — scheduleTokenRefresh's
+   * 100ms floor will fire an actual refresh attempt almost
+   * immediately anyway, and that attempt (not our guess) is
+   * what should decide the outcome.
+   */
   scheduleTokenRefresh(token);
 };
-
 /**
  * ============================================================
  * REQUEST INTERCEPTOR
@@ -712,26 +733,34 @@ apiClient.interceptors.request.use(
       return config;
     }
 
+    // ── request interceptor's catch block ────────────────────────
+
     if (isExpiringSoon(token, REFRESH_BEFORE_EXPIRY_SECONDS)) {
       try {
         token = await refreshAccessToken();
       } catch (refreshError) {
         console.error(
           "❌ Pre-request token refresh failed:",
-          refreshError.response?.data || refreshError.message
+          refreshError.response?.data || refreshError.message,
         );
 
         /**
-         * FIX: same distinction as above — only bail out to
-         * login on a hard auth failure or a token that's
-         * actually expired. Otherwise fall through and attach
-         * whatever token we still have; the response
-         * interceptor's 401 handling is the real safety net.
+         * FIX: same correction — isTokenExpired(token) is not
+         * proof of anything the server has confirmed. Only a
+         * hard 401/403 from the refresh call itself means the
+         * session is actually dead. Otherwise fall through with
+         * whatever token we have; the response interceptor's
+         * real 401 handling on the ACTUAL request is the
+         * legitimate safety net, and by then we'll know for
+         * certain whether the server considers us logged out.
          */
-        if (isHardAuthFailure(refreshError) || isTokenExpired(token)) {
+        if (isHardAuthFailure(refreshError)) {
           clearAuthAndRedirect();
           return Promise.reject(refreshError);
         }
+        // else: fall through, attach whatever token exists,
+        // let the actual request go out and be judged by the
+        // response interceptor if it comes back 401.
       }
     }
 
@@ -743,7 +772,7 @@ apiClient.interceptors.request.use(
   },
   (error) => {
     return Promise.reject(error);
-  }
+  },
 );
 
 /**
@@ -794,14 +823,14 @@ apiClient.interceptors.response.use(
     } catch (refreshError) {
       console.error(
         "❌ Unable to recover from 401:",
-        refreshError.response?.data || refreshError.message
+        refreshError.response?.data || refreshError.message,
       );
 
       clearAuthAndRedirect();
 
       return Promise.reject(refreshError);
     }
-  }
+  },
 );
 
 if (typeof document !== "undefined") {
