@@ -32,7 +32,7 @@ const OffboardingHeader = ({ currentStep }) => {
   // Get offboarding ID from URL or localStorage
   const getOffboardingId = () => {
     const urlParams = new URLSearchParams(location.search);
-    return urlParams.get('id') || localStorage.getItem("offboarding_id");
+    return location.state?.id || urlParams.get('id') || localStorage.getItem("offboarding_id");
   };
   
   // Check visa sponsorship status from localStorage or session

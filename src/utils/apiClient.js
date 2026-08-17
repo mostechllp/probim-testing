@@ -40,7 +40,7 @@ export const TOKEN_KEYS = [
  * ============================================================
  */
 
-const REFRESH_BEFORE_EXPIRY_SECONDS = 2;
+const REFRESH_BEFORE_EXPIRY_SECONDS = 60;
 
 /**
  * ============================================================
@@ -500,10 +500,6 @@ const doRefresh = async () => {
     throw new Error("No valid authentication session");
   }
 
-  if (isTokenExpired(currentToken)) {
-    throw new Error("Access token has already expired");
-  }
-
   try {
     const response = await axios.post(
       `${API_BASE_URL}/auth/refresh`,
@@ -807,6 +803,20 @@ apiClient.interceptors.response.use(
     }
   }
 );
+
+if (typeof document !== "undefined") {
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") {
+      const token = getToken();
+      if (token) {
+        // Reschedule (and refresh immediately if needed) against
+        // real elapsed time, not the stale schedule from before
+        // the tab was hidden.
+        scheduleTokenRefresh(token);
+      }
+    }
+  });
+}
 
 /**
  * ============================================================

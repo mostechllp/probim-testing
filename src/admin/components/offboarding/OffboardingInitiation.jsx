@@ -184,7 +184,21 @@ const OffboardingInitiation = () => {
       // Check if we have data from navigation state
       if (location.state?.offboardingData) {
         const data = location.state.offboardingData;
-        populateFormWithData(data);
+        
+        let currentEmployees = employees;
+        if (!currentEmployees || currentEmployees.length === 0) {
+          try {
+            const empPayload = await dispatch(fetchEmployees()).unwrap();
+            currentEmployees = empPayload?.data?.data || empPayload?.data || [];
+          } catch (e) {
+            console.error("Failed to fetch employees", e);
+          }
+        }
+        
+        populateFormWithData(data, currentEmployees);
+        if (data.id) {
+          dispatch(fetchOffboardingProgress(data.id));
+        }
         setLoadingData(false);
         return;
       }

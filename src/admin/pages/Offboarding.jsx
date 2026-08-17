@@ -504,59 +504,17 @@ useEffect(() => {
   };
 
   const handleContinue = async (offboarding) => {
-    // First fetch the offboarding progress to know which step to go to
     try {
-      // Fetch progress to get current step
-      const progress = await dispatch(
-        fetchOffboardingProgress(offboarding.id),
+      const currentStepKey = offboarding.currentStep || "initiation";
+
+      // Fetch full offboarding data
+      const result = await dispatch(
+        fetchOffboardingById(offboarding.id),
       ).unwrap();
 
-      if (progress) {
-        let currentStepKey = offboarding.current_step || "initiation";
-        const combinedStatus = progress?.status ?? offboarding.status;
-
-        if (Array.isArray(progress.steps) && progress.steps.length > 0) {
-          const inProgressStep = progress.steps.find((s) => s.status === "in_progress");
-          if (inProgressStep) {
-            currentStepKey = inProgressStep.key;
-          } else {
-            const pendingStep = progress.steps.find((s) => s.status === "pending");
-            if (pendingStep) {
-              currentStepKey = pendingStep.key;
-            } else if (progress.progress_percentage === 100 || combinedStatus === "completed") {
-              currentStepKey = "Completed";
-            }
-          }
-        }
-
-
-
-
-
-        // If still no step found, use the current_status from API
-        if (currentStepKey === "initiation" && progress.current_status) {
-          currentStepKey = progress.current_status;
-        }
-
-
-        // Fetch full offboarding data
-        const result = await dispatch(
-          fetchOffboardingById(offboarding.id),
-        ).unwrap();
-
-        if (result) {
-          // Navigate based on the current step from progress
-          navigateToStep(currentStepKey, offboarding.id, result);
-        }
-      } else {
-        // Fallback: use offboarding.currentStep if progress fetch fails
-        const step = offboarding.currentStep || "initiation";
-        const result = await dispatch(
-          fetchOffboardingById(offboarding.id),
-        ).unwrap();
-        if (result) {
-          navigateToStep(step, offboarding.id, result);
-        }
+      if (result) {
+        // Navigate based on the current step
+        navigateToStep(currentStepKey, offboarding.id, result);
       }
     } catch (error) {
       console.error("Failed to fetch offboarding details:", error);

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { FileText, CheckCircle, Clock, Check, Download, Loader, Plus, X, Upload, File, Printer, Sparkles } from "lucide-react";
 import { showToast } from "../common/Toast";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import OffboardingHeader from "./OffboardingHeader";
 import OffboardingProgressBox from "./OffboardingProgressBox";
@@ -13,7 +13,8 @@ const LettersAndClearance = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const [searchParams] = useSearchParams();
-  const offboardingId = searchParams.get("id");
+  const location = useLocation();
+  const offboardingId = location.state?.id || searchParams.get("id");
   
   const [loading, setLoading] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);

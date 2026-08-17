@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { AlertCircle, CheckCircle2, Circle, ShieldAlert, ArrowRight, Save, Info, AlertTriangle, Plus, Edit2, Trash2, X, Check, FolderPlus, XCircle, Upload } from "lucide-react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { showToast } from "../common/Toast";
 import DateInput from "../common/DateInput";
@@ -31,7 +31,8 @@ const VisaCancellationAndExit = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const [searchParams] = useSearchParams();
-  const offboardingId = searchParams.get("id");
+  const location = useLocation();
+  const offboardingId = location.state?.id || searchParams.get("id");
 
   const [loading, setLoading] = useState(true);
   const [employeeData, setEmployeeData] = useState(null);

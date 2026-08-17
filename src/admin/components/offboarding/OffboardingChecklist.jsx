@@ -10,7 +10,7 @@ import {
   Monitor,
   FileText
 } from "lucide-react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { showToast } from "../common/Toast";
 import OffboardingHeader from "./OffboardingHeader";
@@ -23,7 +23,8 @@ const OffboardingChecklist = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const [searchParams] = useSearchParams();
-  const offboardingId = searchParams.get("id");
+  const location = useLocation();
+  const offboardingId = location.state?.id || searchParams.get("id");
 
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);

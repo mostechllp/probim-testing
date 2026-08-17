@@ -26,7 +26,7 @@ const OffboardingProgressBox = ({
   useEffect(() => {
     const savedVisaSponsorship = localStorage.getItem("offboarding_visa_sponsorship");
     const urlParams = new URLSearchParams(location.search);
-    const offboardingId = urlParams.get('id') || localStorage.getItem("offboarding_id");
+    const offboardingId = location.state?.id || urlParams.get('id') || localStorage.getItem("offboarding_id");
     
     if (savedVisaSponsorship) {
       setIsVisaRequired(savedVisaSponsorship !== "Not Applicable");
