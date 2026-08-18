@@ -652,7 +652,8 @@ function AppContent() {
 
         <Route path="request-leave" element={<RequestLeave />} />
 
-        <Route path="wfh" element={<EmployeeWFH />} />
+        <Route path="wfh" element={<AdminWFH />} />
+        <Route path="my-wfh" element={<EmployeeWFH />} />
 
         <Route path="task-reports" element={<EmployeeTaskReports />} />
 
@@ -660,7 +661,8 @@ function AppContent() {
 
         <Route path="profile" element={<EmployeeProfile />} />
 
-        <Route path="attendance-requests" element={<AttendanceRequests />} />
+        <Route path="attendance-requests" element={<AdminAttendanceRequests />} />
+        <Route path="my-attendance-requests" element={<AttendanceRequests />} />
 
         <Route path="my-documents" element={<EmployeeMyDocuments />} />
 
