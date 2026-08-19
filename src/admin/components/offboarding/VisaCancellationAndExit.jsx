@@ -33,6 +33,7 @@ const VisaCancellationAndExit = () => {
   const [searchParams] = useSearchParams();
   const location = useLocation();
   const offboardingId = location.state?.id || searchParams.get("id");
+  const isViewMode = !!location.state?.isView;
 
   const [loading, setLoading] = useState(true);
   const [employeeData, setEmployeeData] = useState(null);
@@ -139,13 +140,13 @@ const VisaCancellationAndExit = () => {
 
   // Update local state when employee data is loaded
   useEffect(() => {
-    if (currentEmployee && !employeeLoading) {
+    if (currentEmployee && !employeeLoading && String(currentEmployee.id) === String(currentOffboarding?.employee_id)) {
       setEmployeeData(currentEmployee);
       setLoading(false);
-    } else if (!employeeLoading && !currentEmployee && !offboardingLoading) {
+    } else if (!employeeLoading && (!currentEmployee || String(currentEmployee.id) !== String(currentOffboarding?.employee_id)) && !offboardingLoading) {
       setLoading(false);
     }
-  }, [currentEmployee, employeeLoading, offboardingLoading]);
+  }, [currentEmployee, employeeLoading, offboardingLoading, currentOffboarding?.employee_id]);
 
   // Handle errors
   useEffect(() => {
@@ -388,7 +389,7 @@ const VisaCancellationAndExit = () => {
               </div>
             </div>
 
-
+            <fieldset disabled={isViewMode} className="w-full space-y-8">
             {/* Visa & Residency Status Section */}
             <section className="space-y-4">
               <h2 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider flex items-center gap-2">
@@ -547,26 +548,36 @@ const VisaCancellationAndExit = () => {
                 </div>
               )}
             </section>
+            </fieldset>
 
             {/* Footer Action */}
             <div className="pt-6 border-t border-gray-100 dark:border-gray-700 flex justify-end">
-              <button
-                onClick={handleUpdateVisaStatus}
-                disabled={isSubmitting}
-                className="px-6 py-2.5 rounded-full font-semibold bg-green-500 text-white hover:bg-green-600 transition-all flex items-center justify-center gap-2 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isSubmitting ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    Updating...
-                  </>
-                ) : (
-                  <>
-                    Update visa status
-                    <ArrowRight size={18} />
-                  </>
-                )}
-              </button>
+              {isViewMode ? (
+                <button
+                  onClick={() => navigate(`/admin/employees/exit-interview?id=${offboardingId}`, { state: { id: offboardingId, isView: true } })}
+                  className="px-6 py-2.5 rounded-full font-semibold bg-blue-500 text-white hover:bg-blue-600 transition-all flex items-center justify-center gap-2"
+                >
+                  Next Step <ArrowRight size={16} />
+                </button>
+              ) : (
+                <button
+                  onClick={handleUpdateVisaStatus}
+                  disabled={isSubmitting}
+                  className="px-6 py-2.5 rounded-full font-semibold bg-green-500 text-white hover:bg-green-600 transition-all flex items-center justify-center gap-2 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      Updating...
+                    </>
+                  ) : (
+                    <>
+                      Update visa status
+                      <ArrowRight size={18} />
+                    </>
+                  )}
+                </button>
+              )}
             </div>
 
           </div>

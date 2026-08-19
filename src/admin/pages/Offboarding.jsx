@@ -23,6 +23,7 @@ import {
   AlertCircleIcon,
   Trash2,
   Play,
+  Eye,
 } from "lucide-react";
 import { showToast } from "../../components/common/Toast";
 import apiClient from "../../utils/apiClient";
@@ -728,6 +729,19 @@ useEffect(() => {
                       </td>
                       <td className="px-3 md:px-4 py-2 md:py-3 text-right">
                         <div className="flex items-center justify-end gap-2">
+                          {item.status === "completed" && (
+                            <button
+                              onClick={() => {
+                                navigate("/admin/employees/offboarding-initiation", {
+                                  state: { id: item.id, isView: true }
+                                });
+                              }}
+                              title="View"
+                              className="p-2 rounded-xl bg-gray-50 text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors flex items-center justify-center"
+                            >
+                              <Eye size={16} />
+                            </button>
+                          )}
                           {item.status !== "completed" && (
                             <button
                               onClick={() => handleContinue(item)}

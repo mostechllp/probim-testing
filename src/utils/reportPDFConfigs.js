@@ -264,18 +264,30 @@ export const generateCompanyExpiryPDF = (companies, title, filters = {}) => {
   
   pdf.addHeader(title, `Expiry period: ${filters.expiryDays || 30} days`, { ...filters, stats });
 
-  const columns = ["S.No", "Company Name", "Trade License", "TL Expiry", "Days Left (TL)", "Est. Card", "EC Expiry", "Days Left (EC)"];
+  const columns = ["S.No", "Document Name", "Expiry Date", "Days Left"];
 
-  const data = companies.map((company, index) => [
-    index + 1,
-    company.name,
-    company.trade_license_number || "-",
-    formatDate(company.trade_license_expiry),
-    getDaysDifference(company.trade_license_expiry) || "-",
-    company.establishment_card_number || "-",
-    formatDate(company.establishment_card_expiry),
-    getDaysDifference(company.establishment_card_expiry) || "-",
-  ]);
+  const data = companies.map((company, index) => {
+    const expiryDates = [
+      company.trade_license_expiry,
+      company.establishment_card_expiry,
+      company.expiry_date,
+    ].filter((date) => date);
+
+    const earliestExpiry = expiryDates.length > 0
+      ? expiryDates.reduce((earliest, current) => 
+          new Date(current) < new Date(earliest) ? current : earliest
+        )
+      : null;
+
+    const daysLeft = earliestExpiry ? getDaysDifference(earliestExpiry) : null;
+
+    return [
+      index + 1,
+      company.name,
+      earliestExpiry ? formatDate(earliestExpiry) : "-",
+      daysLeft !== null ? (daysLeft < 0 ? `Expired ${Math.abs(daysLeft)} days ago` : `${daysLeft} days`) : "-",
+    ];
+  });
 
   pdf.addTable(columns, data, 55);
   pdf.addFooter();
@@ -298,28 +310,31 @@ export const generateCompanyUpcomingRenewalsPDF = (companies, title, filters = {
 
   const columns = [
     "S.No", 
-    "Company Name", 
-    "Trade License", 
-    "TL Expiry", 
-    "Days Left (TL)", 
-    "Est. Card", 
-    "EC Expiry", 
-    "Days Left (EC)"
+    "Document Name", 
+    "Expiry Date",
+    "Days Left"
   ];
 
   const data = companies.map((company, index) => {
-    const tlDays = getDaysDifference(company.trade_license_expiry);
-    const ecDays = getDaysDifference(company.establishment_card_expiry);
+    const expiryDates = [
+      company.trade_license_expiry,
+      company.establishment_card_expiry,
+      company.expiry_date,
+    ].filter((date) => date);
+
+    const earliestExpiry = expiryDates.length > 0
+      ? expiryDates.reduce((earliest, current) => 
+          new Date(current) < new Date(earliest) ? current : earliest
+        )
+      : null;
+
+    const daysLeft = earliestExpiry ? getDaysDifference(earliestExpiry) : null;
     
     return [
       index + 1,
       company.name,
-      company.trade_license_number || "-",
-      formatDate(company.trade_license_expiry),
-      tlDays !== null && tlDays >= (filters.minDays || 31) && tlDays <= (filters.maxDays || 90) ? `${tlDays} days` : "-",
-      company.establishment_card_number || "-",
-      formatDate(company.establishment_card_expiry),
-      ecDays !== null && ecDays >= (filters.minDays || 31) && ecDays <= (filters.maxDays || 90) ? `${ecDays} days` : "-",
+      earliestExpiry ? formatDate(earliestExpiry) : "-",
+      daysLeft !== null ? `${daysLeft} days` : "-",
     ];
   });
 

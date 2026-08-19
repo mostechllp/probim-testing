@@ -15,6 +15,7 @@ const LettersAndClearance = () => {
   const [searchParams] = useSearchParams();
   const location = useLocation();
   const offboardingId = location.state?.id || searchParams.get("id");
+  const isViewMode = !!location.state?.isView;
   
   const [loading, setLoading] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -152,7 +153,7 @@ const LettersAndClearance = () => {
       // Load employee name
       if (currentOffboarding.employee_name) {
         setEmployeeName(currentOffboarding.employee_name);
-      } else if (currentOffboarding.employee_id) {
+      } else if (currentOffboarding.employee_id && String(currentEmployee?.id) !== String(currentOffboarding.employee_id)) {
         dispatch(fetchEmployeeById(currentOffboarding.employee_id));
       }
       
@@ -165,7 +166,8 @@ const LettersAndClearance = () => {
             return {
               ...l,
               generated: true,
-              file_path: apiLetter.document_url || apiLetter.document_path || apiLetter.file_path || apiLetter.url
+              date: apiLetter.generated_at || apiLetter.created_at || new Date().toISOString(),
+              downloadUrl: apiLetter.document_url || apiLetter.document_path || apiLetter.file_path || apiLetter.url || "#"
             };
           }
           return l;
@@ -192,14 +194,14 @@ const LettersAndClearance = () => {
       
       setLoading(false);
     }
-  }, [currentOffboarding, offboardingLoading, dispatch]);
+  }, [currentOffboarding, offboardingLoading, dispatch, currentEmployee]);
 
   // Update employee name when fetched
   useEffect(() => {
-    if (currentEmployee) {
+    if (currentEmployee && String(currentEmployee.id) === String(currentOffboarding?.employee_id)) {
       setEmployeeName(`${currentEmployee.first_name} ${currentEmployee.last_name}`);
     }
-  }, [currentEmployee]);
+  }, [currentEmployee, currentOffboarding?.employee_id]);
 
   const pendingUploads = uploadDocuments.filter((doc) => doc.status === "Pending").length;
   const allLettersGenerated = lettersToGenerate.every(letter => letter.generated);
@@ -578,7 +580,7 @@ const LettersAndClearance = () => {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-gray-100 dark:border-gray-700 pb-4 mb-6">
             <div>
               <h1 className="text-xl sm:text-2xl font-black text-gray-900 dark:text-white tracking-tight">
-                Letters & Clearance
+                {isViewMode ? "View Letters & Clearance" : "Letters & Clearance"}
               </h1>
               <p className="text-sm font-semibold text-gray-500 dark:text-gray-400 mt-1">
                 {employeeName || "Employee"}
@@ -613,11 +615,11 @@ const LettersAndClearance = () => {
               <div className="flex gap-2">
                 <button
                   onClick={handleGenerateAllLetters}
-                  disabled={isGenerating || allLettersGenerated}
+                  disabled={isGenerating || allLettersGenerated || isViewMode}
                   className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 ${
                     allLettersGenerated
                       ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
-                      : "bg-green-500 text-white hover:bg-green-600"
+                      : "bg-green-500 text-white hover:bg-green-600 disabled:opacity-50"
                   }`}
                 >
                   {isGenerating ? (
@@ -657,7 +659,8 @@ const LettersAndClearance = () => {
                           type="text"
                           value={letter.title}
                           onChange={(e) => handleCustomLetterTitleChange(letter.id, e.target.value)}
-                          className="text-base font-semibold text-gray-800 dark:text-white bg-transparent border-b border-gray-300 dark:border-gray-600 focus:border-green-500 outline-none px-0 py-0"
+                          disabled={isViewMode}
+                          className="text-base font-semibold text-gray-800 dark:text-white bg-transparent border-b border-gray-300 dark:border-gray-600 focus:border-green-500 outline-none px-0 py-0 disabled:border-none disabled:opacity-100"
                           placeholder="Enter letter name"
                         />
                       ) : (
@@ -684,11 +687,11 @@ const LettersAndClearance = () => {
                       )}
                       <button
                         onClick={() => handleGenerateLetter(letter)}
-                        disabled={generatingLetter === letter.id || letter.generated}
+                        disabled={generatingLetter === letter.id || letter.generated || isViewMode}
                         className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 ${
                           letter.generated
                             ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 cursor-default"
-                            : "bg-blue-500 text-white hover:bg-blue-600"
+                            : "bg-blue-500 text-white hover:bg-blue-600 disabled:opacity-50"
                         }`}
                       >
                         {generatingLetter === letter.id ? (
@@ -708,7 +711,7 @@ const LettersAndClearance = () => {
                           </>
                         )}
                       </button>
-                      {letter.isCustom && !letter.required && (
+                      {letter.isCustom && !letter.required && !isViewMode && (
                         <button
                           onClick={() => handleRemoveCustomLetter(letter.id)}
                           className="p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
@@ -752,7 +755,8 @@ const LettersAndClearance = () => {
                           value={doc.title}
                           onChange={(e) => handleCustomUploadTitleChange(doc.id, e.target.value)}
                           placeholder="Enter document name"
-                          className="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500"
+                          disabled={isViewMode}
+                          className="w-full px-3 py-2 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 disabled:border-transparent disabled:bg-transparent disabled:px-0"
                         />
                       ) : (
                         <div>
@@ -769,7 +773,7 @@ const LettersAndClearance = () => {
 
                     {/* Upload Button */}
                     <div className="flex items-center gap-2">
-                      <label className={`cursor-pointer ${uploading[doc.id] ? 'opacity-50 pointer-events-none' : ''}`}>
+                      <label className={`cursor-pointer ${uploading[doc.id] || isViewMode ? 'opacity-50 pointer-events-none' : ''}`}>
                         <div className="flex items-center gap-2 px-3 py-2 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-lg hover:border-green-500 dark:hover:border-green-500 hover:bg-green-50 dark:hover:bg-green-900/20 transition-all">
                           {uploading[doc.id] ? (
                             <Loader size={16} className="animate-spin text-green-500" />
@@ -789,7 +793,7 @@ const LettersAndClearance = () => {
                               handleFileUpload(doc.id, e.target.files[0]);
                             }
                           }}
-                          disabled={uploading[doc.id]}
+                          disabled={uploading[doc.id] || isViewMode}
                         />
                       </label>
 
@@ -822,7 +826,7 @@ const LettersAndClearance = () => {
                       )}
 
                       {/* Delete Button for custom docs */}
-                      {doc.isCustom && (
+                      {doc.isCustom && !isViewMode && (
                         <button
                           onClick={() => handleRemoveCustomUpload(doc.id)}
                           className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
@@ -894,43 +898,54 @@ const LettersAndClearance = () => {
 
           {/* Action Buttons */}
           <div className="flex justify-end gap-3 pt-4 border-t border-gray-100 dark:border-gray-700">
-            <button
-              onClick={() => navigate("/admin/employees/offboarding")}
-              className="px-6 py-2.5 rounded-full font-semibold bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-all"
-            >
-              Back to Dashboard
-            </button>
-            <button
-              onClick={handleSubmitAll}
-              disabled={isGenerating || !allLettersGenerated || pendingUploads > 0}
-              className={`px-6 py-2.5 rounded-full font-semibold transition-all flex items-center justify-center gap-2 ${
-                !allLettersGenerated || pendingUploads > 0
-                  ? "bg-gray-100 text-gray-400 cursor-not-allowed dark:bg-gray-800 dark:text-gray-500"
-                  : "bg-green-500 text-white hover:bg-green-600 shadow-sm hover:shadow-md"
-              }`}
-            >
-              {isGenerating ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                  Processing...
-                </>
-              ) : !allLettersGenerated ? (
-                <>
-                  <FileText className="w-4 h-4" />
-                  Generate All Letters First
-                </>
-              ) : pendingUploads > 0 ? (
-                <>
-                  <Upload className="w-4 h-4" />
-                  Upload Pending Documents
-                </>
-              ) : (
-                <>
-                  <Check className="w-4 h-4" />
-                  Proceed to Checklist Verification
-                </>
-              )}
-            </button>
+            {isViewMode ? (
+              <button
+                onClick={() => navigate(`/admin/employees/offboarding-checklist?id=${offboardingId}`, { state: { id: offboardingId, isView: true } })}
+                className="px-6 py-2.5 rounded-full font-semibold bg-blue-500 text-white hover:bg-blue-600 transition-all flex items-center justify-center gap-2"
+              >
+                Next Step <Check className="w-4 h-4" />
+              </button>
+            ) : (
+              <>
+                <button
+                  onClick={() => navigate("/admin/employees/offboarding")}
+                  className="px-6 py-2.5 rounded-full font-semibold bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-all"
+                >
+                  Back to Dashboard
+                </button>
+                <button
+                  onClick={handleSubmitAll}
+                  disabled={isGenerating || !allLettersGenerated || pendingUploads > 0}
+                  className={`px-6 py-2.5 rounded-full font-semibold transition-all flex items-center justify-center gap-2 ${
+                    !allLettersGenerated || pendingUploads > 0
+                      ? "bg-gray-100 text-gray-400 cursor-not-allowed dark:bg-gray-800 dark:text-gray-500"
+                      : "bg-green-500 text-white hover:bg-green-600 shadow-sm hover:shadow-md"
+                  }`}
+                >
+                  {isGenerating ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      Processing...
+                    </>
+                  ) : !allLettersGenerated ? (
+                    <>
+                      <FileText className="w-4 h-4" />
+                      Generate All Letters First
+                    </>
+                  ) : pendingUploads > 0 ? (
+                    <>
+                      <Upload className="w-4 h-4" />
+                      Upload Pending Documents
+                    </>
+                  ) : (
+                    <>
+                      <Check className="w-4 h-4" />
+                      Proceed to Checklist Verification
+                    </>
+                  )}
+                </button>
+              </>
+            )}
           </div>
         </div>
       </div>

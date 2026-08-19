@@ -25,6 +25,143 @@ import { fetchRoles } from "../store/slices/roleSlice";
 import apiClient from "../../utils/apiClient";
 import DateInput from "../components/common/DateInput";
 
+// ─── THEME-AWARE DOCUMENT UPLOAD COMPONENT ──────────────────────────────
+
+const DocumentUpload = ({
+  fieldKey,
+  label,
+  icon,
+  accept = "image/*,.pdf",
+  uploadingFiles,
+  documents,
+  documentPreviews,
+  existingDocuments,
+  removedDocuments,
+  handleFileChange,
+  handleRemoveExistingDocument,
+  handleCancelNewDocument,
+}) => {
+  const isUploading = uploadingFiles[fieldKey];
+  const existingDoc = existingDocuments[fieldKey];
+  const isRemoved = removedDocuments[fieldKey];
+  const newFile = documents[fieldKey];
+  const preview = documentPreviews[fieldKey];
+
+  const getDocumentUrl = (path) => {
+    if (!path) return null;
+    const baseUrl = import.meta.env.VITE_API_URL?.replace("/api", "") || "";
+    return `${baseUrl}/storage/${path}`;
+  };
+
+  return (
+    <div className="border border-[var(--form-border)] rounded-lg p-4 bg-[var(--form-surface)]/30">
+      <label className="block text-sm font-semibold text-[var(--form-label)] mb-3">
+        <i className={`${icon} text-green-500 mr-2`}></i>
+        {label}
+        <span className="text-xs text-[var(--form-text-muted)] ml-2">(Optional)</span>
+      </label>
+
+      {existingDoc && !isRemoved && !newFile && (
+        <div className="mb-3 p-2 bg-[var(--form-surface)] rounded-lg flex justify-between items-center border border-[var(--form-border)]">
+          <span className="text-sm text-[var(--form-text-secondary)]">
+            <i className="fas fa-file-alt mr-2"></i>Current file
+          </span>
+          <div className="flex gap-2">
+            <a
+              href={getDocumentUrl(existingDoc)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-500 hover:text-blue-600 text-sm"
+            >
+              <i className="fas fa-download"></i> View
+            </a>
+            <button
+              type="button"
+              onClick={() => handleRemoveExistingDocument(fieldKey)}
+              className="text-[var(--form-error)] hover:text-[var(--form-error)]/80 text-sm"
+            >
+              <i className="fas fa-trash"></i> Remove
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div className="flex items-center gap-3 flex-wrap">
+        <input
+          type="file"
+          id={`doc_${fieldKey}`}
+          accept={accept}
+          onChange={(e) => handleFileChange(fieldKey, e.target.files[0])}
+          className="hidden"
+        />
+        <button
+          type="button"
+          disabled={isUploading}
+          onClick={() => document.getElementById(`doc_${fieldKey}`).click()}
+          className="px-4 py-2 bg-blue-500 text-white rounded-lg text-sm font-semibold hover:bg-blue-600 transition-colors flex items-center gap-2 disabled:opacity-60"
+        >
+          {isUploading ? (
+            <>
+              <i className="fas fa-spinner fa-spin"></i> Uploading...
+            </>
+          ) : (
+            <>
+              <i className="fas fa-upload"></i>{" "}
+              {existingDoc && !isRemoved ? "Replace" : "Choose File"}
+            </>
+          )}
+        </button>
+        <span className="text-sm text-[var(--form-text-secondary)] truncate flex-1">
+          {isUploading
+            ? "Uploading..."
+            : newFile
+              ? "New file uploaded ✓"
+              : existingDoc && !isRemoved
+                ? "File available"
+                : "No file chosen"}
+        </span>
+      </div>
+
+      {newFile && preview && preview !== "pdf" && (
+        <div className="mt-3">
+          <img
+            src={preview}
+            alt={label}
+            className="h-20 w-20 object-cover rounded-lg border border-[var(--form-border)]"
+          />
+          <button
+            type="button"
+            onClick={() => handleCancelNewDocument(fieldKey)}
+            className="mt-2 text-xs text-[var(--form-error)] hover:text-[var(--form-error)]/80 flex items-center gap-1"
+          >
+            <i className="fas fa-trash"></i> Cancel
+          </button>
+        </div>
+      )}
+      {newFile && preview === "pdf" && (
+        <div className="mt-3">
+          <div className="h-20 w-20 bg-red-100 dark:bg-red-900/30 rounded-lg flex items-center justify-center border border-[var(--form-border)]">
+            <i className="fas fa-file-pdf text-red-500 text-3xl"></i>
+          </div>
+          <button
+            type="button"
+            onClick={() => handleCancelNewDocument(fieldKey)}
+            className="mt-2 text-xs text-[var(--form-error)] hover:text-[var(--form-error)]/80 flex items-center gap-1"
+          >
+            <i className="fas fa-trash"></i> Cancel
+          </button>
+        </div>
+      )}
+
+      <p className="text-xs text-[var(--form-text-muted)] mt-2">
+        Max size: {fieldKey === "avatar" ? "2MB" : "5MB"}. Allowed: JPG, PNG, PDF
+      </p>
+    </div>
+  );
+};
+
+// ─── MAIN COMPONENT ─────────────────────────────────────────────────────
+
 const EditEmployee = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
@@ -48,6 +185,9 @@ const EditEmployee = () => {
   const [idFormat, setIdFormat] = useState("prefix+year+month+day+random");
   const [manualEmployeeId, setManualEmployeeId] = useState("");
   const [generatedPreview, setGeneratedPreview] = useState("");
+  const [customFormat, setCustomFormat] = useState(
+    "prefix+year+month+day+timestamp",
+  );
 
   // Document file states
   const [documents, setDocuments] = useState({
@@ -175,64 +315,7 @@ const EditEmployee = () => {
   const eidIssued = watch("eid_issued_date");
   const eidExpiry = watch("eid_expiry_date");
 
-  // Fetch initial data
-  useEffect(() => {
-    dispatch(fetchOrganizations());
-    dispatch(fetchDesignations());
-    dispatch(fetchDepartments());
-    dispatch(fetchRoles());
-  }, [dispatch]);
-
-  useEffect(() => {
-    // Reset form initialization flag when ID changes
-    setFormInitialized(false);
-    setIsInitializing(true);
-    setCurrentStep(0);
-
-    // Clear any errors
-    setStepErrors({});
-
-    // Reset document states
-    setDocuments({
-      avatar: null,
-      avatarFile: null,
-      passport_size_photo: null,
-      passport_1st_page: null,
-      passport_2nd_page: null,
-      passport_outer_page: null,
-      passport_id_page: null,
-      visa_page: null,
-      labor_card: null,
-      labor_contract: null,
-      eid_1st_page: null,
-      eid_2nd_page: null,
-      educational_1st_page: null,
-      educational_2nd_page: null,
-      home_country_id_proof: null,
-    });
-    setDocumentPreviews({});
-    setExistingDocuments({});
-    setRemovedDocuments({});
-    setAdditionalDocuments([]);
-    setExistingAdditionalDocuments([]);
-
-    // Clear selected company/organization details
-    setSelectedOrgDetails(null);
-    setSelectedCompanyDetails(null);
-
-    // Fetch new employee data
-    if (id) {
-      dispatch(fetchEmployeeById(id)).then(() => {
-        setInitialLoading(false);
-      });
-    }
-
-    // Cleanup function - reset Redux state when component unmounts
-    return () => {
-      dispatch(resetCurrentEmployee());
-      setFormInitialized(false);
-    };
-  }, [id, dispatch]);
+  // ─── FORMAT OPTIONS ───────────────────────────────────────────────────
 
   const formatOptions = [
     {
@@ -267,9 +350,7 @@ const EditEmployee = () => {
     },
   ];
 
-  const [customFormat, setCustomFormat] = useState(
-    "prefix+year+month+day+timestamp",
-  );
+  // ─── ID GENERATION ─────────────────────────────────────────────────────
 
   const generateEmployeeIdWithOptions = (dob, joiningDate, prefix, format) => {
     if (
@@ -360,6 +441,58 @@ const EditEmployee = () => {
     return generatedId;
   };
 
+  // ─── EFFECTS ────────────────────────────────────────────────────────────
+
+  useEffect(() => {
+    dispatch(fetchOrganizations());
+    dispatch(fetchDesignations());
+    dispatch(fetchDepartments());
+    dispatch(fetchRoles());
+  }, [dispatch]);
+
+  useEffect(() => {
+    setFormInitialized(false);
+    setIsInitializing(true);
+    setCurrentStep(0);
+    setStepErrors({});
+
+    setDocuments({
+      avatar: null,
+      avatarFile: null,
+      passport_size_photo: null,
+      passport_1st_page: null,
+      passport_2nd_page: null,
+      passport_outer_page: null,
+      passport_id_page: null,
+      visa_page: null,
+      labor_card: null,
+      labor_contract: null,
+      eid_1st_page: null,
+      eid_2nd_page: null,
+      educational_1st_page: null,
+      educational_2nd_page: null,
+      home_country_id_proof: null,
+    });
+    setDocumentPreviews({});
+    setExistingDocuments({});
+    setRemovedDocuments({});
+    setAdditionalDocuments([]);
+    setExistingAdditionalDocuments([]);
+    setSelectedOrgDetails(null);
+    setSelectedCompanyDetails(null);
+
+    if (id) {
+      dispatch(fetchEmployeeById(id)).then(() => {
+        setInitialLoading(false);
+      });
+    }
+
+    return () => {
+      dispatch(resetCurrentEmployee());
+      setFormInitialized(false);
+    };
+  }, [id, dispatch]);
+
   useEffect(() => {
     if (idGenerationMethod === "auto" && watchDob && watchJoiningDate) {
       const preview = generateEmployeeIdWithOptions(
@@ -399,47 +532,7 @@ const EditEmployee = () => {
     }
   }, [currentEmployee, formInitialized, setValue]);
 
-  const handleAddDepartment = async (data) => {
-    setDepartmentModalLoading(true);
-    try {
-      const result = await dispatch(addDepartment(data));
-      if (addDepartment.fulfilled.match(result)) {
-        showToast("Department added successfully", "success");
-        setIsDepartmentModalOpen(false);
-        await dispatch(fetchDepartments());
-        if (result.payload?.id) {
-          setValue("department_id", String(result.payload.id));
-        }
-      } else {
-        showToast(result.payload || "Failed to add department", "error");
-      }
-    } catch (error) {
-      showToast("An error occurred", "error");
-    } finally {
-      setDepartmentModalLoading(false);
-    }
-  };
-
-  const handleAddDesignation = async (data) => {
-    setDesignationModalLoading(true);
-    try {
-      const result = await dispatch(addDesignation(data));
-      if (addDesignation.fulfilled.match(result)) {
-        showToast("Designation added successfully", "success");
-        setIsDesignationModalOpen(false);
-        await dispatch(fetchDesignations());
-        if (result.payload?.id) {
-          setValue("designation_id", String(result.payload.id));
-        }
-      } else {
-        showToast(result.payload || "Failed to add designation", "error");
-      }
-    } catch (error) {
-      showToast("An error occurred", "error");
-    } finally {
-      setDesignationModalLoading(false);
-    }
-  };
+  // ─── ORGANIZATION/COMPANY EFFECTS ─────────────────────────────────────
 
   useEffect(() => {
     if (watchOrganizationId) {
@@ -509,6 +602,52 @@ const EditEmployee = () => {
     }
   }, [dispatch, id, formInitialized]);
 
+  // ─── HANDLERS ───────────────────────────────────────────────────────────
+
+  const handleAddDepartment = async (data) => {
+    setDepartmentModalLoading(true);
+    try {
+      const result = await dispatch(addDepartment(data));
+      if (addDepartment.fulfilled.match(result)) {
+        showToast("Department added successfully", "success");
+        setIsDepartmentModalOpen(false);
+        await dispatch(fetchDepartments());
+        if (result.payload?.id) {
+          setValue("department_id", String(result.payload.id));
+        }
+      } else {
+        showToast(result.payload || "Failed to add department", "error");
+      }
+    } catch (error) {
+      showToast("An error occurred", "error");
+    } finally {
+      setDepartmentModalLoading(false);
+    }
+  };
+
+  const handleAddDesignation = async (data) => {
+    setDesignationModalLoading(true);
+    try {
+      const result = await dispatch(addDesignation(data));
+      if (addDesignation.fulfilled.match(result)) {
+        showToast("Designation added successfully", "success");
+        setIsDesignationModalOpen(false);
+        await dispatch(fetchDesignations());
+        if (result.payload?.id) {
+          setValue("designation_id", String(result.payload.id));
+        }
+      } else {
+        showToast(result.payload || "Failed to add designation", "error");
+      }
+    } catch (error) {
+      showToast("An error occurred", "error");
+    } finally {
+      setDesignationModalLoading(false);
+    }
+  };
+
+  // ─── CONVERT DATE HELPERS ─────────────────────────────────────────────
+
   const convertToDisplayDate = (dateString) => {
     if (!dateString) return "";
     if (dateString === "0000-00-00") return "";
@@ -518,6 +657,18 @@ const EditEmployee = () => {
     }
     return dateString;
   };
+
+  const convertDateToBackend = (dateString) => {
+    if (!dateString) return "";
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) return dateString;
+    if (dateString && dateString.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
+      const [day, month, year] = dateString.split("/");
+      return `${year}-${month}-${day}`;
+    }
+    return dateString;
+  };
+
+  // ─── FORM POPULATION ──────────────────────────────────────────────────
 
   useEffect(() => {
     if (currentEmployee && !formInitialized) {
@@ -714,7 +865,6 @@ const EditEmployee = () => {
       });
       setExistingDocuments(docs);
 
-      // Handle additional documents
       if (
         currentEmployee.additional_documents &&
         Array.isArray(currentEmployee.additional_documents)
@@ -738,6 +888,8 @@ const EditEmployee = () => {
     }
   }, [currentEmployee, setValue, formInitialized, companies]);
 
+  // ─── STEPS ─────────────────────────────────────────────────────────────
+
   const steps = [
     { number: 1, title: "Basic Info", icon: "fas fa-user-circle" },
     { number: 2, title: "Passport", icon: "fas fa-passport" },
@@ -752,11 +904,13 @@ const EditEmployee = () => {
     { value: "manager", label: "Manager" },
     { value: "team_lead", label: "Team Lead" },
   ];
+
   const genderOptions = [
     { value: "male", label: "Male" },
     { value: "female", label: "Female" },
     { value: "other", label: "Other" },
   ];
+
   const nationalityOptions = [
     "Indian",
     "Nepali",
@@ -766,12 +920,15 @@ const EditEmployee = () => {
     "Filipino",
     "Other",
   ];
+
   const maritalStatusOptions = ["Single", "Married", "Divorced", "Widowed"];
   const visaTypeOptions = [
     { value: "company_visa", label: "Company Visa" },
     { value: "family_visa", label: "Family Visa" },
     { value: "other_visa", label: "Other Visa" },
   ];
+
+  // ─── VALIDATION FUNCTIONS ─────────────────────────────────────────────
 
   const validateDob = (value) => {
     if (!value) return true;
@@ -812,7 +969,6 @@ const EditEmployee = () => {
     let dob;
 
     try {
-      // Parse joining date
       if (typeof value === "string" && value.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
         const [day, month, year] = value.split("/");
         date = new Date(year, month - 1, day);
@@ -831,12 +987,10 @@ const EditEmployee = () => {
     today.setHours(0, 0, 0, 0);
     date.setHours(0, 0, 0, 0);
 
-    // Check if joining date is in future
     if (date > today) {
       return "Joining Date cannot be in the future";
     }
 
-    // Check if joining date is after DOB
     if (dobValue) {
       try {
         if (
@@ -854,6 +1008,114 @@ const EditEmployee = () => {
           if (date <= dob) {
             return "Joining Date must be after Date of Birth";
           }
+        }
+      } catch (e) {
+        // Ignore parsing errors
+      }
+    }
+
+    return true;
+  };
+
+  const validateIssueDate = (issueDate, expiryDate, fieldName) => {
+    if (isInitializing) return true;
+    if (!issueDate) return true;
+
+    let issue;
+    try {
+      if (
+        typeof issueDate === "string" &&
+        issueDate.match(/^\d{2}\/\d{2}\/\d{4}$/)
+      ) {
+        const [day, month, year] = issueDate.split("/");
+        issue = new Date(year, month - 1, day);
+      } else {
+        issue = new Date(issueDate);
+      }
+
+      if (isNaN(issue.getTime())) {
+        return true;
+      }
+    } catch (e) {
+      return true;
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    issue.setHours(0, 0, 0, 0);
+
+    if (issue > today) {
+      return `${fieldName} cannot be in the future`;
+    }
+
+    if (expiryDate) {
+      let expiry;
+      try {
+        if (
+          typeof expiryDate === "string" &&
+          expiryDate.match(/^\d{2}\/\d{2}\/\d{4}$/)
+        ) {
+          const [day, month, year] = expiryDate.split("/");
+          expiry = new Date(year, month - 1, day);
+        } else {
+          expiry = new Date(expiryDate);
+        }
+        expiry.setHours(0, 0, 0, 0);
+
+        if (issue >= expiry) {
+          return `Issued date must be before expiry date`;
+        }
+      } catch (e) {
+        // Ignore parsing errors
+      }
+    }
+
+    return true;
+  };
+
+  const validateExpiryDate = (expiryDate, issueDate, fieldName) => {
+    if (isInitializing) return true;
+    if (!expiryDate) return true;
+
+    let expiry;
+    try {
+      if (
+        typeof expiryDate === "string" &&
+        expiryDate.match(/^\d{2}\/\d{2}\/\d{4}$/)
+      ) {
+        const [day, month, year] = expiryDate.split("/");
+        expiry = new Date(year, month - 1, day);
+      } else {
+        expiry = new Date(expiryDate);
+      }
+
+      if (isNaN(expiry.getTime())) {
+        return true;
+      }
+    } catch (e) {
+      return true;
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    expiry.setHours(0, 0, 0, 0);
+
+    if (issueDate) {
+      let issue;
+      try {
+        if (
+          typeof issueDate === "string" &&
+          issueDate.match(/^\d{2}\/\d{2}\/\d{4}$/)
+        ) {
+          const [day, month, year] = issueDate.split("/");
+          issue = new Date(year, month - 1, day);
+        } else {
+          issue = new Date(issueDate);
+        }
+        issue.setHours(0, 0, 0, 0);
+
+        if (expiry <= issue) {
+          return `Expiry date must be after issued date`;
         }
       } catch (e) {
         // Ignore parsing errors
@@ -910,6 +1172,8 @@ const EditEmployee = () => {
         return [];
     }
   };
+
+  // ─── FILE HANDLING ─────────────────────────────────────────────────────
 
   const handleFileChange = async (fieldKey, file) => {
     if (!file) return;
@@ -987,7 +1251,6 @@ const EditEmployee = () => {
       return;
     }
 
-    // Create preview
     if (file.type.startsWith("image/")) {
       const reader = new FileReader();
       reader.onload = (e) => {
@@ -1021,7 +1284,6 @@ const EditEmployee = () => {
 
   const handleRemoveAdditionalDocument = (index, isExisting) => {
     if (isExisting) {
-      // Remove from existing list and track for removal
       const docToRemove = existingAdditionalDocuments[index];
       setExistingAdditionalDocuments((prev) =>
         prev.filter((_, i) => i !== index),
@@ -1032,10 +1294,11 @@ const EditEmployee = () => {
         [`additional_document_${docToRemove.document_name || index}`]: true,
       }));
     } else {
-      // Remove from new documents list
       setAdditionalDocuments((prev) => prev.filter((_, i) => i !== index));
     }
   };
+
+  // ─── NAVIGATION ────────────────────────────────────────────────────────
 
   const handleNext = async () => {
     const fieldsToValidate = getStepFields(currentStep);
@@ -1077,15 +1340,7 @@ const EditEmployee = () => {
     }
   };
 
-  const convertDateToBackend = (dateString) => {
-    if (!dateString) return "";
-    if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) return dateString;
-    if (dateString && dateString.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
-      const [day, month, year] = dateString.split("/");
-      return `${year}-${month}-${day}`;
-    }
-    return dateString;
-  };
+  // ─── FORM SUBMISSION ──────────────────────────────────────────────────
 
   const onSubmit = async (data) => {
     setLoading(true);
@@ -1100,7 +1355,6 @@ const EditEmployee = () => {
 
     const formData = new FormData();
 
-    // Basic fields
     formData.append("first_name", data.first_name);
     formData.append("last_name", data.last_name || "");
     formData.append("employee_id", employeeIdValue);
@@ -1181,7 +1435,6 @@ const EditEmployee = () => {
         convertDateToBackend(data.relieving_date),
       );
 
-    // Special days
     if (data.special_days && data.special_days.length > 0) {
       const validSpecialDays = data.special_days.filter(
         (day) => day.name && day.name.trim() !== "" && day.date,
@@ -1201,7 +1454,6 @@ const EditEmployee = () => {
       }
     }
 
-    // Passport fields
     if (data.passport_full_name)
       formData.append("passport_full_name", data.passport_full_name);
     if (data.passport_number)
@@ -1224,7 +1476,6 @@ const EditEmployee = () => {
     if (data.mother_name) formData.append("mother_name", data.mother_name);
     if (data.address) formData.append("address", data.address);
 
-    // Visa & Labor & EID
     if (data.visa_number) formData.append("visa_number", data.visa_number);
     if (data.visa_type) formData.append("visa_type", data.visa_type);
     if (data.visa_issued_date)
@@ -1268,7 +1519,6 @@ const EditEmployee = () => {
         convertDateToBackend(data.eid_expiry_date),
       );
 
-    // Contact
     if (data.dependents) formData.append("dependents", String(data.dependents));
     if (data.company_email)
       formData.append("company_email", data.company_email);
@@ -1283,7 +1533,6 @@ const EditEmployee = () => {
       formData.append("home_country_number", data.home_country_number);
     if (data.role) formData.append("role_id", data.role);
 
-    // Avatar
     if (documents.avatar) {
       formData.append("avatar", documents.avatar);
     }
@@ -1291,7 +1540,6 @@ const EditEmployee = () => {
       formData.append("remove_avatar", "true");
     }
 
-    // Document fields
     const documentFields = [
       "passport_1st_page",
       "passport_2nd_page",
@@ -1316,8 +1564,6 @@ const EditEmployee = () => {
       }
     });
 
-    // ============ ADDITIONAL DOCUMENTS ============
-    // First, track removed existing additional documents
     const removedAdditionalDocKeys = Object.keys(removedDocuments).filter(
       (key) => key.startsWith("additional_document_") && removedDocuments[key],
     );
@@ -1325,7 +1571,6 @@ const EditEmployee = () => {
       formData.append(`remove_additional_document_${index}`, "true");
     });
 
-    // Then send new additional documents
     const newAdditionalDocs = additionalDocuments.filter(
       (doc) => !doc.isExisting,
     );
@@ -1349,9 +1594,7 @@ const EditEmployee = () => {
       });
     }
 
-    // Add _method for PUT
     formData.append("_method", "PUT");
-
 
     if (!formData.has("employee_id")) {
       console.error("ERROR: employee_id is missing from form data!");
@@ -1411,245 +1654,6 @@ const EditEmployee = () => {
     },
   };
 
-  const validateIssueDate = (issueDate, expiryDate, fieldName) => {
-    if (isInitializing) return true;
-    if (!issueDate) return true;
-
-    let issue;
-    try {
-      if (
-        typeof issueDate === "string" &&
-        issueDate.match(/^\d{2}\/\d{2}\/\d{4}$/)
-      ) {
-        const [day, month, year] = issueDate.split("/");
-        issue = new Date(year, month - 1, day);
-      } else {
-        issue = new Date(issueDate);
-      }
-
-      if (isNaN(issue.getTime())) {
-        console.warn(`Invalid issue date: ${issueDate}`);
-        return true;
-      }
-    } catch (e) {
-      console.warn(`Error parsing issue date: ${issueDate}`, e);
-      return true;
-    }
-
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    issue.setHours(0, 0, 0, 0);
-
-    if (issue > today) {
-      return `${fieldName} cannot be in the future`;
-    }
-
-    if (expiryDate) {
-      let expiry;
-      try {
-        if (
-          typeof expiryDate === "string" &&
-          expiryDate.match(/^\d{2}\/\d{2}\/\d{4}$/)
-        ) {
-          const [day, month, year] = expiryDate.split("/");
-          expiry = new Date(year, month - 1, day);
-        } else {
-          expiry = new Date(expiryDate);
-        }
-        expiry.setHours(0, 0, 0, 0);
-
-        if (issue >= expiry) {
-          return `Issued date must be before expiry date`;
-        }
-      } catch (e) {
-        console.warn(`Error parsing expiry date: ${expiryDate}`, e);
-      }
-    }
-
-    return true;
-  };
-
-  const validateExpiryDate = (expiryDate, issueDate, fieldName) => {
-    if (isInitializing) return true;
-    if (!expiryDate) return true;
-
-    let expiry;
-    try {
-      if (
-        typeof expiryDate === "string" &&
-        expiryDate.match(/^\d{2}\/\d{2}\/\d{4}$/)
-      ) {
-        const [day, month, year] = expiryDate.split("/");
-        expiry = new Date(year, month - 1, day);
-      } else {
-        expiry = new Date(expiryDate);
-      }
-
-      if (isNaN(expiry.getTime())) {
-        console.warn(`Invalid expiry date: ${expiryDate}`);
-        return true;
-      }
-    } catch (e) {
-      console.warn(`Error parsing expiry date: ${expiryDate}`, e);
-      return true;
-    }
-
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    expiry.setHours(0, 0, 0, 0);
-
-    if (issueDate) {
-      let issue;
-      try {
-        if (
-          typeof issueDate === "string" &&
-          issueDate.match(/^\d{2}\/\d{2}\/\d{4}$/)
-        ) {
-          const [day, month, year] = issueDate.split("/");
-          issue = new Date(year, month - 1, day);
-        } else {
-          issue = new Date(issueDate);
-        }
-        issue.setHours(0, 0, 0, 0);
-
-        if (expiry <= issue) {
-          return `Expiry date must be after issued date`;
-        }
-      } catch (e) {
-        console.warn(`Error parsing issue date: ${issueDate}`, e);
-      }
-    }
-
-    return true;
-  };
-
-  // DocumentUpload component
-  const DocumentUpload = ({
-    fieldKey,
-    label,
-    icon,
-    accept = "image/*,.pdf",
-  }) => {
-    const isUploading = uploadingFiles[fieldKey];
-    const existingDoc = existingDocuments[fieldKey];
-    const isRemoved = removedDocuments[fieldKey];
-    const newFile = documents[fieldKey];
-    const preview = documentPreviews[fieldKey];
-
-    const getDocumentUrl = (path) => {
-      if (!path) return null;
-      const baseUrl = import.meta.env.VITE_API_URL?.replace("/api", "") || "";
-      return `${baseUrl}/storage/${path}`;
-    };
-
-    return (
-      <div className="border border-gray-200 rounded-lg p-4 bg-gray-50/30">
-        <label className="block text-sm font-semibold text-gray-700 mb-3">
-          <i className={`${icon} text-green-500 mr-2`}></i>
-          {label}
-          <span className="text-xs text-gray-400 ml-2">(Optional)</span>
-        </label>
-
-        {existingDoc && !isRemoved && !newFile && (
-          <div className="mb-3 p-2 bg-gray-100 rounded-lg flex justify-between items-center">
-            <span className="text-sm text-gray-600">
-              <i className="fas fa-file-alt mr-2"></i>Current file
-            </span>
-            <div className="flex gap-2">
-              <a
-                href={getDocumentUrl(existingDoc)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-500 text-sm"
-              >
-                <i className="fas fa-download"></i> View
-              </a>
-              <button
-                type="button"
-                onClick={() => handleRemoveExistingDocument(fieldKey)}
-                className="text-red-500 text-sm"
-              >
-                <i className="fas fa-trash"></i> Remove
-              </button>
-            </div>
-          </div>
-        )}
-
-        <div className="flex items-center gap-3 flex-wrap">
-          <input
-            type="file"
-            id={`doc_${fieldKey}`}
-            accept={accept}
-            onChange={(e) => handleFileChange(fieldKey, e.target.files[0])}
-            className="hidden"
-          />
-          <button
-            type="button"
-            disabled={isUploading}
-            onClick={() => document.getElementById(`doc_${fieldKey}`).click()}
-            className="px-4 py-2 bg-blue-500 text-white rounded-lg text-sm font-semibold hover:bg-blue-600 transition-colors flex items-center gap-2 disabled:opacity-60"
-          >
-            {isUploading ? (
-              <>
-                <i className="fas fa-spinner fa-spin"></i> Uploading...
-              </>
-            ) : (
-              <>
-                <i className="fas fa-upload"></i>{" "}
-                {existingDoc && !isRemoved ? "Replace" : "Choose File"}
-              </>
-            )}
-          </button>
-          <span className="text-sm text-gray-500 truncate flex-1">
-            {isUploading
-              ? "Uploading..."
-              : newFile
-                ? "New file uploaded ✓"
-                : existingDoc && !isRemoved
-                  ? "File available"
-                  : "No file chosen"}
-          </span>
-        </div>
-
-        {newFile && preview && preview !== "pdf" && (
-          <div className="mt-3">
-            <img
-              src={preview}
-              alt={label}
-              className="h-20 w-20 object-cover rounded-lg border"
-            />
-            <button
-              type="button"
-              onClick={() => handleCancelNewDocument(fieldKey)}
-              className="mt-2 text-xs text-red-500"
-            >
-              <i className="fas fa-trash"></i> Cancel
-            </button>
-          </div>
-        )}
-        {newFile && preview === "pdf" && (
-          <div className="mt-3">
-            <div className="h-20 w-20 bg-red-100 rounded-lg flex items-center justify-center">
-              <i className="fas fa-file-pdf text-red-500 text-3xl"></i>
-            </div>
-            <button
-              type="button"
-              onClick={() => handleCancelNewDocument(fieldKey)}
-              className="mt-2 text-xs text-red-500"
-            >
-              <i className="fas fa-trash"></i> Cancel
-            </button>
-          </div>
-        )}
-
-        <p className="text-xs text-gray-400 mt-2">
-          Max size: {fieldKey === "avatar" ? "2MB" : "5MB"}. Allowed: JPG, PNG,
-          PDF
-        </p>
-      </div>
-    );
-  };
-
   if (initialLoading || employeeLoading) {
     return (
       <div className="flex justify-center items-center h-96">
@@ -1668,16 +1672,16 @@ const EditEmployee = () => {
         >
           Employees
         </Link>
-        <i className="fas fa-chevron-right text-gray-400 text-[10px] md:text-xs"></i>
-        <span className="text-gray-500">Edit Employee</span>
+        <i className="fas fa-chevron-right text-[var(--form-text-muted)] text-[10px] md:text-xs"></i>
+        <span className="text-[var(--form-text-secondary)]">Edit Employee</span>
       </div>
 
       {/* Page Header */}
       <div className="mb-4 md:mb-6">
-        <h2 className="text-xl md:text-3xl font-bold bg-gradient-to-r from-gray-800 to-green-600 bg-clip-text text-transparent">
+        <h2 className="text-xl md:text-3xl font-bold bg-gradient-to-r from-gray-800 to-green-600 bg-clip-text text-transparent dark:from-gray-200 dark:to-green-400">
           <i className="fas fa-user-edit mr-2"></i> Edit Employee
         </h2>
-        <p className="text-sm text-gray-500 mt-1">
+        <p className="text-sm text-[var(--form-text-secondary)] mt-1">
           Update employee information
         </p>
       </div>
@@ -1694,10 +1698,10 @@ const EditEmployee = () => {
                 currentStep === index
                   ? "bg-green-500 text-white shadow-md"
                   : stepErrors[index]
-                    ? "bg-red-50 text-red-600 border border-red-300"
+                    ? "bg-[var(--form-error-bg)] text-[var(--form-error)] border border-[var(--form-error-border)]"
                     : index < currentStep
                       ? "text-green-500"
-                      : "text-gray-500 bg-gray-100"
+                      : "bg-[var(--form-surface)] text-[var(--form-text-secondary)] border border-[var(--form-border)]"
               }`}
             >
               <i className={`${step.icon} mr-1 text-xs md:text-sm`}></i>
@@ -1714,32 +1718,38 @@ const EditEmployee = () => {
       </div>
 
       {/* Form Container */}
-      <div className="bg-white border border-gray-200 rounded-xl p-4 md:p-6 lg:p-8 shadow-soft">
+      <div className="bg-[var(--form-bg)] border border-[var(--form-border)] rounded-xl p-4 md:p-6 lg:p-8 shadow-[var(--form-shadow)]">
         <form onSubmit={handleSubmit(onSubmit)}>
           <div className="space-y-8">
             {stepErrors[currentStep] && (
-              <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2">
-                <p className="text-xs md:text-sm text-red-600">
-                  <i className="fas fa-exclamation-circle mr-1"></i>Please
-                  complete required fields in this section.
+              <div className="rounded-lg border border-[var(--form-error-border)] bg-[var(--form-error-bg)] px-3 py-2">
+                <p className="text-xs md:text-sm text-[var(--form-error)]">
+                  <i className="fas fa-exclamation-circle mr-1"></i>
+                  Please complete required fields in this section.
                 </p>
               </div>
             )}
 
-            {/* Step 0 - Basic Info */}
+            {/* ─── STEP 0: BASIC INFO ────────────────────────────────────── */}
             {currentStep === 0 && (
               <div>
                 <div className="form-section-title mb-4 md:mb-6">
                   <i className="fas fa-user-circle text-green-500 mr-2"></i>
-                  <h3 className="text-base md:text-lg font-bold text-gray-800">
+                  <h3 className="text-base md:text-lg font-bold text-[var(--form-text)]">
                     Basic Information
                   </h3>
                 </div>
+                {stepErrors[0] && (
+                  <p className="text-xs md:text-sm text-[var(--form-error)] mb-4">
+                    <i className="fas fa-exclamation-triangle mr-1"></i>
+                    Please fill all mandatory fields in this section.
+                  </p>
+                )}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5">
                   {/* First Name */}
                   <div>
-                    <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
-                      First Name <span className="text-red-500">*</span>
+                    <label className="block text-xs md:text-sm font-semibold text-[var(--form-label)] mb-1 md:mb-2">
+                      <i className="fas fa-user text-green-500 mr-1"></i> First Name <span className="text-[var(--form-error)]">*</span>
                     </label>
                     <Controller
                       name="first_name"
@@ -1750,11 +1760,15 @@ const EditEmployee = () => {
                           <input
                             {...field}
                             type="text"
-                            className={`w-full px-3 md:px-4 py-2 md:py-3 bg-gray-50 border rounded-lg text-sm md:text-base ${errors.first_name ? "border-red-500" : "border-gray-200 focus:border-green-500"}`}
+                            className={`w-full px-3 md:px-4 py-2 md:py-3 bg-[var(--form-surface)] border rounded-lg text-sm md:text-base text-[var(--form-text)] transition-all focus:outline-none focus:ring-2 placeholder:text-[var(--form-placeholder)] ${
+                              errors.first_name
+                                ? "border-[var(--form-error)] focus:border-[var(--form-error)] focus:ring-[var(--form-error)]/20"
+                                : "border-[var(--form-border)] focus:border-[var(--form-border-focus)] focus:ring-[var(--form-border-focus)]/20"
+                            }`}
                             placeholder="Enter first name"
                           />
                           {errors.first_name && (
-                            <p className="mt-1 text-xs text-red-500">
+                            <p className="mt-1 text-xs text-[var(--form-error)]">
                               {errors.first_name.message}
                             </p>
                           )}
@@ -1765,8 +1779,8 @@ const EditEmployee = () => {
 
                   {/* Last Name */}
                   <div>
-                    <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
-                      Last Name
+                    <label className="block text-xs md:text-sm font-semibold text-[var(--form-label)] mb-1 md:mb-2">
+                      <i className="fas fa-user text-green-500 mr-1"></i> Last Name
                     </label>
                     <Controller
                       name="last_name"
@@ -1775,7 +1789,7 @@ const EditEmployee = () => {
                         <input
                           {...field}
                           type="text"
-                          className="w-full px-3 md:px-4 py-2 md:py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm md:text-base"
+                          className="w-full px-3 md:px-4 py-2 md:py-3 bg-[var(--form-surface)] border border-[var(--form-border)] rounded-lg text-sm md:text-base text-[var(--form-text)] focus:outline-none focus:border-[var(--form-border-focus)] focus:ring-2 focus:ring-[var(--form-border-focus)]/20 placeholder:text-[var(--form-placeholder)]"
                           placeholder="Enter last name"
                         />
                       )}
@@ -1784,8 +1798,8 @@ const EditEmployee = () => {
 
                   {/* Organization */}
                   <div>
-                    <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
-                      Organization <span className="text-red-500">*</span>
+                    <label className="block text-xs md:text-sm font-semibold text-[var(--form-label)] mb-1 md:mb-2">
+                      <i className="fas fa-building text-green-500 mr-1"></i> Organization <span className="text-[var(--form-error)]">*</span>
                     </label>
                     <Controller
                       name="organization_id"
@@ -1795,7 +1809,11 @@ const EditEmployee = () => {
                         <>
                           <select
                             {...field}
-                            className={`w-full px-3 md:px-4 py-2 md:py-3 bg-gray-50 border rounded-lg ${errors.organization_id ? "border-red-500" : "border-gray-200"}`}
+                            className={`w-full px-3 md:px-4 py-2 md:py-3 bg-[var(--form-surface)] border rounded-lg text-sm md:text-base text-[var(--form-text)] transition-all focus:outline-none focus:ring-2 ${
+                              errors.organization_id
+                                ? "border-[var(--form-error)] focus:border-[var(--form-error)] focus:ring-[var(--form-error)]/20"
+                                : "border-[var(--form-border)] focus:border-[var(--form-border-focus)] focus:ring-[var(--form-border-focus)]/20"
+                            }`}
                           >
                             <option value="">Select Organization</option>
                             {organizations.map((org) => (
@@ -1805,7 +1823,7 @@ const EditEmployee = () => {
                             ))}
                           </select>
                           {errors.organization_id && (
-                            <p className="mt-1 text-xs text-red-500">
+                            <p className="mt-1 text-xs text-[var(--form-error)]">
                               {errors.organization_id.message}
                             </p>
                           )}
@@ -1816,10 +1834,10 @@ const EditEmployee = () => {
 
                   {/* Company */}
                   <div>
-                    <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
-                      Company
+                    <label className="block text-xs md:text-sm font-semibold text-[var(--form-label)] mb-1 md:mb-2">
+                      <i className="fas fa-building text-green-500 mr-1"></i> Company
                       {selectedOrgDetails?.multi_company === "Yes" && (
-                        <span className="text-red-500">*</span>
+                        <span className="text-[var(--form-error)]">*</span>
                       )}
                     </label>
                     <Controller
@@ -1838,11 +1856,15 @@ const EditEmployee = () => {
                             disabled={
                               selectedOrgDetails?.multi_company !== "Yes"
                             }
-                            className={`w-full px-3 md:px-4 py-2 md:py-3 bg-gray-50 border rounded-lg ${
+                            className={`w-full px-3 md:px-4 py-2 md:py-3 bg-[var(--form-surface)] border rounded-lg text-sm md:text-base text-[var(--form-text)] transition-all focus:outline-none focus:ring-2 ${
                               selectedOrgDetails?.multi_company !== "Yes"
                                 ? "opacity-50 cursor-not-allowed"
                                 : ""
-                            } ${errors.company_id ? "border-red-500" : "border-gray-200"}`}
+                            } ${
+                              errors.company_id
+                                ? "border-[var(--form-error)] focus:border-[var(--form-error)] focus:ring-[var(--form-error)]/20"
+                                : "border-[var(--form-border)] focus:border-[var(--form-border-focus)] focus:ring-[var(--form-border-focus)]/20"
+                            }`}
                           >
                             <option value="">
                               {selectedOrgDetails?.multi_company === "Yes"
@@ -1855,7 +1877,7 @@ const EditEmployee = () => {
                               <option key={company.id} value={company.id}>
                                 {company.company_name || company.name}
                                 {company.raw?.trade_license && (
-                                  <span className="text-xs text-gray-500 ml-1">
+                                  <span className="text-xs text-[var(--form-text-muted)] ml-1">
                                     ({company.raw?.trade_license})
                                   </span>
                                 )}
@@ -1863,7 +1885,7 @@ const EditEmployee = () => {
                             ))}
                           </select>
                           {errors.company_id && (
-                            <p className="mt-1 text-xs text-red-500">
+                            <p className="mt-1 text-xs text-[var(--form-error)]">
                               {errors.company_id.message}
                             </p>
                           )}
@@ -1877,20 +1899,32 @@ const EditEmployee = () => {
                     selectedCompanyDetails.raw?.trade_license && (
                       <div className="md:col-span-2">
                         <div
-                          className={`p-3 rounded-lg ${selectedCompanyDetails.raw?.trade_license === "mainland" ? "bg-blue-50 border border-blue-200" : "bg-yellow-50 border border-yellow-200"}`}
+                          className={`p-3 rounded-lg ${
+                            selectedCompanyDetails.raw?.trade_license === "mainland"
+                              ? "bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800"
+                              : "bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800"
+                          }`}
                         >
                           <div className="flex items-center gap-2">
                             <i
-                              className={`fas ${selectedCompanyDetails.raw?.trade_license === "mainland" ? "fa-building" : "fa-globe"} ${selectedCompanyDetails.raw?.trade_license === "mainland" ? "text-blue-600" : "text-yellow-600"}`}
+                              className={`fas ${
+                                selectedCompanyDetails.raw?.trade_license === "mainland"
+                                  ? "fa-building"
+                                  : "fa-globe"
+                              } ${
+                                selectedCompanyDetails.raw?.trade_license === "mainland"
+                                  ? "text-blue-600 dark:text-blue-400"
+                                  : "text-yellow-600 dark:text-yellow-400"
+                              }`}
                             ></i>
-                            <span className="text-sm font-semibold text-gray-700">
+                            <span className="text-sm font-semibold text-[var(--form-text)]">
                               Company Trade License:{" "}
                               <span
                                 className={
                                   selectedCompanyDetails.raw?.trade_license ===
                                   "mainland"
-                                    ? "text-blue-600"
-                                    : "text-yellow-600"
+                                    ? "text-blue-600 dark:text-blue-400"
+                                    : "text-yellow-600 dark:text-yellow-400"
                                 }
                               >
                                 {selectedCompanyDetails.raw?.trade_license.toUpperCase()}
@@ -1898,18 +1932,16 @@ const EditEmployee = () => {
                             </span>
                             {selectedCompanyDetails.raw?.trade_license ===
                               "mainland" && (
-                              <span className="text-xs text-gray-600 ml-2">
+                              <span className="text-xs text-[var(--form-text-muted)] ml-2">
                                 <i className="fas fa-info-circle mr-1"></i>
-                                Labor details are required for Mainland
-                                companies
+                                Labor details are required for Mainland companies
                               </span>
                             )}
                             {selectedCompanyDetails.raw?.trade_license ===
                               "freezone" && (
-                              <span className="text-xs text-gray-600 ml-2">
+                              <span className="text-xs text-[var(--form-text-muted)] ml-2">
                                 <i className="fas fa-info-circle mr-1"></i>
-                                Labor details are not required for Freezone
-                                companies
+                                Labor details are not required for Freezone companies
                               </span>
                             )}
                           </div>
@@ -1920,8 +1952,8 @@ const EditEmployee = () => {
                   {/* Designation */}
                   <div>
                     <div className="flex items-center justify-between mb-1 md:mb-2">
-                      <label className="block text-xs md:text-sm font-semibold text-gray-700">
-                        Designation <span className="text-red-500">*</span>
+                      <label className="block text-xs md:text-sm font-semibold text-[var(--form-label)]">
+                        <i className="fas fa-briefcase text-green-500 mr-1"></i> Designation <span className="text-[var(--form-error)]">*</span>
                       </label>
                       <button
                         type="button"
@@ -1940,7 +1972,11 @@ const EditEmployee = () => {
                         <>
                           <select
                             {...field}
-                            className={`w-full px-3 md:px-4 py-2 md:py-3 bg-gray-50 border rounded-lg ${errors.designation_id ? "border-red-500" : "border-gray-200"}`}
+                            className={`w-full px-3 md:px-4 py-2 md:py-3 bg-[var(--form-surface)] border rounded-lg text-sm md:text-base text-[var(--form-text)] transition-all focus:outline-none focus:ring-2 ${
+                              errors.designation_id
+                                ? "border-[var(--form-error)] focus:border-[var(--form-error)] focus:ring-[var(--form-error)]/20"
+                                : "border-[var(--form-border)] focus:border-[var(--form-border-focus)] focus:ring-[var(--form-border-focus)]/20"
+                            }`}
                           >
                             <option value="">Select Designation</option>
                             {designations.map((desig) => (
@@ -1950,7 +1986,7 @@ const EditEmployee = () => {
                             ))}
                           </select>
                           {errors.designation_id && (
-                            <p className="mt-1 text-xs text-red-500">
+                            <p className="mt-1 text-xs text-[var(--form-error)]">
                               {errors.designation_id.message}
                             </p>
                           )}
@@ -1962,8 +1998,8 @@ const EditEmployee = () => {
                   {/* Department */}
                   <div>
                     <div className="flex items-center justify-between mb-1 md:mb-2">
-                      <label className="block text-xs md:text-sm font-semibold text-gray-700">
-                        Department <span className="text-red-500">*</span>
+                      <label className="block text-xs md:text-sm font-semibold text-[var(--form-label)]">
+                        <i className="fas fa-diagram-project text-green-500 mr-1"></i> Department <span className="text-[var(--form-error)]">*</span>
                       </label>
                       <button
                         type="button"
@@ -1982,7 +2018,11 @@ const EditEmployee = () => {
                         <>
                           <select
                             {...field}
-                            className={`w-full px-3 md:px-4 py-2 md:py-3 bg-gray-50 border rounded-lg ${errors.department_id ? "border-red-500" : "border-gray-200"}`}
+                            className={`w-full px-3 md:px-4 py-2 md:py-3 bg-[var(--form-surface)] border rounded-lg text-sm md:text-base text-[var(--form-text)] transition-all focus:outline-none focus:ring-2 ${
+                              errors.department_id
+                                ? "border-[var(--form-error)] focus:border-[var(--form-error)] focus:ring-[var(--form-error)]/20"
+                                : "border-[var(--form-border)] focus:border-[var(--form-border-focus)] focus:ring-[var(--form-border-focus)]/20"
+                            }`}
                           >
                             <option value="">Select Department</option>
                             {departments.map((dept) => (
@@ -1992,7 +2032,7 @@ const EditEmployee = () => {
                             ))}
                           </select>
                           {errors.department_id && (
-                            <p className="mt-1 text-xs text-red-500">
+                            <p className="mt-1 text-xs text-[var(--form-error)]">
                               {errors.department_id.message}
                             </p>
                           )}
@@ -2003,8 +2043,8 @@ const EditEmployee = () => {
 
                   {/* User Type */}
                   <div>
-                    <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
-                      User Type <span className="text-red-500">*</span>
+                    <label className="block text-xs md:text-sm font-semibold text-[var(--form-label)] mb-1 md:mb-2">
+                      <i className="fas fa-user-tag text-green-500 mr-1"></i> User Type <span className="text-[var(--form-error)]">*</span>
                     </label>
                     <Controller
                       name="type"
@@ -2013,7 +2053,7 @@ const EditEmployee = () => {
                       render={({ field }) => (
                         <select
                           {...field}
-                          className="w-full px-3 md:px-4 py-2 md:py-3 bg-gray-50 border border-gray-200 rounded-lg"
+                          className="w-full px-3 md:px-4 py-2 md:py-3 bg-[var(--form-surface)] border border-[var(--form-border)] rounded-lg text-sm md:text-base text-[var(--form-text)] focus:outline-none focus:border-[var(--form-border-focus)] focus:ring-2 focus:ring-[var(--form-border-focus)]/20"
                         >
                           {userTypeOptions.map((type) => (
                             <option key={type.value} value={type.value}>
@@ -2027,8 +2067,8 @@ const EditEmployee = () => {
 
                   {/* Gender */}
                   <div>
-                    <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
-                      Gender
+                    <label className="block text-xs md:text-sm font-semibold text-[var(--form-label)] mb-1 md:mb-2">
+                      <i className="fas fa-venus-mars text-green-500 mr-1"></i> Gender
                     </label>
                     <Controller
                       name="gender"
@@ -2036,7 +2076,7 @@ const EditEmployee = () => {
                       render={({ field }) => (
                         <select
                           {...field}
-                          className="w-full px-3 md:px-4 py-2 md:py-3 bg-gray-50 border border-gray-200 rounded-lg"
+                          className="w-full px-3 md:px-4 py-2 md:py-3 bg-[var(--form-surface)] border border-[var(--form-border)] rounded-lg text-sm md:text-base text-[var(--form-text)] focus:outline-none focus:border-[var(--form-border-focus)] focus:ring-2 focus:ring-[var(--form-border-focus)]/20"
                         >
                           <option value="">Select Gender</option>
                           {genderOptions.map((gender) => (
@@ -2051,8 +2091,8 @@ const EditEmployee = () => {
 
                   {/* Nationality */}
                   <div>
-                    <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
-                      Nationality
+                    <label className="block text-xs md:text-sm font-semibold text-[var(--form-label)] mb-1 md:mb-2">
+                      <i className="fas fa-globe-asia text-green-500 mr-1"></i> Nationality
                     </label>
                     <Controller
                       name="nationality"
@@ -2060,7 +2100,7 @@ const EditEmployee = () => {
                       render={({ field }) => (
                         <select
                           {...field}
-                          className="w-full px-3 md:px-4 py-2 md:py-3 bg-gray-50 border border-gray-200 rounded-lg"
+                          className="w-full px-3 md:px-4 py-2 md:py-3 bg-[var(--form-surface)] border border-[var(--form-border)] rounded-lg text-sm md:text-base text-[var(--form-text)] focus:outline-none focus:border-[var(--form-border-focus)] focus:ring-2 focus:ring-[var(--form-border-focus)]/20"
                         >
                           <option value="">Select Nationality</option>
                           {nationalityOptions.map((nationality) => (
@@ -2075,8 +2115,8 @@ const EditEmployee = () => {
 
                   {/* Marital Status */}
                   <div>
-                    <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
-                      Marital Status
+                    <label className="block text-xs md:text-sm font-semibold text-[var(--form-label)] mb-1 md:mb-2">
+                      <i className="fas fa-user-friends text-green-500 mr-1"></i> Marital Status
                     </label>
                     <Controller
                       name="marital_status"
@@ -2084,7 +2124,7 @@ const EditEmployee = () => {
                       render={({ field }) => (
                         <select
                           {...field}
-                          className="w-full px-3 md:px-4 py-2 md:py-3 bg-gray-50 border border-gray-200 rounded-lg"
+                          className="w-full px-3 md:px-4 py-2 md:py-3 bg-[var(--form-surface)] border border-[var(--form-border)] rounded-lg text-sm md:text-base text-[var(--form-text)] focus:outline-none focus:border-[var(--form-border-focus)] focus:ring-2 focus:ring-[var(--form-border-focus)]/20"
                         >
                           <option value="">Select Marital Status</option>
                           {maritalStatusOptions.map((status) => (
@@ -2099,8 +2139,8 @@ const EditEmployee = () => {
 
                   {/* Role */}
                   <div>
-                    <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
-                      Role <span className="text-red-500">*</span>
+                    <label className="block text-xs md:text-sm font-semibold text-[var(--form-label)] mb-1 md:mb-2">
+                      <i className="fas fa-user-tag text-green-500 mr-1"></i> Role <span className="text-[var(--form-error)]">*</span>
                     </label>
                     <Controller
                       name="role"
@@ -2114,7 +2154,7 @@ const EditEmployee = () => {
                             onChange={(e) => {
                               field.onChange(e.target.value);
                             }}
-                            className="w-full px-3 md:px-4 py-2 md:py-3 bg-gray-50 border border-gray-200 rounded-lg"
+                            className="w-full px-3 md:px-4 py-2 md:py-3 bg-[var(--form-surface)] border border-[var(--form-border)] rounded-lg text-sm md:text-base text-[var(--form-text)] focus:outline-none focus:border-[var(--form-border-focus)] focus:ring-2 focus:ring-[var(--form-border-focus)]/20"
                           >
                             <option value="">Select Role</option>
                             {roles.map((role) => (
@@ -2130,8 +2170,8 @@ const EditEmployee = () => {
 
                   {/* Special Days */}
                   <div className="md:col-span-2">
-                    <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-2">
-                      Special Days
+                    <label className="block text-xs md:text-sm font-semibold text-[var(--form-label)] mb-2">
+                      <i className="fas fa-gift text-green-500 mr-1"></i> Special Days
                     </label>
                     <div className="space-y-3">
                       {fields.map((field, index) => (
@@ -2149,14 +2189,14 @@ const EditEmployee = () => {
                                     {...field}
                                     type="text"
                                     placeholder="e.g., Birthday / Anniversary"
-                                    className={`w-full px-3 py-2 bg-gray-50 border rounded-lg text-sm focus:outline-none ${
+                                    className={`w-full px-3 py-2 bg-[var(--form-surface)] border rounded-lg text-sm text-[var(--form-text)] focus:outline-none focus:ring-2 ${
                                       errors?.special_days?.[index]?.name
-                                        ? "border-red-500 focus:border-red-500 focus:ring-red-500/20"
-                                        : "border-gray-200 focus:border-green-500 focus:ring-2 focus:ring-green-500/20"
+                                        ? "border-[var(--form-error)] focus:border-[var(--form-error)] focus:ring-[var(--form-error)]/20"
+                                        : "border-[var(--form-border)] focus:border-[var(--form-border-focus)] focus:ring-[var(--form-border-focus)]/20"
                                     }`}
                                   />
                                   {errors?.special_days?.[index]?.name && (
-                                    <p className="mt-1 text-xs text-red-500">
+                                    <p className="mt-1 text-xs text-[var(--form-error)]">
                                       {errors.special_days[index].name.message}
                                     </p>
                                   )}
@@ -2182,7 +2222,7 @@ const EditEmployee = () => {
                                     }
                                   />
                                   {errors?.special_days?.[index]?.date && (
-                                    <p className="mt-1 text-xs text-red-500">
+                                    <p className="mt-1 text-xs text-[var(--form-error)]">
                                       {errors.special_days[index].date.message}
                                     </p>
                                   )}
@@ -2194,7 +2234,7 @@ const EditEmployee = () => {
                             <button
                               type="button"
                               onClick={() => remove(index)}
-                              className="p-2 text-red-500"
+                              className="p-2 text-[var(--form-error)] hover:text-[var(--form-error)]/80 transition-colors"
                             >
                               <i className="fas fa-trash"></i>
                             </button>
@@ -2204,43 +2244,42 @@ const EditEmployee = () => {
                       <button
                         type="button"
                         onClick={() => append({ name: "", date: "" })}
-                        className="text-green-500 text-sm font-semibold flex items-center gap-2"
+                        className="text-green-500 hover:text-green-600 text-sm font-semibold flex items-center gap-2"
                       >
                         <i className="fas fa-plus-circle"></i> Add Special Day
                       </button>
                     </div>
+                    <p className="text-xs text-[var(--form-text-muted)] mt-2">
+                      <i className="fas fa-info-circle mr-1"></i> Add special occasions like birthday, anniversary, etc.
+                    </p>
                   </div>
 
                   {/* Employee ID Generation */}
                   <div className="md:col-span-2">
-                    <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-2">
+                    <label className="block text-xs md:text-sm font-semibold text-[var(--form-label)] mb-2">
                       <i className="fas fa-id-card text-green-500 mr-1"></i>
                       Employee ID Generation{" "}
-                      <span className="text-red-500">*</span>
+                      <span className="text-[var(--form-error)]">*</span>
                     </label>
 
                     <div className="flex gap-4 mb-4">
-                      <label className="flex items-center">
+                      <label className="flex items-center text-[var(--form-text)]">
                         <input
                           type="radio"
                           checked={idGenerationMethod === "manual"}
                           onChange={() => setIdGenerationMethod("manual")}
                           className="mr-2 text-green-500 focus:ring-green-500"
                         />
-                        <span className="text-sm text-gray-700">
-                          Manual Entry
-                        </span>
+                        <span className="text-sm">Manual Entry</span>
                       </label>
-                      <label className="flex items-center">
+                      <label className="flex items-center text-[var(--form-text)]">
                         <input
                           type="radio"
                           checked={idGenerationMethod === "auto"}
                           onChange={() => setIdGenerationMethod("auto")}
                           className="mr-2 text-green-500 focus:ring-green-500"
                         />
-                        <span className="text-sm text-gray-700">
-                          Auto-Generate
-                        </span>
+                        <span className="text-sm">Auto-Generate</span>
                       </label>
                     </div>
 
@@ -2253,18 +2292,17 @@ const EditEmployee = () => {
                             setManualEmployeeId(e.target.value.toUpperCase())
                           }
                           placeholder="Enter Employee ID (e.g., EMP001, STAFF-001)"
-                          className="w-full px-3 md:px-4 py-2 md:py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm md:text-base text-gray-800 focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-500/20"
+                          className="w-full px-3 md:px-4 py-2 md:py-3 bg-[var(--form-surface)] border border-[var(--form-border)] rounded-lg text-sm md:text-base text-[var(--form-text)] focus:outline-none focus:border-[var(--form-border-focus)] focus:ring-2 focus:ring-[var(--form-border-focus)]/20 placeholder:text-[var(--form-placeholder)]"
                         />
-                        <p className="text-xs text-gray-400 mt-1">
+                        <p className="text-xs text-[var(--form-text-muted)] mt-1">
                           <i className="fas fa-info-circle mr-1"></i>
-                          You can enter any unique ID format (e.g., EMP001,
-                          STAFF-2024-001)
+                          You can enter any unique ID format
                         </p>
                       </div>
                     ) : (
                       <div className="space-y-4">
                         <div>
-                          <label className="block text-xs font-semibold text-gray-700 mb-1">
+                          <label className="block text-xs font-semibold text-[var(--form-label)] mb-1">
                             Prefix
                           </label>
                           <input
@@ -2274,18 +2312,18 @@ const EditEmployee = () => {
                               setIdPrefix(e.target.value.toUpperCase())
                             }
                             placeholder="e.g., EMP, STAFF, ENG"
-                            className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-green-500"
+                            className="w-full px-3 py-2 bg-[var(--form-surface)] border border-[var(--form-border)] rounded-lg text-sm text-[var(--form-text)] focus:outline-none focus:border-[var(--form-border-focus)]"
                           />
                         </div>
 
                         <div>
-                          <label className="block text-xs font-semibold text-gray-700 mb-1">
+                          <label className="block text-xs font-semibold text-[var(--form-label)] mb-1">
                             ID Format
                           </label>
                           <select
                             value={idFormat}
                             onChange={(e) => setIdFormat(e.target.value)}
-                            className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-green-500"
+                            className="w-full px-3 py-2 bg-[var(--form-surface)] border border-[var(--form-border)] rounded-lg text-sm text-[var(--form-text)] focus:outline-none focus:border-[var(--form-border-focus)]"
                           >
                             {formatOptions.map((option) => (
                               <option key={option.value} value={option.value}>
@@ -2297,7 +2335,7 @@ const EditEmployee = () => {
 
                         {idFormat === "custom" && (
                           <div>
-                            <label className="block text-xs font-semibold text-gray-700 mb-1">
+                            <label className="block text-xs font-semibold text-[var(--form-label)] mb-1">
                               Custom Format Pattern
                             </label>
                             <input
@@ -2305,56 +2343,36 @@ const EditEmployee = () => {
                               value={customFormat}
                               onChange={(e) => setCustomFormat(e.target.value)}
                               placeholder="e.g., prefix+year+month+day+random"
-                              className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm font-mono focus:outline-none focus:border-green-500"
+                              className="w-full px-3 py-2 bg-[var(--form-surface)] border border-[var(--form-border)] rounded-lg text-sm font-mono text-[var(--form-text)] focus:outline-none focus:border-[var(--form-border-focus)]"
                             />
-                            <div className="mt-2 text-xs text-gray-500">
-                              <p className="font-semibold mb-1">
+                            <div className="mt-2 text-xs text-[var(--form-text-muted)]">
+                              <p className="font-semibold mb-1 text-[var(--form-text-secondary)]">
                                 Available placeholders:
                               </p>
                               <div className="grid grid-cols-2 gap-1">
                                 <span>
-                                  <code className="bg-gray-100 px-1">
-                                    prefix
-                                  </code>{" "}
-                                  - Your prefix
+                                  <code className="bg-[var(--form-surface)] px-1 rounded">prefix</code> - Your prefix
                                 </span>
                                 <span>
-                                  <code className="bg-gray-100 px-1">year</code>{" "}
-                                  - Joining year
+                                  <code className="bg-[var(--form-surface)] px-1 rounded">year</code> - Joining year
                                 </span>
                                 <span>
-                                  <code className="bg-gray-100 px-1">
-                                    month
-                                  </code>{" "}
-                                  - Joining month
+                                  <code className="bg-[var(--form-surface)] px-1 rounded">month</code> - Joining month
                                 </span>
                                 <span>
-                                  <code className="bg-gray-100 px-1">day</code>{" "}
-                                  - Joining day
+                                  <code className="bg-[var(--form-surface)] px-1 rounded">day</code> - Joining day
                                 </span>
                                 <span>
-                                  <code className="bg-gray-100 px-1">
-                                    dob_ddmm
-                                  </code>{" "}
-                                  - DOB (DDMM)
+                                  <code className="bg-[var(--form-surface)] px-1 rounded">dob_ddmm</code> - DOB (DDMM)
                                 </span>
                                 <span>
-                                  <code className="bg-gray-100 px-1">
-                                    timestamp
-                                  </code>{" "}
-                                  - Unix timestamp
+                                  <code className="bg-[var(--form-surface)] px-1 rounded">timestamp</code> - Unix timestamp
                                 </span>
                                 <span>
-                                  <code className="bg-gray-100 px-1">
-                                    random
-                                  </code>{" "}
-                                  - Random string
+                                  <code className="bg-[var(--form-surface)] px-1 rounded">random</code> - Random string
                                 </span>
                                 <span>
-                                  <code className="bg-gray-100 px-1">
-                                    sequence
-                                  </code>{" "}
-                                  - Sequence number
+                                  <code className="bg-[var(--form-surface)] px-1 rounded">sequence</code> - Sequence number
                                 </span>
                               </div>
                             </div>
@@ -2362,14 +2380,14 @@ const EditEmployee = () => {
                         )}
 
                         {watchDob && watchJoiningDate && generatedPreview && (
-                          <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
-                            <p className="text-xs text-green-700 font-semibold mb-1">
+                          <div className="mt-3 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+                            <p className="text-xs text-green-700 dark:text-green-400 font-semibold mb-1">
                               Preview:
                             </p>
-                            <p className="text-sm font-mono font-bold text-green-800">
+                            <p className="text-sm font-mono font-bold text-green-800 dark:text-green-300">
                               {generatedPreview}
                             </p>
-                            <p className="text-xs text-green-600 mt-1">
+                            <p className="text-xs text-green-600 dark:text-green-400 mt-1">
                               <i className="fas fa-check-circle mr-1"></i>
                               ID will be generated based on DOB and Joining Date
                             </p>
@@ -2377,11 +2395,10 @@ const EditEmployee = () => {
                         )}
 
                         {(!watchDob || !watchJoiningDate) && (
-                          <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                            <p className="text-xs text-yellow-700">
+                          <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+                            <p className="text-xs text-yellow-700 dark:text-yellow-400">
                               <i className="fas fa-info-circle mr-1"></i>
-                              Please enter DOB and Joining Date to see ID
-                              preview
+                              Please enter DOB and Joining Date to see ID preview
                             </p>
                           </div>
                         )}
@@ -2396,7 +2413,7 @@ const EditEmployee = () => {
                     />
 
                     {errors.employee_id && (
-                      <p className="mt-1 text-xs text-red-500">
+                      <p className="mt-1 text-xs text-[var(--form-error)]">
                         {errors.employee_id.message}
                       </p>
                     )}
@@ -2404,8 +2421,8 @@ const EditEmployee = () => {
 
                   {/* Date of Birth */}
                   <div>
-                    <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
-                      Date of Birth <span className="text-red-500">*</span>
+                    <label className="block text-xs md:text-sm font-semibold text-[var(--form-label)] mb-1 md:mb-2">
+                      <i className="fas fa-calendar text-green-500 mr-1"></i> Date of Birth <span className="text-[var(--form-error)]">*</span>
                     </label>
                     <Controller
                       name="dob"
@@ -2423,7 +2440,7 @@ const EditEmployee = () => {
                             error={!!errors.dob}
                           />
                           {errors.dob && (
-                            <p className="mt-1 text-xs text-red-500">
+                            <p className="mt-1 text-xs text-[var(--form-error)]">
                               {errors.dob.message}
                             </p>
                           )}
@@ -2434,8 +2451,8 @@ const EditEmployee = () => {
 
                   {/* Joining Date */}
                   <div>
-                    <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
-                      Joining Date <span className="text-red-500">*</span>
+                    <label className="block text-xs md:text-sm font-semibold text-[var(--form-label)] mb-1 md:mb-2">
+                      <i className="fas fa-calendar-alt text-green-500 mr-1"></i> Joining Date <span className="text-[var(--form-error)]">*</span>
                     </label>
                     <Controller
                       name="joining_date"
@@ -2454,7 +2471,7 @@ const EditEmployee = () => {
                             error={!!errors.joining_date}
                           />
                           {errors.joining_date && (
-                            <p className="mt-1 text-xs text-red-500">
+                            <p className="mt-1 text-xs text-[var(--form-error)]">
                               {errors.joining_date.message}
                             </p>
                           )}
@@ -2465,14 +2482,14 @@ const EditEmployee = () => {
 
                   {/* Employment Timeline & Dates Section */}
                   <div className="md:col-span-2 mt-6 mb-2">
-                    <h3 className="text-lg font-bold text-gray-800 flex items-center">
+                    <h3 className="text-lg font-bold text-[var(--form-text)] flex items-center">
                       <i className="fas fa-calendar-alt text-green-500 mr-2"></i>
                       Employment Timeline & Dates
                     </h3>
                   </div>
 
                   <div>
-                    <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
+                    <label className="block text-xs md:text-sm font-semibold text-[var(--form-label)] mb-1 md:mb-2">
                       <i className="fas fa-calendar-plus text-green-500 mr-1"></i>
                       Probation Start Date
                     </label>
@@ -2486,7 +2503,7 @@ const EditEmployee = () => {
                   </div>
 
                   <div>
-                    <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
+                    <label className="block text-xs md:text-sm font-semibold text-[var(--form-label)] mb-1 md:mb-2">
                       <i className="fas fa-calendar-minus text-green-500 mr-1"></i>
                       Probation End Date
                     </label>
@@ -2500,7 +2517,7 @@ const EditEmployee = () => {
                   </div>
 
                   <div>
-                    <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
+                    <label className="block text-xs md:text-sm font-semibold text-[var(--form-label)] mb-1 md:mb-2">
                       <i className="fas fa-user-check text-green-500 mr-1"></i>
                       Confirmation Date
                     </label>
@@ -2514,7 +2531,7 @@ const EditEmployee = () => {
                   </div>
 
                   <div>
-                    <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
+                    <label className="block text-xs md:text-sm font-semibold text-[var(--form-label)] mb-1 md:mb-2">
                       <i className="fas fa-file-signature text-green-500 mr-1"></i>
                       Contract Start Date
                     </label>
@@ -2528,7 +2545,7 @@ const EditEmployee = () => {
                   </div>
 
                   <div>
-                    <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
+                    <label className="block text-xs md:text-sm font-semibold text-[var(--form-label)] mb-1 md:mb-2">
                       <i className="fas fa-file-contract text-green-500 mr-1"></i>
                       Contract End Date
                     </label>
@@ -2542,7 +2559,7 @@ const EditEmployee = () => {
                   </div>
 
                   <div>
-                    <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
+                    <label className="block text-xs md:text-sm font-semibold text-[var(--form-label)] mb-1 md:mb-2">
                       <i className="fas fa-sign-out-alt text-green-500 mr-1"></i>
                       Resignation Date
                     </label>
@@ -2556,7 +2573,7 @@ const EditEmployee = () => {
                   </div>
 
                   <div>
-                    <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
+                    <label className="block text-xs md:text-sm font-semibold text-[var(--form-label)] mb-1 md:mb-2">
                       <i className="fas fa-hourglass-start text-green-500 mr-1"></i>
                       Notice Period Start Date
                     </label>
@@ -2570,7 +2587,7 @@ const EditEmployee = () => {
                   </div>
 
                   <div>
-                    <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
+                    <label className="block text-xs md:text-sm font-semibold text-[var(--form-label)] mb-1 md:mb-2">
                       <i className="fas fa-briefcase text-green-500 mr-1"></i>
                       Last Working Day (LWD)
                     </label>
@@ -2584,7 +2601,7 @@ const EditEmployee = () => {
                   </div>
 
                   <div>
-                    <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
+                    <label className="block text-xs md:text-sm font-semibold text-[var(--form-label)] mb-1 md:mb-2">
                       <i className="fas fa-door-open text-green-500 mr-1"></i>
                       Relieving Date
                     </label>
@@ -2599,32 +2616,41 @@ const EditEmployee = () => {
 
                   {/* Avatar Upload */}
                   <div className="md:col-span-2">
-                    <div className="border border-gray-200 rounded-lg p-4 bg-gray-50/30">
-                      <label className="block text-sm font-semibold text-gray-700 mb-3">
+                    <div className="border border-[var(--form-border)] rounded-lg p-4 bg-[var(--form-surface)]/30 mb-4">
+                      <label className="block text-sm font-semibold text-[var(--form-label)] mb-3">
                         <i className="fas fa-camera text-green-500 mr-2"></i>
                         Passport Size Photo
+                        <span className="text-xs text-[var(--form-text-muted)] ml-2">(Optional)</span>
                       </label>
                       <DocumentUpload
                         fieldKey="avatar"
                         label="Passport Size Photo"
                         icon="fas fa-camera"
                         accept="image/*"
+                        uploadingFiles={uploadingFiles}
+                        documents={documents}
+                        documentPreviews={documentPreviews}
+                        existingDocuments={existingDocuments}
+                        removedDocuments={removedDocuments}
+                        handleFileChange={handleFileChange}
+                        handleRemoveExistingDocument={handleRemoveExistingDocument}
+                        handleCancelNewDocument={handleCancelNewDocument}
                       />
                     </div>
                   </div>
 
-                  {/* Skilled/Unskilled */}
+                  {/* Employee Category */}
                   <div className="md:col-span-2">
-                    <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-2">
+                    <label className="block text-xs md:text-sm font-semibold text-[var(--form-label)] mb-2">
                       <i className="fas fa-graduation-cap text-green-500 mr-1"></i>
-                      Employee Category <span className="text-red-500">*</span>
+                      Employee Category <span className="text-[var(--form-error)]">*</span>
                     </label>
                     <Controller
                       name="is_skilled"
                       control={control}
                       render={({ field }) => (
                         <div className="flex gap-4">
-                          <label className="flex items-center">
+                          <label className="flex items-center text-[var(--form-text)]">
                             <input
                               type="radio"
                               value="true"
@@ -2632,11 +2658,9 @@ const EditEmployee = () => {
                               onChange={() => field.onChange(true)}
                               className="mr-2 text-green-500 focus:ring-green-500"
                             />
-                            <span className="text-sm text-gray-700">
-                              Skilled
-                            </span>
+                            <span className="text-sm">Skilled</span>
                           </label>
-                          <label className="flex items-center">
+                          <label className="flex items-center text-[var(--form-text)]">
                             <input
                               type="radio"
                               value="false"
@@ -2644,21 +2668,24 @@ const EditEmployee = () => {
                               onChange={() => field.onChange(false)}
                               className="mr-2 text-green-500 focus:ring-green-500"
                             />
-                            <span className="text-sm text-gray-700">
-                              Unskilled
-                            </span>
+                            <span className="text-sm">Unskilled</span>
                           </label>
                         </div>
                       )}
                     />
+                    <p className="text-xs text-[var(--form-text-muted)] mt-1">
+                      <i className="fas fa-info-circle mr-1"></i>
+                      Skilled employees need to provide educational documents
+                    </p>
                   </div>
 
-                  {/* Educational Documents */}
+                  {/* Educational Documents - Skilled only */}
                   {watch("is_skilled") === true && (
                     <>
                       <div className="md:col-span-2">
-                        <div className="border-t border-gray-200 pt-4 mt-2">
-                          <h4 className="text-sm font-semibold text-gray-700 mb-3">
+                        <div className="border-t border-[var(--form-border)] pt-4 mt-2">
+                          <h4 className="text-sm font-semibold text-[var(--form-label)] mb-3 flex items-center">
+                            <i className="fas fa-graduation-cap text-green-500 mr-2"></i>
                             Educational Documents
                           </h4>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -2666,11 +2693,27 @@ const EditEmployee = () => {
                               fieldKey="educational_1st_page"
                               label="Educational Certificate (Front)"
                               icon="fas fa-graduation-cap"
+                              uploadingFiles={uploadingFiles}
+                              documents={documents}
+                              documentPreviews={documentPreviews}
+                              existingDocuments={existingDocuments}
+                              removedDocuments={removedDocuments}
+                              handleFileChange={handleFileChange}
+                              handleRemoveExistingDocument={handleRemoveExistingDocument}
+                              handleCancelNewDocument={handleCancelNewDocument}
                             />
                             <DocumentUpload
                               fieldKey="educational_2nd_page"
                               label="Educational Certificate (Back)"
                               icon="fas fa-graduation-cap"
+                              uploadingFiles={uploadingFiles}
+                              documents={documents}
+                              documentPreviews={documentPreviews}
+                              existingDocuments={existingDocuments}
+                              removedDocuments={removedDocuments}
+                              handleFileChange={handleFileChange}
+                              handleRemoveExistingDocument={handleRemoveExistingDocument}
+                              handleCancelNewDocument={handleCancelNewDocument}
                             />
                           </div>
                         </div>
@@ -2681,6 +2724,14 @@ const EditEmployee = () => {
                           fieldKey="home_country_id_proof"
                           label="Home Country ID Proof"
                           icon="fas fa-home"
+                          uploadingFiles={uploadingFiles}
+                          documents={documents}
+                          documentPreviews={documentPreviews}
+                          existingDocuments={existingDocuments}
+                          removedDocuments={removedDocuments}
+                          handleFileChange={handleFileChange}
+                          handleRemoveExistingDocument={handleRemoveExistingDocument}
+                          handleCancelNewDocument={handleCancelNewDocument}
                         />
                       </div>
                     </>
@@ -2688,9 +2739,9 @@ const EditEmployee = () => {
 
                   {/* Additional Documents Section */}
                   <div className="md:col-span-2">
-                    <div className="border-t border-gray-200 pt-4 mt-4">
+                    <div className="border-t border-[var(--form-border)] pt-4 mt-4">
                       <div className="flex justify-between items-center mb-3">
-                        <h4 className="text-sm font-semibold text-gray-700 flex items-center">
+                        <h4 className="text-sm font-semibold text-[var(--form-label)] flex items-center">
                           <i className="fas fa-folder-open text-green-500 mr-2"></i>
                           Additional Documents
                         </h4>
@@ -2710,29 +2761,28 @@ const EditEmployee = () => {
                           }}
                           className="px-4 py-2 bg-green-500 text-white rounded-lg text-sm font-semibold hover:bg-green-600 transition-colors flex items-center gap-2"
                         >
-                          <i className="fas fa-plus-circle"></i>
-                          Add Document
+                          <i className="fas fa-plus-circle"></i> Add Document
                         </button>
                       </div>
 
-                      {/* Display existing additional documents */}
+                      {/* Existing additional documents */}
                       {existingAdditionalDocuments.length > 0 && (
                         <div className="mb-4">
-                          <p className="text-xs font-semibold text-gray-600 mb-2">
+                          <p className="text-xs font-semibold text-[var(--form-text-secondary)] mb-2">
                             Existing Documents:
                           </p>
                           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                             {existingAdditionalDocuments.map((doc, index) => (
                               <div
                                 key={`existing-${index}`}
-                                className="border border-gray-200 rounded-lg p-3 bg-gray-50"
+                                className="border border-[var(--form-border)] rounded-lg p-3 bg-[var(--form-surface)]"
                               >
                                 <div className="flex items-start justify-between">
                                   <div className="flex-1">
-                                    <p className="text-sm font-semibold text-gray-700 truncate">
+                                    <p className="text-sm font-semibold text-[var(--form-text)] truncate">
                                       {doc.document_name}
                                     </p>
-                                    <p className="text-xs text-gray-500 mt-1">
+                                    <p className="text-xs text-[var(--form-text-muted)] mt-1">
                                       {doc.filename || "Document"}
                                     </p>
                                   </div>
@@ -2744,7 +2794,7 @@ const EditEmployee = () => {
                                         true,
                                       )
                                     }
-                                    className="text-red-500 hover:text-red-600 ml-2"
+                                    className="text-[var(--form-error)] hover:text-[var(--form-error)]/80 ml-2"
                                   >
                                     <i className="fas fa-trash"></i>
                                   </button>
@@ -2755,18 +2805,17 @@ const EditEmployee = () => {
                         </div>
                       )}
 
-                      {/* Display new additional documents */}
+                      {/* New additional documents */}
                       {additionalDocuments.filter((doc) => !doc.isExisting)
                         .length > 0 && (
                         <div className="mt-4">
-                          <p className="text-xs font-semibold text-gray-600 mb-2">
+                          <p className="text-xs font-semibold text-[var(--form-text-secondary)] mb-2">
                             New Documents:
                           </p>
                           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                             {additionalDocuments
                               .filter((doc) => !doc.isExisting)
                               .map((doc, index) => {
-                                // Find the actual index in the full array
                                 const actualIndex =
                                   additionalDocuments.findIndex(
                                     (d) => d === doc,
@@ -2774,14 +2823,14 @@ const EditEmployee = () => {
                                 return (
                                   <div
                                     key={`new-${index}`}
-                                    className="border border-gray-200 rounded-lg p-3 bg-green-50"
+                                    className="border border-[var(--form-border)] rounded-lg p-3 bg-green-50 dark:bg-green-900/10"
                                   >
                                     <div className="flex items-start justify-between">
                                       <div className="flex-1">
-                                        <p className="text-sm font-semibold text-gray-700 truncate">
+                                        <p className="text-sm font-semibold text-[var(--form-text)] truncate">
                                           {doc.name || "Untitled"}
                                         </p>
-                                        <p className="text-xs text-gray-500 mt-1">
+                                        <p className="text-xs text-[var(--form-text-muted)] mt-1">
                                           {doc.file?.name || "New document"}
                                         </p>
                                       </div>
@@ -2793,7 +2842,7 @@ const EditEmployee = () => {
                                             false,
                                           )
                                         }
-                                        className="text-red-500 hover:text-red-600 ml-2"
+                                        className="text-[var(--form-error)] hover:text-[var(--form-error)]/80 ml-2"
                                       >
                                         <i className="fas fa-trash"></i>
                                       </button>
@@ -2802,11 +2851,11 @@ const EditEmployee = () => {
                                       <img
                                         src={doc.preview}
                                         alt={doc.name}
-                                        className="mt-2 h-16 w-16 object-cover rounded-lg"
+                                        className="mt-2 h-16 w-16 object-cover rounded-lg border border-[var(--form-border)]"
                                       />
                                     )}
                                     {doc.preview === "pdf" && (
-                                      <div className="mt-2 h-16 w-16 bg-red-100 rounded-lg flex items-center justify-center">
+                                      <div className="mt-2 h-16 w-16 bg-red-100 dark:bg-red-900/30 rounded-lg flex items-center justify-center border border-[var(--form-border)]">
                                         <i className="fas fa-file-pdf text-red-500 text-2xl"></i>
                                       </div>
                                     )}
@@ -2822,19 +2871,19 @@ const EditEmployee = () => {
               </div>
             )}
 
-            {/* Step 1 - Passport */}
+            {/* ─── STEP 1: PASSPORT ─────────────────────────────────────────── */}
             {currentStep === 1 && (
               <div>
                 <div className="form-section-title mb-4 md:mb-6">
                   <i className="fas fa-passport text-green-500 mr-2"></i>
-                  <h3 className="text-base md:text-lg font-bold text-gray-800">
+                  <h3 className="text-base md:text-lg font-bold text-[var(--form-text)]">
                     Passport Information
                   </h3>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5">
                   <div className="md:col-span-2">
-                    <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
-                      Passport Full Name
+                    <label className="block text-xs md:text-sm font-semibold text-[var(--form-label)] mb-1 md:mb-2">
+                      <i className="fas fa-user-tag text-green-500 mr-1"></i> Passport Full Name
                     </label>
                     <Controller
                       name="passport_full_name"
@@ -2843,7 +2892,7 @@ const EditEmployee = () => {
                         <input
                           {...field}
                           type="text"
-                          className="w-full px-3 md:px-4 py-2 md:py-3 bg-gray-50 border border-gray-200 rounded-lg"
+                          className="w-full px-3 md:px-4 py-2 md:py-3 bg-[var(--form-surface)] border border-[var(--form-border)] rounded-lg text-sm md:text-base text-[var(--form-text)] focus:outline-none focus:border-[var(--form-border-focus)] focus:ring-2 focus:ring-[var(--form-border-focus)]/20 placeholder:text-[var(--form-placeholder)]"
                           placeholder="Enter name as per passport"
                         />
                       )}
@@ -2851,8 +2900,8 @@ const EditEmployee = () => {
                   </div>
 
                   <div>
-                    <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
-                      Passport Number
+                    <label className="block text-xs md:text-sm font-semibold text-[var(--form-label)] mb-1 md:mb-2">
+                      <i className="fas fa-hashtag text-green-500 mr-1"></i> Passport Number
                     </label>
                     <Controller
                       name="passport_number"
@@ -2861,7 +2910,7 @@ const EditEmployee = () => {
                         <input
                           {...field}
                           type="text"
-                          className="w-full px-3 md:px-4 py-2 md:py-3 bg-gray-50 border border-gray-200 rounded-lg"
+                          className="w-full px-3 md:px-4 py-2 md:py-3 bg-[var(--form-surface)] border border-[var(--form-border)] rounded-lg text-sm md:text-base text-[var(--form-text)] focus:outline-none focus:border-[var(--form-border-focus)] focus:ring-2 focus:ring-[var(--form-border-focus)]/20 placeholder:text-[var(--form-placeholder)]"
                           placeholder="Enter passport number"
                         />
                       )}
@@ -2869,8 +2918,8 @@ const EditEmployee = () => {
                   </div>
 
                   <div>
-                    <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
-                      Issued From
+                    <label className="block text-xs md:text-sm font-semibold text-[var(--form-label)] mb-1 md:mb-2">
+                      <i className="fas fa-globe text-green-500 mr-1"></i> Issued From
                     </label>
                     <Controller
                       name="passport_issued_from"
@@ -2879,7 +2928,7 @@ const EditEmployee = () => {
                         <input
                           {...field}
                           type="text"
-                          className="w-full px-3 md:px-4 py-2 md:py-3 bg-gray-50 border border-gray-200 rounded-lg"
+                          className="w-full px-3 md:px-4 py-2 md:py-3 bg-[var(--form-surface)] border border-[var(--form-border)] rounded-lg text-sm md:text-base text-[var(--form-text)] focus:outline-none focus:border-[var(--form-border-focus)] focus:ring-2 focus:ring-[var(--form-border-focus)]/20 placeholder:text-[var(--form-placeholder)]"
                           placeholder="Enter issuing country/city"
                         />
                       )}
@@ -2887,8 +2936,8 @@ const EditEmployee = () => {
                   </div>
 
                   <div>
-                    <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
-                      Issued Date
+                    <label className="block text-xs md:text-sm font-semibold text-[var(--form-label)] mb-1 md:mb-2">
+                      <i className="fas fa-calendar-plus text-green-500 mr-1"></i> Issued Date
                     </label>
                     <Controller
                       name="passport_issued_date"
@@ -2915,8 +2964,8 @@ const EditEmployee = () => {
                   </div>
 
                   <div>
-                    <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
-                      Expiry Date
+                    <label className="block text-xs md:text-sm font-semibold text-[var(--form-label)] mb-1 md:mb-2">
+                      <i className="fas fa-calendar-times text-green-500 mr-1"></i> Expiry Date
                     </label>
                     <Controller
                       name="passport_expiry_date"
@@ -2943,8 +2992,8 @@ const EditEmployee = () => {
                   </div>
 
                   <div>
-                    <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
-                      Place of Birth
+                    <label className="block text-xs md:text-sm font-semibold text-[var(--form-label)] mb-1 md:mb-2">
+                      <i className="fas fa-map-pin text-green-500 mr-1"></i> Place of Birth
                     </label>
                     <Controller
                       name="place_of_birth"
@@ -2953,7 +3002,7 @@ const EditEmployee = () => {
                         <input
                           {...field}
                           type="text"
-                          className="w-full px-3 md:px-4 py-2 md:py-3 bg-gray-50 border border-gray-200 rounded-lg"
+                          className="w-full px-3 md:px-4 py-2 md:py-3 bg-[var(--form-surface)] border border-[var(--form-border)] rounded-lg text-sm md:text-base text-[var(--form-text)] focus:outline-none focus:border-[var(--form-border-focus)] focus:ring-2 focus:ring-[var(--form-border-focus)]/20 placeholder:text-[var(--form-placeholder)]"
                           placeholder="Enter place of birth"
                         />
                       )}
@@ -2961,8 +3010,8 @@ const EditEmployee = () => {
                   </div>
 
                   <div>
-                    <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
-                      Father's Name
+                    <label className="block text-xs md:text-sm font-semibold text-[var(--form-label)] mb-1 md:mb-2">
+                      <i className="fas fa-father text-green-500 mr-1"></i> Father's Name
                     </label>
                     <Controller
                       name="father_name"
@@ -2971,7 +3020,7 @@ const EditEmployee = () => {
                         <input
                           {...field}
                           type="text"
-                          className="w-full px-3 md:px-4 py-2 md:py-3 bg-gray-50 border border-gray-200 rounded-lg"
+                          className="w-full px-3 md:px-4 py-2 md:py-3 bg-[var(--form-surface)] border border-[var(--form-border)] rounded-lg text-sm md:text-base text-[var(--form-text)] focus:outline-none focus:border-[var(--form-border-focus)] focus:ring-2 focus:ring-[var(--form-border-focus)]/20 placeholder:text-[var(--form-placeholder)]"
                           placeholder="Enter father's name"
                         />
                       )}
@@ -2979,8 +3028,8 @@ const EditEmployee = () => {
                   </div>
 
                   <div>
-                    <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
-                      Mother's Name
+                    <label className="block text-xs md:text-sm font-semibold text-[var(--form-label)] mb-1 md:mb-2">
+                      <i className="fas fa-mother text-green-500 mr-1"></i> Mother's Name
                     </label>
                     <Controller
                       name="mother_name"
@@ -2989,7 +3038,7 @@ const EditEmployee = () => {
                         <input
                           {...field}
                           type="text"
-                          className="w-full px-3 md:px-4 py-2 md:py-3 bg-gray-50 border border-gray-200 rounded-lg"
+                          className="w-full px-3 md:px-4 py-2 md:py-3 bg-[var(--form-surface)] border border-[var(--form-border)] rounded-lg text-sm md:text-base text-[var(--form-text)] focus:outline-none focus:border-[var(--form-border-focus)] focus:ring-2 focus:ring-[var(--form-border-focus)]/20 placeholder:text-[var(--form-placeholder)]"
                           placeholder="Enter mother's name"
                         />
                       )}
@@ -2997,8 +3046,8 @@ const EditEmployee = () => {
                   </div>
 
                   <div className="md:col-span-2">
-                    <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
-                      Address
+                    <label className="block text-xs md:text-sm font-semibold text-[var(--form-label)] mb-1 md:mb-2">
+                      <i className="fas fa-map-marker-alt text-green-500 mr-1"></i> Address
                     </label>
                     <Controller
                       name="address"
@@ -3007,7 +3056,7 @@ const EditEmployee = () => {
                         <textarea
                           {...field}
                           rows="2"
-                          className="w-full px-3 md:px-4 py-2 md:py-3 bg-gray-50 border border-gray-200 rounded-lg"
+                          className="w-full px-3 md:px-4 py-2 md:py-3 bg-[var(--form-surface)] border border-[var(--form-border)] rounded-lg text-sm md:text-base text-[var(--form-text)] focus:outline-none focus:border-[var(--form-border-focus)] focus:ring-2 focus:ring-[var(--form-border-focus)]/20 placeholder:text-[var(--form-placeholder)]"
                           placeholder="Enter full address"
                         ></textarea>
                       )}
@@ -3016,8 +3065,9 @@ const EditEmployee = () => {
 
                   {/* Passport Documents */}
                   <div className="md:col-span-2">
-                    <div className="border-t border-gray-200 pt-4 mt-2">
-                      <h4 className="text-sm font-semibold text-gray-700 mb-3">
+                    <div className="border-t border-[var(--form-border)] pt-4 mt-2">
+                      <h4 className="text-sm font-semibold text-[var(--form-label)] mb-3 flex items-center">
+                        <i className="fas fa-passport text-green-500 mr-2"></i>
                         Passport Documents
                       </h4>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -3025,21 +3075,53 @@ const EditEmployee = () => {
                           fieldKey="passport_1st_page"
                           label="Passport 1st Page"
                           icon="fas fa-passport"
+                          uploadingFiles={uploadingFiles}
+                          documents={documents}
+                          documentPreviews={documentPreviews}
+                          existingDocuments={existingDocuments}
+                          removedDocuments={removedDocuments}
+                          handleFileChange={handleFileChange}
+                          handleRemoveExistingDocument={handleRemoveExistingDocument}
+                          handleCancelNewDocument={handleCancelNewDocument}
                         />
                         <DocumentUpload
                           fieldKey="passport_2nd_page"
                           label="Passport 2nd Page"
                           icon="fas fa-passport"
+                          uploadingFiles={uploadingFiles}
+                          documents={documents}
+                          documentPreviews={documentPreviews}
+                          existingDocuments={existingDocuments}
+                          removedDocuments={removedDocuments}
+                          handleFileChange={handleFileChange}
+                          handleRemoveExistingDocument={handleRemoveExistingDocument}
+                          handleCancelNewDocument={handleCancelNewDocument}
                         />
                         <DocumentUpload
                           fieldKey="passport_outer_page"
                           label="Passport Outer Page"
                           icon="fas fa-passport"
+                          uploadingFiles={uploadingFiles}
+                          documents={documents}
+                          documentPreviews={documentPreviews}
+                          existingDocuments={existingDocuments}
+                          removedDocuments={removedDocuments}
+                          handleFileChange={handleFileChange}
+                          handleRemoveExistingDocument={handleRemoveExistingDocument}
+                          handleCancelNewDocument={handleCancelNewDocument}
                         />
                         <DocumentUpload
                           fieldKey="passport_id_page"
                           label="Passport ID Page"
                           icon="fas fa-id-card"
+                          uploadingFiles={uploadingFiles}
+                          documents={documents}
+                          documentPreviews={documentPreviews}
+                          existingDocuments={existingDocuments}
+                          removedDocuments={removedDocuments}
+                          handleFileChange={handleFileChange}
+                          handleRemoveExistingDocument={handleRemoveExistingDocument}
+                          handleCancelNewDocument={handleCancelNewDocument}
                         />
                       </div>
                     </div>
@@ -3048,30 +3130,31 @@ const EditEmployee = () => {
               </div>
             )}
 
-            {/* Step 2 - Visa, Labor & EID */}
+            {/* ─── STEP 2: VISA, LABOR & EID ────────────────────────────────── */}
             {currentStep === 2 && (
               <div>
                 <div className="form-section-title mb-4 md:mb-6">
                   <i className="fas fa-file-contract text-green-500 mr-2"></i>
-                  <h3 className="text-base md:text-lg font-bold text-gray-800">
+                  <h3 className="text-base md:text-lg font-bold text-[var(--form-text)]">
                     Visa, Labor & Emirates ID
                   </h3>
                 </div>
                 <div className="space-y-6">
-                  {/* Labor Section */}
+                  {/* Labor Section - Mainland only */}
                   {selectedCompanyDetails?.raw?.trade_license ===
                     "mainland" && (
-                    <div className="border border-gray-200 rounded-lg p-4">
-                      <h4 className="text-sm font-semibold text-gray-700 mb-4">
+                    <div className="border border-[var(--form-border)] rounded-lg p-4">
+                      <h4 className="text-sm font-semibold text-[var(--form-label)] mb-4 flex items-center">
+                        <i className="fas fa-briefcase text-green-500 mr-2"></i>
                         Labor Details
-                        <span className="text-xs text-red-500 ml-2">
+                        <span className="text-xs text-[var(--form-error)] ml-2">
                           * Required for Mainland companies
                         </span>
                       </h4>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
-                            Labor Number <span className="text-red-500">*</span>
+                          <label className="block text-xs md:text-sm font-semibold text-[var(--form-label)] mb-1 md:mb-2">
+                            <i className="fas fa-briefcase text-green-500 mr-1"></i> Labor Number <span className="text-[var(--form-error)]">*</span>
                           </label>
                           <Controller
                             name="labor_number"
@@ -3088,11 +3171,15 @@ const EditEmployee = () => {
                                 <input
                                   {...field}
                                   type="text"
-                                  className={`w-full px-3 md:px-4 py-2 md:py-3 bg-gray-50 border rounded-lg ${errors.labor_number ? "border-red-500" : "border-gray-200"}`}
+                                  className={`w-full px-3 md:px-4 py-2 md:py-3 bg-[var(--form-surface)] border rounded-lg text-sm md:text-base text-[var(--form-text)] transition-all focus:outline-none focus:ring-2 placeholder:text-[var(--form-placeholder)] ${
+                                    errors.labor_number
+                                      ? "border-[var(--form-error)] focus:border-[var(--form-error)] focus:ring-[var(--form-error)]/20"
+                                      : "border-[var(--form-border)] focus:border-[var(--form-border-focus)] focus:ring-[var(--form-border-focus)]/20"
+                                  }`}
                                   placeholder="Enter Labor Number"
                                 />
                                 {errors.labor_number && (
-                                  <p className="mt-1 text-xs text-red-500">
+                                  <p className="mt-1 text-xs text-[var(--form-error)]">
                                     {errors.labor_number.message}
                                   </p>
                                 )}
@@ -3102,9 +3189,8 @@ const EditEmployee = () => {
                         </div>
 
                         <div>
-                          <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
-                            Labor Issued Date{" "}
-                            <span className="text-red-500">*</span>
+                          <label className="block text-xs md:text-sm font-semibold text-[var(--form-label)] mb-1 md:mb-2">
+                            <i className="fas fa-calendar-plus text-green-500 mr-1"></i> Labor Issued Date <span className="text-[var(--form-error)]">*</span>
                           </label>
                           <Controller
                             name="labor_issued_date"
@@ -3133,9 +3219,8 @@ const EditEmployee = () => {
                         </div>
 
                         <div>
-                          <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
-                            Labor Expiry Date{" "}
-                            <span className="text-red-500">*</span>
+                          <label className="block text-xs md:text-sm font-semibold text-[var(--form-label)] mb-1 md:mb-2">
+                            <i className="fas fa-calendar-times text-green-500 mr-1"></i> Labor Expiry Date <span className="text-[var(--form-error)]">*</span>
                           </label>
                           <Controller
                             name="labor_expiry_date"
@@ -3167,14 +3252,15 @@ const EditEmployee = () => {
                   )}
 
                   {/* Visa Section */}
-                  <div className="border border-gray-200 rounded-lg p-4">
-                    <h4 className="text-sm font-semibold text-gray-700 mb-4">
+                  <div className="border border-[var(--form-border)] rounded-lg p-4">
+                    <h4 className="text-sm font-semibold text-[var(--form-label)] mb-4 flex items-center">
+                      <i className="fas fa-passport text-green-500 mr-2"></i>
                       Visa Details
                     </h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="md:col-span-2">
-                        <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
-                          Type of Visa
+                        <label className="block text-xs md:text-sm font-semibold text-[var(--form-label)] mb-1 md:mb-2">
+                          <i className="fas fa-list text-green-500 mr-1"></i> Type of Visa
                         </label>
                         <Controller
                           name="visa_type"
@@ -3183,7 +3269,7 @@ const EditEmployee = () => {
                             <select
                               {...field}
                               value={field.value || ""}
-                              className="w-full px-3 md:px-4 py-2 md:py-3 bg-gray-50 border border-gray-200 rounded-lg"
+                              className="w-full px-3 md:px-4 py-2 md:py-3 bg-[var(--form-surface)] border border-[var(--form-border)] rounded-lg text-sm md:text-base text-[var(--form-text)] focus:outline-none focus:border-[var(--form-border-focus)] focus:ring-2 focus:ring-[var(--form-border-focus)]/20"
                             >
                               <option value="">Select Type of Visa</option>
                               {visaTypeOptions.map((option) => (
@@ -3197,8 +3283,8 @@ const EditEmployee = () => {
                       </div>
 
                       <div>
-                        <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
-                          Visa Number
+                        <label className="block text-xs md:text-sm font-semibold text-[var(--form-label)] mb-1 md:mb-2">
+                          <i className="fas fa-id-card text-green-500 mr-1"></i> Visa Number
                         </label>
                         <Controller
                           name="visa_number"
@@ -3207,7 +3293,7 @@ const EditEmployee = () => {
                             <input
                               {...field}
                               type="text"
-                              className="w-full px-3 md:px-4 py-2 md:py-3 bg-gray-50 border border-gray-200 rounded-lg"
+                              className="w-full px-3 md:px-4 py-2 md:py-3 bg-[var(--form-surface)] border border-[var(--form-border)] rounded-lg text-sm md:text-base text-[var(--form-text)] focus:outline-none focus:border-[var(--form-border-focus)] focus:ring-2 focus:ring-[var(--form-border-focus)]/20 placeholder:text-[var(--form-placeholder)]"
                               placeholder="Enter Visa Number"
                             />
                           )}
@@ -3215,8 +3301,8 @@ const EditEmployee = () => {
                       </div>
 
                       <div>
-                        <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
-                          Visa Issued Date
+                        <label className="block text-xs md:text-sm font-semibold text-[var(--form-label)] mb-1 md:mb-2">
+                          <i className="fas fa-calendar-plus text-green-500 mr-1"></i> Visa Issued Date
                         </label>
                         <Controller
                           name="visa_issued_date"
@@ -3240,8 +3326,8 @@ const EditEmployee = () => {
                       </div>
 
                       <div>
-                        <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
-                          Visa Expiry Date
+                        <label className="block text-xs md:text-sm font-semibold text-[var(--form-label)] mb-1 md:mb-2">
+                          <i className="fas fa-calendar-times text-green-500 mr-1"></i> Visa Expiry Date
                         </label>
                         <Controller
                           name="visa_expiry_date"
@@ -3267,14 +3353,15 @@ const EditEmployee = () => {
                   </div>
 
                   {/* EID Section */}
-                  <div className="border border-gray-200 rounded-lg p-4">
-                    <h4 className="text-sm font-semibold text-gray-700 mb-4">
+                  <div className="border border-[var(--form-border)] rounded-lg p-4">
+                    <h4 className="text-sm font-semibold text-[var(--form-label)] mb-4 flex items-center">
+                      <i className="fas fa-id-card text-green-500 mr-2"></i>
                       Emirates ID (EID)
                     </h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="md:col-span-2">
-                        <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
-                          EID Number
+                        <label className="block text-xs md:text-sm font-semibold text-[var(--form-label)] mb-1 md:mb-2">
+                          <i className="fas fa-qrcode text-green-500 mr-1"></i> EID Number
                         </label>
                         <Controller
                           name="eid_number"
@@ -3283,7 +3370,7 @@ const EditEmployee = () => {
                             <input
                               {...field}
                               type="text"
-                              className="w-full px-3 md:px-4 py-2 md:py-3 bg-gray-50 border border-gray-200 rounded-lg"
+                              className="w-full px-3 md:px-4 py-2 md:py-3 bg-[var(--form-surface)] border border-[var(--form-border)] rounded-lg text-sm md:text-base text-[var(--form-text)] focus:outline-none focus:border-[var(--form-border-focus)] focus:ring-2 focus:ring-[var(--form-border-focus)]/20 placeholder:text-[var(--form-placeholder)]"
                               placeholder="Enter EID number (e.g., 784-2024-1234567-8)"
                             />
                           )}
@@ -3291,8 +3378,8 @@ const EditEmployee = () => {
                       </div>
 
                       <div>
-                        <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
-                          EID Issued Date
+                        <label className="block text-xs md:text-sm font-semibold text-[var(--form-label)] mb-1 md:mb-2">
+                          <i className="fas fa-calendar-plus text-green-500 mr-1"></i> EID Issued Date
                         </label>
                         <Controller
                           name="eid_issued_date"
@@ -3316,8 +3403,8 @@ const EditEmployee = () => {
                       </div>
 
                       <div>
-                        <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
-                          EID Expiry Date
+                        <label className="block text-xs md:text-sm font-semibold text-[var(--form-label)] mb-1 md:mb-2">
+                          <i className="fas fa-calendar-times text-green-500 mr-1"></i> EID Expiry Date
                         </label>
                         <Controller
                           name="eid_expiry_date"
@@ -3344,8 +3431,9 @@ const EditEmployee = () => {
 
                   {/* Supporting Documents */}
                   <div>
-                    <div className="border-t border-gray-200 pt-4 mt-2">
-                      <h4 className="text-sm font-semibold text-gray-700 mb-3">
+                    <div className="border-t border-[var(--form-border)] pt-4 mt-2">
+                      <h4 className="text-sm font-semibold text-[var(--form-label)] mb-3 flex items-center">
+                        <i className="fas fa-file-contract text-green-500 mr-2"></i>
                         Supporting Documents
                       </h4>
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -3353,6 +3441,14 @@ const EditEmployee = () => {
                           fieldKey="visa_page"
                           label="Visa Page Copy"
                           icon="fas fa-file-contract"
+                          uploadingFiles={uploadingFiles}
+                          documents={documents}
+                          documentPreviews={documentPreviews}
+                          existingDocuments={existingDocuments}
+                          removedDocuments={removedDocuments}
+                          handleFileChange={handleFileChange}
+                          handleRemoveExistingDocument={handleRemoveExistingDocument}
+                          handleCancelNewDocument={handleCancelNewDocument}
                         />
                         {selectedCompanyDetails?.raw?.trade_license ===
                           "mainland" && (
@@ -3361,11 +3457,27 @@ const EditEmployee = () => {
                               fieldKey="labor_card"
                               label="Labor Card Copy"
                               icon="fas fa-id-card"
+                              uploadingFiles={uploadingFiles}
+                              documents={documents}
+                              documentPreviews={documentPreviews}
+                              existingDocuments={existingDocuments}
+                              removedDocuments={removedDocuments}
+                              handleFileChange={handleFileChange}
+                              handleRemoveExistingDocument={handleRemoveExistingDocument}
+                              handleCancelNewDocument={handleCancelNewDocument}
                             />
                             <DocumentUpload
                               fieldKey="labor_contract"
                               label="Attach Labor Contract"
                               icon="fas fa-file-signature"
+                              uploadingFiles={uploadingFiles}
+                              documents={documents}
+                              documentPreviews={documentPreviews}
+                              existingDocuments={existingDocuments}
+                              removedDocuments={removedDocuments}
+                              handleFileChange={handleFileChange}
+                              handleRemoveExistingDocument={handleRemoveExistingDocument}
+                              handleCancelNewDocument={handleCancelNewDocument}
                             />
                           </>
                         )}
@@ -3373,11 +3485,27 @@ const EditEmployee = () => {
                           fieldKey="eid_1st_page"
                           label="EID Front Side"
                           icon="fas fa-id-card"
+                          uploadingFiles={uploadingFiles}
+                          documents={documents}
+                          documentPreviews={documentPreviews}
+                          existingDocuments={existingDocuments}
+                          removedDocuments={removedDocuments}
+                          handleFileChange={handleFileChange}
+                          handleRemoveExistingDocument={handleRemoveExistingDocument}
+                          handleCancelNewDocument={handleCancelNewDocument}
                         />
                         <DocumentUpload
                           fieldKey="eid_2nd_page"
                           label="EID Back Side"
                           icon="fas fa-id-card"
+                          uploadingFiles={uploadingFiles}
+                          documents={documents}
+                          documentPreviews={documentPreviews}
+                          existingDocuments={existingDocuments}
+                          removedDocuments={removedDocuments}
+                          handleFileChange={handleFileChange}
+                          handleRemoveExistingDocument={handleRemoveExistingDocument}
+                          handleCancelNewDocument={handleCancelNewDocument}
                         />
                       </div>
                     </div>
@@ -3386,19 +3514,19 @@ const EditEmployee = () => {
               </div>
             )}
 
-            {/* Step 3 - Contact */}
+            {/* ─── STEP 3: CONTACT ──────────────────────────────────────────── */}
             {currentStep === 3 && (
               <div>
                 <div className="form-section-title mb-4 md:mb-6">
                   <i className="fas fa-address-card text-green-500 mr-2"></i>
-                  <h3 className="text-base md:text-lg font-bold text-gray-800">
+                  <h3 className="text-base md:text-lg font-bold text-[var(--form-text)]">
                     Contact Information & Others
                   </h3>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5">
                   <div>
-                    <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
-                      Dependents
+                    <label className="block text-xs md:text-sm font-semibold text-[var(--form-label)] mb-1 md:mb-2">
+                      <i className="fas fa-users text-green-500 mr-1"></i> Dependents
                     </label>
                     <Controller
                       name="dependents"
@@ -3408,7 +3536,7 @@ const EditEmployee = () => {
                           {...field}
                           type="number"
                           min="0"
-                          className="w-full px-3 md:px-4 py-2 md:py-3 bg-gray-50 border border-gray-200 rounded-lg"
+                          className="w-full px-3 md:px-4 py-2 md:py-3 bg-[var(--form-surface)] border border-[var(--form-border)] rounded-lg text-sm md:text-base text-[var(--form-text)] focus:outline-none focus:border-[var(--form-border-focus)] focus:ring-2 focus:ring-[var(--form-border-focus)]/20 placeholder:text-[var(--form-placeholder)]"
                           placeholder="Number of dependents"
                         />
                       )}
@@ -3416,8 +3544,8 @@ const EditEmployee = () => {
                   </div>
 
                   <div>
-                    <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
-                      Company Mobile Number
+                    <label className="block text-xs md:text-sm font-semibold text-[var(--form-label)] mb-1 md:mb-2">
+                      <i className="fas fa-phone text-green-500 mr-1"></i> Company Mobile Number
                     </label>
                     <Controller
                       name="company_mobile_number"
@@ -3426,7 +3554,7 @@ const EditEmployee = () => {
                         <input
                           {...field}
                           type="tel"
-                          className="w-full px-3 md:px-4 py-2 md:py-3 bg-gray-50 border border-gray-200 rounded-lg"
+                          className="w-full px-3 md:px-4 py-2 md:py-3 bg-[var(--form-surface)] border border-[var(--form-border)] rounded-lg text-sm md:text-base text-[var(--form-text)] focus:outline-none focus:border-[var(--form-border-focus)] focus:ring-2 focus:ring-[var(--form-border-focus)]/20 placeholder:text-[var(--form-placeholder)]"
                           placeholder="Enter company mobile number"
                         />
                       )}
@@ -3434,8 +3562,8 @@ const EditEmployee = () => {
                   </div>
 
                   <div>
-                    <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
-                      Personal Number
+                    <label className="block text-xs md:text-sm font-semibold text-[var(--form-label)] mb-1 md:mb-2">
+                      <i className="fas fa-phone text-green-500 mr-1"></i> Personal Number
                     </label>
                     <Controller
                       name="personal_number"
@@ -3444,7 +3572,7 @@ const EditEmployee = () => {
                         <input
                           {...field}
                           type="tel"
-                          className="w-full px-3 md:px-4 py-2 md:py-3 bg-gray-50 border border-gray-200 rounded-lg"
+                          className="w-full px-3 md:px-4 py-2 md:py-3 bg-[var(--form-surface)] border border-[var(--form-border)] rounded-lg text-sm md:text-base text-[var(--form-text)] focus:outline-none focus:border-[var(--form-border-focus)] focus:ring-2 focus:ring-[var(--form-border-focus)]/20 placeholder:text-[var(--form-placeholder)]"
                           placeholder="Enter personal phone number"
                         />
                       )}
@@ -3452,8 +3580,8 @@ const EditEmployee = () => {
                   </div>
 
                   <div>
-                    <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
-                      Other Number
+                    <label className="block text-xs md:text-sm font-semibold text-[var(--form-label)] mb-1 md:mb-2">
+                      <i className="fas fa-phone-alt text-green-500 mr-1"></i> Other Number
                     </label>
                     <Controller
                       name="other_number"
@@ -3462,7 +3590,7 @@ const EditEmployee = () => {
                         <input
                           {...field}
                           type="tel"
-                          className="w-full px-3 md:px-4 py-2 md:py-3 bg-gray-50 border border-gray-200 rounded-lg"
+                          className="w-full px-3 md:px-4 py-2 md:py-3 bg-[var(--form-surface)] border border-[var(--form-border)] rounded-lg text-sm md:text-base text-[var(--form-text)] focus:outline-none focus:border-[var(--form-border-focus)] focus:ring-2 focus:ring-[var(--form-border-focus)]/20 placeholder:text-[var(--form-placeholder)]"
                           placeholder="Enter alternate number"
                         />
                       )}
@@ -3470,8 +3598,8 @@ const EditEmployee = () => {
                   </div>
 
                   <div>
-                    <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
-                      Home Country Number
+                    <label className="block text-xs md:text-sm font-semibold text-[var(--form-label)] mb-1 md:mb-2">
+                      <i className="fas fa-globe text-green-500 mr-1"></i> Home Country Number
                     </label>
                     <Controller
                       name="home_country_number"
@@ -3480,7 +3608,7 @@ const EditEmployee = () => {
                         <input
                           {...field}
                           type="tel"
-                          className="w-full px-3 md:px-4 py-2 md:py-3 bg-gray-50 border border-gray-200 rounded-lg"
+                          className="w-full px-3 md:px-4 py-2 md:py-3 bg-[var(--form-surface)] border border-[var(--form-border)] rounded-lg text-sm md:text-base text-[var(--form-text)] focus:outline-none focus:border-[var(--form-border-focus)] focus:ring-2 focus:ring-[var(--form-border-focus)]/20 placeholder:text-[var(--form-placeholder)]"
                           placeholder="Enter home country number"
                         />
                       )}
@@ -3488,8 +3616,8 @@ const EditEmployee = () => {
                   </div>
 
                   <div>
-                    <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
-                      Company Email
+                    <label className="block text-xs md:text-sm font-semibold text-[var(--form-label)] mb-1 md:mb-2">
+                      <i className="fas fa-envelope text-green-500 mr-1"></i> Company Email
                     </label>
                     <Controller
                       name="company_email"
@@ -3499,11 +3627,15 @@ const EditEmployee = () => {
                           <input
                             {...field}
                             type="email"
-                            className={`w-full px-3 md:px-4 py-2 md:py-3 bg-gray-50 border rounded-lg ${errors.company_email ? "border-red-500" : "border-gray-200"}`}
+                            className={`w-full px-3 md:px-4 py-2 md:py-3 bg-[var(--form-surface)] border rounded-lg text-sm md:text-base text-[var(--form-text)] transition-all focus:outline-none focus:ring-2 placeholder:text-[var(--form-placeholder)] ${
+                              errors.company_email
+                                ? "border-[var(--form-error)] focus:border-[var(--form-error)] focus:ring-[var(--form-error)]/20"
+                                : "border-[var(--form-border)] focus:border-[var(--form-border-focus)] focus:ring-[var(--form-border-focus)]/20"
+                            }`}
                             placeholder="name@company.com"
                           />
                           {errors.company_email && (
-                            <p className="mt-1 text-xs text-red-500">
+                            <p className="mt-1 text-xs text-[var(--form-error)]">
                               {errors.company_email.message}
                             </p>
                           )}
@@ -3513,8 +3645,8 @@ const EditEmployee = () => {
                   </div>
 
                   <div>
-                    <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
-                      Personal Email <span className="text-red-500">*</span>
+                    <label className="block text-xs md:text-sm font-semibold text-[var(--form-label)] mb-1 md:mb-2">
+                      <i className="fas fa-envelope text-green-500 mr-1"></i> Personal Email <span className="text-[var(--form-error)]">*</span>
                     </label>
                     <Controller
                       name="personal_email"
@@ -3525,11 +3657,15 @@ const EditEmployee = () => {
                           <input
                             {...field}
                             type="email"
-                            className={`w-full px-3 md:px-4 py-2 md:py-3 bg-gray-50 border rounded-lg ${errors.personal_email ? "border-red-500" : "border-gray-200"}`}
+                            className={`w-full px-3 md:px-4 py-2 md:py-3 bg-[var(--form-surface)] border rounded-lg text-sm md:text-base text-[var(--form-text)] transition-all focus:outline-none focus:ring-2 placeholder:text-[var(--form-placeholder)] ${
+                              errors.personal_email
+                                ? "border-[var(--form-error)] focus:border-[var(--form-error)] focus:ring-[var(--form-error)]/20"
+                                : "border-[var(--form-border)] focus:border-[var(--form-border-focus)] focus:ring-[var(--form-border-focus)]/20"
+                            }`}
                             placeholder="name@gmail.com"
                           />
                           {errors.personal_email && (
-                            <p className="mt-1 text-xs text-red-500">
+                            <p className="mt-1 text-xs text-[var(--form-error)]">
                               {errors.personal_email.message}
                             </p>
                           )}
@@ -3542,13 +3678,13 @@ const EditEmployee = () => {
             )}
           </div>
 
-          {/* Navigation Buttons */}
-          <div className="flex flex-col-reverse sm:flex-row justify-between gap-3 mt-8 pt-6 border-t border-gray-200">
+          {/* ─── NAVIGATION BUTTONS ────────────────────────────────────────── */}
+          <div className="flex flex-col-reverse sm:flex-row justify-between gap-3 mt-8 pt-6 border-t border-[var(--form-border)]">
             {currentStep > 0 && (
               <button
                 type="button"
                 onClick={handlePrevious}
-                className="px-6 py-2.5 rounded-full font-semibold bg-gray-100 text-gray-700 hover:bg-gray-200 transition-all flex items-center gap-2"
+                className="px-6 py-2.5 rounded-full font-semibold bg-[var(--form-surface)] text-[var(--form-text)] border border-[var(--form-border)] hover:bg-[var(--form-surface-hover)] transition-all flex items-center justify-center gap-2"
               >
                 <i className="fas fa-arrow-left"></i> Previous
               </button>
@@ -3558,7 +3694,7 @@ const EditEmployee = () => {
               <button
                 type="button"
                 onClick={handleNext}
-                className="px-6 py-2.5 rounded-full font-semibold bg-green-500 text-white hover:bg-green-600 transition-all flex items-center gap-2"
+                className="px-6 py-2.5 rounded-full font-semibold bg-green-500 text-white hover:bg-green-600 transition-all flex items-center justify-center gap-2 shadow-md hover:shadow-lg"
               >
                 Next <i className="fas fa-arrow-right"></i>
               </button>
@@ -3567,7 +3703,7 @@ const EditEmployee = () => {
             <button
               type="submit"
               disabled={loading}
-              className={`px-6 py-2.5 rounded-full font-semibold bg-green-500 text-white hover:bg-green-600 transition-all flex items-center gap-2 disabled:opacity-70 ${
+              className={`px-6 py-2.5 rounded-full font-semibold bg-green-500 text-white hover:bg-green-600 transition-all flex items-center justify-center gap-2 shadow-md hover:shadow-lg disabled:opacity-70 disabled:cursor-not-allowed ${
                 currentStep === steps.length - 1 ? "inline-flex" : "hidden"
               }`}
             >
@@ -3585,7 +3721,7 @@ const EditEmployee = () => {
         </form>
       </div>
 
-      {/* Department Modal */}
+      {/* ─── MODALS ───────────────────────────────────────────────────────── */}
       <DepartmentModal
         isOpen={isDepartmentModalOpen}
         onClose={() => setIsDepartmentModalOpen(false)}
@@ -3593,7 +3729,6 @@ const EditEmployee = () => {
         isLoading={departmentModalLoading}
       />
 
-      {/* Designation Modal */}
       <DesignationModal
         isOpen={isDesignationModalOpen}
         onClose={() => setIsDesignationModalOpen(false)}

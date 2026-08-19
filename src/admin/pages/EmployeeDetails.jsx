@@ -42,7 +42,6 @@ const EmployeeDetails = () => {
   const { id } = useParams();
   const location = useLocation();
   
-  // Determine base path from current route
   const getBasePath = () => {
     if (location.pathname.startsWith('/admin')) return '/admin';
     if (location.pathname.startsWith('/employee')) return '/employee';
@@ -127,7 +126,6 @@ const EmployeeDetails = () => {
 
   // ─── Package Helpers ──────────────────────────────────────────────────
   const getEmployeePackages = () => {
-    // The API returns 'salary_packages' not 'packages'
     return currentEmployee.salary_packages || currentEmployee.packages || [];
   };
 
@@ -138,12 +136,9 @@ const EmployeeDetails = () => {
       0,
     );
   };
+
   // ─── Delete Handlers ──────────────────────────────────────────────────
-  const handleDeleteComponentClick = (
-    componentId,
-    componentName,
-    packageId,
-  ) => {
+  const handleDeleteComponentClick = (componentId, componentName, packageId) => {
     setConfirmModal({
       isOpen: true,
       type: "component",
@@ -324,7 +319,6 @@ const EmployeeDetails = () => {
         component_name: newComponent.component_name,
         value: parseFloat(newComponent.value).toFixed(2),
       };
-
 
       const response = await apiClient.post(
         "/admin/salary-components",
@@ -576,18 +570,18 @@ const EmployeeDetails = () => {
   };
 
   const formatUserType = (type) => {
-  if (!type) return "EMPLOYEE";
-  
-  const typeMap = {
-    'employee': 'Employee',
-    'admin': 'Admin',
-    'hr': 'HR',
-    'manager': 'Manager',
-    'team_lead': 'Team Lead',
+    if (!type) return "EMPLOYEE";
+    
+    const typeMap = {
+      'employee': 'Employee',
+      'admin': 'Admin',
+      'hr': 'HR',
+      'manager': 'Manager',
+      'team_lead': 'Team Lead',
+    };
+    
+    return typeMap[type.toLowerCase()] || type;
   };
-  
-  return typeMap[type.toLowerCase()] || type;
-};
 
   const isSkilled = () => {
     return (
@@ -690,22 +684,22 @@ const EmployeeDetails = () => {
     <div className="w-full overflow-x-hidden">
       <main className="content px-4 py-4 md:px-6 md:py-6">
         <div className="max-w-7xl mx-auto">
-          {/* Header Section */}
+          {/* ─── HEADER ────────────────────────────────────────────────────── */}
           <div className="mb-6">
             <div className="flex flex-wrap justify-between items-center gap-4">
               <div className="flex items-center gap-3">
                 <button
                   onClick={handleBack}
-                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                  className="p-2 hover:bg-[var(--form-surface-hover)] rounded-lg transition-colors"
                   title="Back to Employees"
                 >
-                  <FiArrowLeft className="text-gray-600 text-xl" />
+                  <FiArrowLeft className="text-[var(--form-text-secondary)] text-xl" />
                 </button>
                 <div>
-                  <h1 className="text-2xl md:text-3xl font-bold text-gray-800">
+                  <h1 className="text-2xl md:text-3xl font-bold text-[var(--form-text)]">
                     Employee Details
                   </h1>
-                  <p className="text-sm text-gray-500 mt-1">
+                  <p className="text-sm text-[var(--form-text-secondary)] mt-1">
                     View complete employee information
                   </p>
                 </div>
@@ -719,14 +713,14 @@ const EmployeeDetails = () => {
             </div>
           </div>
 
-          {/* Profile Summary Card */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-6">
+          {/* ─── PROFILE SUMMARY CARD ────────────────────────────────────── */}
+          <div className="bg-[var(--form-bg)] rounded-xl shadow-sm border border-[var(--form-border)] p-6 mb-6">
             <div className="flex flex-col md:flex-row gap-6 items-center md:items-start">
               {getEmployeePhoto() ? (
                 <img
                   src={getEmployeePhoto()}
                   alt={`${currentEmployee.first_name || "Employee"} photo`}
-                  className="w-24 h-24 rounded-full object-cover border-2 border-green-100 shadow-md"
+                  className="w-24 h-24 rounded-full object-cover border-2 border-green-100 dark:border-green-800 shadow-md"
                   onError={(e) => {
                     console.error("Failed to load image:", getEmployeePhoto());
                     e.target.style.display = "none";
@@ -743,20 +737,20 @@ const EmployeeDetails = () => {
                 </div>
               )}
               <div className="flex-1 text-center md:text-left">
-                <h2 className="text-2xl font-bold text-gray-800">
+                <h2 className="text-2xl font-bold text-[var(--form-text)]">
                   {currentEmployee.first_name} {currentEmployee.last_name}
                 </h2>
                 <div className="flex flex-wrap gap-2 mt-2 justify-center md:justify-start">
-                  <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-semibold">
+                  <span className="px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-full text-xs font-semibold">
                     {formatUserType(currentEmployee.user?.type) || "EMPLOYEE"}
                   </span>
                   <span
                     className={`px-2 py-1 rounded-full text-xs font-semibold ${
                       currentEmployee.user?.status === "active"
-                        ? "bg-green-100 text-green-700"
+                        ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400"
                         : currentEmployee.user?.status === "onboarding"
-                          ? "bg-amber-100 text-amber-700"
-                          : "bg-red-100 text-red-700"
+                          ? "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400"
+                          : "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400"
                     }`}
                   >
                     {currentEmployee.user?.status === "active"
@@ -765,16 +759,16 @@ const EmployeeDetails = () => {
                         ? "Onboarding"
                         : "Inactive"}
                   </span>
-                  <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold">
+                  <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-full text-xs font-semibold">
                     ID: {currentEmployee.employee_id}
                   </span>
                   {isSkilled() && (
-                    <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-semibold">
+                    <span className="px-2 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 rounded-full text-xs font-semibold">
                       <FiAward className="inline mr-1" /> Skilled
                     </span>
                   )}
                 </div>
-                <div className="mt-3 flex flex-wrap gap-4 justify-center md:justify-start text-sm text-gray-600">
+                <div className="mt-3 flex flex-wrap gap-4 justify-center md:justify-start text-sm text-[var(--form-text-secondary)]">
                   <div className="flex items-center gap-1">
                     <FiMail className="text-green-500" />{" "}
                     {currentEmployee.personal_email || "N/A"}
@@ -788,8 +782,8 @@ const EmployeeDetails = () => {
             </div>
           </div>
 
-          {/* Tabs Navigation */}
-          <div className="bg-white border border-gray-200 rounded-xl mb-6 overflow-x-auto">
+          {/* ─── TABS NAVIGATION ─────────────────────────────────────────── */}
+          <div className="bg-[var(--form-bg)] border border-[var(--form-border)] rounded-xl mb-6 overflow-x-auto">
             <div className="flex min-w-max">
               {tabs.map((tab) => (
                 <button
@@ -797,8 +791,8 @@ const EmployeeDetails = () => {
                   onClick={() => setActiveTab(tab.id)}
                   className={`px-5 py-3 flex items-center gap-2 text-sm font-medium transition-all ${
                     activeTab === tab.id
-                      ? "text-green-600 border-b-2 border-green-600 bg-gray-50"
-                      : "text-gray-600 hover:text-green-600 hover:bg-gray-50"
+                      ? "text-green-600 dark:text-green-400 border-b-2 border-green-600 dark:border-green-400 bg-gray-50 dark:bg-gray-800/50"
+                      : "text-[var(--form-text-secondary)] hover:text-green-600 dark:hover:text-green-400 hover:bg-gray-50 dark:hover:bg-gray-800/30"
                   }`}
                 >
                   {tab.icon}
@@ -808,170 +802,170 @@ const EmployeeDetails = () => {
             </div>
           </div>
 
-          {/* Tab Content */}
-          <div className="bg-white border border-gray-200 rounded-xl p-6">
+          {/* ─── TAB CONTENT ─────────────────────────────────────────────── */}
+          <div className="bg-[var(--form-bg)] border border-[var(--form-border)] rounded-xl p-6">
             {/* Basic Information Tab */}
             {activeTab === "basic" && (
               <div>
-                <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                <h3 className="text-lg font-semibold text-[var(--form-text)] mb-4 flex items-center gap-2">
                   <FiUser className="text-green-500" /> Personal Information
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-4">
-                    <div className="border-b border-gray-100 pb-3">
-                      <label className="text-xs text-gray-500 uppercase tracking-wide">
+                    <div className="border-b border-[var(--form-border)] pb-3">
+                      <label className="text-xs text-[var(--form-text-muted)] uppercase tracking-wide">
                         Full Name
                       </label>
-                      <p className="text-gray-800 font-medium mt-1">
+                      <p className="text-[var(--form-text)] font-medium mt-1">
                         {currentEmployee.first_name} {currentEmployee.last_name}
                       </p>
                     </div>
-                    <div className="border-b border-gray-100 pb-3">
-                      <label className="text-xs text-gray-500 uppercase tracking-wide">
+                    <div className="border-b border-[var(--form-border)] pb-3">
+                      <label className="text-xs text-[var(--form-text-muted)] uppercase tracking-wide">
                         Employee ID
                       </label>
-                      <p className="text-gray-800 font-medium mt-1">
+                      <p className="text-[var(--form-text)] font-medium mt-1">
                         {currentEmployee.employee_id}
                       </p>
                     </div>
-                    <div className="border-b border-gray-100 pb-3">
-                      <label className="text-xs text-gray-500 uppercase tracking-wide">
+                    <div className="border-b border-[var(--form-border)] pb-3">
+                      <label className="text-xs text-[var(--form-text-muted)] uppercase tracking-wide">
                         Username
                       </label>
-                      <p className="text-gray-800 font-medium mt-1">
+                      <p className="text-[var(--form-text)] font-medium mt-1">
                         {currentEmployee.user?.username || "N/A"}
                       </p>
                     </div>
-                    <div className="border-b border-gray-100 pb-3">
-                      <label className="text-xs text-gray-500 uppercase tracking-wide">
+                    <div className="border-b border-[var(--form-border)] pb-3">
+                      <label className="text-xs text-[var(--form-text-muted)] uppercase tracking-wide">
                         User Type
                       </label>
-                      <p className="text-gray-800 font-medium mt-1 capitalize">
+                      <p className="text-[var(--form-text)] font-medium mt-1 capitalize">
                         {formatUserType(currentEmployee.user?.type) || "N/A"}
                       </p>
                     </div>
-                    <div className="border-b border-gray-100 pb-3">
-                      <label className="text-xs text-gray-500 uppercase tracking-wide">
+                    <div className="border-b border-[var(--form-border)] pb-3">
+                      <label className="text-xs text-[var(--form-text-muted)] uppercase tracking-wide">
                         Employee Category
                       </label>
-                      <p className="text-gray-800 font-medium mt-1">
+                      <p className="text-[var(--form-text)] font-medium mt-1">
                         {isSkilled() ? "Skilled" : "Unskilled"}
                       </p>
                     </div>
                   </div>
                   <div className="space-y-4">
-                    <div className="border-b border-gray-100 pb-3">
-                      <label className="text-xs text-gray-500 uppercase tracking-wide flex items-center gap-1">
+                    <div className="border-b border-[var(--form-border)] pb-3">
+                      <label className="text-xs text-[var(--form-text-muted)] uppercase tracking-wide flex items-center gap-1">
                         <FaVenusMars /> Gender
                       </label>
-                      <p className="text-gray-800 font-medium mt-1 capitalize">
+                      <p className="text-[var(--form-text)] font-medium mt-1 capitalize">
                         {currentEmployee.gender || "N/A"}
                       </p>
                     </div>
-                    <div className="border-b border-gray-100 pb-3">
-                      <label className="text-xs text-gray-500 uppercase tracking-wide flex items-center gap-1">
+                    <div className="border-b border-[var(--form-border)] pb-3">
+                      <label className="text-xs text-[var(--form-text-muted)] uppercase tracking-wide flex items-center gap-1">
                         <FiCalendar /> Date of Birth
                       </label>
-                      <p className="text-gray-800 font-medium mt-1">
+                      <p className="text-[var(--form-text)] font-medium mt-1">
                         {currentEmployee.dob
                           ? formatDate(currentEmployee.dob)
                           : "N/A"}
                       </p>
                     </div>
-                    <div className="border-b border-gray-100 pb-3">
-                      <label className="text-xs text-gray-500 uppercase tracking-wide flex items-center gap-1">
+                    <div className="border-b border-[var(--form-border)] pb-3">
+                      <label className="text-xs text-[var(--form-text-muted)] uppercase tracking-wide flex items-center gap-1">
                         <FiCalendar /> Joining Date
                       </label>
-                      <p className="text-gray-800 font-medium mt-1">
+                      <p className="text-[var(--form-text)] font-medium mt-1">
                         {currentEmployee.joining_date
                           ? formatDate(currentEmployee.joining_date)
                           : "N/A"}
                       </p>
                     </div>
-                    <div className="border-b border-gray-100 pb-3">
-                      <label className="text-xs text-gray-500 uppercase tracking-wide flex items-center gap-1">
+                    <div className="border-b border-[var(--form-border)] pb-3">
+                      <label className="text-xs text-[var(--form-text-muted)] uppercase tracking-wide flex items-center gap-1">
                         <FiFlag /> Nationality
                       </label>
-                      <p className="text-gray-800 font-medium mt-1">
+                      <p className="text-[var(--form-text)] font-medium mt-1">
                         {currentEmployee.nationality || "N/A"}
                       </p>
                     </div>
-                    <div className="border-b border-gray-100 pb-3">
-                      <label className="text-xs text-gray-500 uppercase tracking-wide flex items-center gap-1">
+                    <div className="border-b border-[var(--form-border)] pb-3">
+                      <label className="text-xs text-[var(--form-text-muted)] uppercase tracking-wide flex items-center gap-1">
                         <FiHeart /> Marital Status
                       </label>
-                      <p className="text-gray-800 font-medium mt-1 capitalize">
+                      <p className="text-[var(--form-text)] font-medium mt-1 capitalize">
                         {currentEmployee.marital_status || "N/A"}
                       </p>
                     </div>
-                    <div className="border-b border-gray-100 pb-3">
-                      <label className="text-xs text-gray-500 uppercase tracking-wide">
+                    <div className="border-b border-[var(--form-border)] pb-3">
+                      <label className="text-xs text-[var(--form-text-muted)] uppercase tracking-wide">
                         Dependents
                       </label>
-                      <p className="text-gray-800 font-medium mt-1">
+                      <p className="text-[var(--form-text)] font-medium mt-1">
                         {currentEmployee.dependents || "0"}
                       </p>
                     </div>
                   </div>
                 </div>
 
-                <h3 className="text-lg font-semibold text-gray-800 mt-6 mb-4 flex items-center gap-2">
+                <h3 className="text-lg font-semibold text-[var(--form-text)] mt-6 mb-4 flex items-center gap-2">
                   <FiBriefcase className="text-green-500" /> Organization
                   Information
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-4">
-                    <div className="border-b border-gray-100 pb-3">
-                      <label className="text-xs text-gray-500 uppercase tracking-wide">
+                    <div className="border-b border-[var(--form-border)] pb-3">
+                      <label className="text-xs text-[var(--form-text-muted)] uppercase tracking-wide">
                         Organization
                       </label>
-                      <p className="text-gray-800 font-medium mt-1">
+                      <p className="text-[var(--form-text)] font-medium mt-1">
                         {getOrganizationName(
                           currentEmployee.user?.organization_id,
                         )}
                       </p>
                     </div>
-                    <div className="border-b border-gray-100 pb-3">
-                      <label className="text-xs text-gray-500 uppercase tracking-wide">
+                    <div className="border-b border-[var(--form-border)] pb-3">
+                      <label className="text-xs text-[var(--form-text-muted)] uppercase tracking-wide">
                         Company
                       </label>
-                      <p className="text-gray-800 font-medium mt-1">
+                      <p className="text-[var(--form-text)] font-medium mt-1">
                         {currentEmployee.user?.company?.company_name ||
                           currentEmployee.user?.company?.name ||
                           "N/A"}
                       </p>
                     </div>
-                    <div className="border-b border-gray-100 pb-3">
-                      <label className="text-xs text-gray-500 uppercase tracking-wide">
+                    <div className="border-b border-[var(--form-border)] pb-3">
+                      <label className="text-xs text-[var(--form-text-muted)] uppercase tracking-wide">
                         Trade License Type
                       </label>
-                      <p className="text-gray-800 font-medium mt-1 capitalize">
+                      <p className="text-[var(--form-text)] font-medium mt-1 capitalize">
                         {currentEmployee.user?.company?.trade_license || "N/A"}
                       </p>
                     </div>
                   </div>
                   <div className="space-y-4">
-                    <div className="border-b border-gray-100 pb-3">
-                      <label className="text-xs text-gray-500 uppercase tracking-wide">
+                    <div className="border-b border-[var(--form-border)] pb-3">
+                      <label className="text-xs text-[var(--form-text-muted)] uppercase tracking-wide">
                         Designation
                       </label>
-                      <p className="text-gray-800 font-medium mt-1">
+                      <p className="text-[var(--form-text)] font-medium mt-1">
                         {currentEmployee.user?.designation?.name || "N/A"}
                       </p>
                     </div>
-                    <div className="border-b border-gray-100 pb-3">
-                      <label className="text-xs text-gray-500 uppercase tracking-wide">
+                    <div className="border-b border-[var(--form-border)] pb-3">
+                      <label className="text-xs text-[var(--form-text-muted)] uppercase tracking-wide">
                         Department
                       </label>
-                      <p className="text-gray-800 font-medium mt-1">
+                      <p className="text-[var(--form-text)] font-medium mt-1">
                         {currentEmployee.user?.department?.name || "N/A"}
                       </p>
                     </div>
-                    <div className="border-b border-gray-100 pb-3">
-                      <label className="text-xs text-gray-500 uppercase tracking-wide">
+                    <div className="border-b border-[var(--form-border)] pb-3">
+                      <label className="text-xs text-[var(--form-text-muted)] uppercase tracking-wide">
                         Role
                       </label>
-                      <p className="text-gray-800 font-medium mt-1">
+                      <p className="text-[var(--form-text)] font-medium mt-1">
                         {getRoleName(currentEmployee.user?.role_id)}
                       </p>
                     </div>
@@ -979,10 +973,10 @@ const EmployeeDetails = () => {
                 </div>
 
                 {/* Special Days Section */}
-                <h3 className="text-lg font-semibold text-gray-800 mt-6 mb-4 flex items-center gap-2">
+                <h3 className="text-lg font-semibold text-[var(--form-text)] mt-6 mb-4 flex items-center gap-2">
                   <FiHeart className="text-green-500" /> Special Days
                 </h3>
-                <div className="border-t border-gray-100 pt-4">
+                <div className="border-t border-[var(--form-border)] pt-4">
                   {(() => {
                     const formattedSpecialDays = formatSpecialDays(
                       currentEmployee.special_days,
@@ -992,7 +986,7 @@ const EmployeeDetails = () => {
                       formattedSpecialDays.length === 0
                     ) {
                       return (
-                        <p className="text-gray-600">
+                        <p className="text-[var(--form-text-secondary)]">
                           No special days recorded
                         </p>
                       );
@@ -1002,18 +996,18 @@ const EmployeeDetails = () => {
                         {formattedSpecialDays.map((day, index) => (
                           <div
                             key={index}
-                            className="bg-gray-50 rounded-lg p-3 flex items-center gap-3"
+                            className="bg-[var(--form-surface)] rounded-lg p-3 flex items-center gap-3"
                           >
-                            <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-                              <span className="text-green-600 font-semibold text-sm">
+                            <div className="w-8 h-8 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
+                              <span className="text-green-600 dark:text-green-400 font-semibold text-sm">
                                 {index + 1}
                               </span>
                             </div>
                             <div>
-                              <p className="font-semibold text-gray-800">
+                              <p className="font-semibold text-[var(--form-text)]">
                                 {day.name}
                               </p>
-                              <p className="text-sm text-gray-600">
+                              <p className="text-sm text-[var(--form-text-secondary)]">
                                 {day.date}
                               </p>
                             </div>
@@ -1026,12 +1020,12 @@ const EmployeeDetails = () => {
               </div>
             )}
 
-            {/* Salary & Bank Details Tab */}
+            {/* ─── SALARY & BANK DETAILS TAB ────────────────────────────── */}
             {activeTab === "salary" && (
               <div>
-                {/* ─── Salary Packages Section ────────────────────────────────── */}
+                {/* Salary Packages Section */}
                 <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                  <h3 className="text-lg font-semibold text-[var(--form-text)] flex items-center gap-2">
                     <FiPackage className="text-green-500" /> Salary Packages
                   </h3>
                   <div className="flex gap-2">
@@ -1052,22 +1046,22 @@ const EmployeeDetails = () => {
                       return (
                         <div
                           key={pkg.id || index}
-                          className="border border-gray-200 rounded-xl overflow-hidden"
+                          className="border border-[var(--form-border)] rounded-xl overflow-hidden"
                         >
-                          <div className="bg-gray-50 px-6 py-3 border-b border-gray-200 flex justify-between items-center">
+                          <div className="bg-[var(--form-surface)] px-6 py-3 border-b border-[var(--form-border)] flex justify-between items-center">
                             <div className="flex items-center gap-3">
                               <FiPackage className="text-green-500" />
-                              <h4 className="font-semibold text-gray-800">
+                              <h4 className="font-semibold text-[var(--form-text)]">
                                 {pkg.name || `Package ${index + 1}`}
                               </h4>
-                              <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs">
+                              <span className="px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-full text-xs">
                                 {pkg.currency || "AED"}
                               </span>
                               <span
                                 className={`px-2 py-1 rounded-full text-xs ${
                                   pkg.is_active
-                                    ? "bg-green-100 text-green-700"
-                                    : "bg-gray-100 text-gray-500"
+                                    ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400"
+                                    : "bg-gray-100 dark:bg-gray-700/30 text-gray-500 dark:text-gray-400"
                                 }`}
                               >
                                 {pkg.is_active ? "Active" : "Inactive"}
@@ -1076,21 +1070,21 @@ const EmployeeDetails = () => {
                           </div>
                           <div className="p-4">
                             <div className="overflow-x-auto">
-                              <table className="min-w-full divide-y divide-gray-200">
-                                <thead className="bg-gray-50">
+                              <table className="min-w-full divide-y divide-[var(--form-border)]">
+                                <thead className="bg-[var(--form-surface)]">
                                   <tr>
-                                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    <th className="px-4 py-2 text-left text-xs font-medium text-[var(--form-text-muted)] uppercase tracking-wider">
                                       Component Name
                                     </th>
-                                    <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    <th className="px-4 py-2 text-right text-xs font-medium text-[var(--form-text-muted)] uppercase tracking-wider">
                                       Amount ({pkg.currency || "AED"})
                                     </th>
-                                    <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    <th className="px-4 py-2 text-center text-xs font-medium text-[var(--form-text-muted)] uppercase tracking-wider">
                                       Actions
                                     </th>
                                   </tr>
                                 </thead>
-                                <tbody className="bg-white divide-y divide-gray-200">
+                                <tbody className="bg-[var(--form-bg)] divide-y divide-[var(--form-border)]">
                                   {pkg.salary_components &&
                                   pkg.salary_components.length > 0 ? (
                                     <>
@@ -1098,29 +1092,29 @@ const EmployeeDetails = () => {
                                         (comp, compIdx) => (
                                           <tr
                                             key={comp.id || compIdx}
-                                            className="hover:bg-gray-50"
+                                            className="hover:bg-[var(--form-surface)]"
                                           >
-                                            <td className="px-4 py-2 whitespace-nowrap text-sm font-medium text-gray-900">
+                                            <td className="px-4 py-2 whitespace-nowrap text-sm font-medium text-[var(--form-text)]">
                                               {editingComponent === comp.id ? (
                                                 <input
                                                   type="text"
                                                   defaultValue={
                                                     comp.component_name
                                                   }
-                                                  className="px-2 py-1 border border-gray-300 rounded"
+                                                  className="px-2 py-1 border border-[var(--form-border)] rounded bg-[var(--form-surface)] text-[var(--form-text)]"
                                                   id={`comp-name-${comp.id}`}
                                                 />
                                               ) : (
                                                 comp.component_name
                                               )}
                                             </td>
-                                            <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900 text-right">
+                                            <td className="px-4 py-2 whitespace-nowrap text-sm text-[var(--form-text)] text-right">
                                               {editingComponent === comp.id ? (
                                                 <input
                                                   type="number"
                                                   step="0.01"
                                                   defaultValue={comp.value}
-                                                  className="px-2 py-1 border border-gray-300 rounded text-right"
+                                                  className="px-2 py-1 border border-[var(--form-border)] rounded text-right bg-[var(--form-surface)] text-[var(--form-text)]"
                                                   id={`comp-value-${comp.id}`}
                                                 />
                                               ) : (
@@ -1155,7 +1149,7 @@ const EmployeeDetails = () => {
                                                         pkg.id,
                                                       );
                                                     }}
-                                                    className="text-green-600 hover:text-green-800"
+                                                    className="text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-300"
                                                     title="Save"
                                                   >
                                                     <FiSave size={16} />
@@ -1164,7 +1158,7 @@ const EmployeeDetails = () => {
                                                     onClick={() =>
                                                       setEditingComponent(null)
                                                     }
-                                                    className="text-gray-500 hover:text-gray-700"
+                                                    className="text-[var(--form-text-muted)] hover:text-[var(--form-text)]"
                                                     title="Cancel"
                                                   >
                                                     <FiX size={16} />
@@ -1178,7 +1172,7 @@ const EmployeeDetails = () => {
                                                         comp.id,
                                                       )
                                                     }
-                                                    className="text-blue-600 hover:text-blue-800"
+                                                    className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
                                                     title="Edit"
                                                   >
                                                     <FiEdit size={16} />
@@ -1191,7 +1185,7 @@ const EmployeeDetails = () => {
                                                         pkg.id,
                                                       )
                                                     }
-                                                    className="text-red-600 hover:text-red-800"
+                                                    className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300"
                                                     title="Delete"
                                                   >
                                                     <FiTrash2 size={16} />
@@ -1202,11 +1196,11 @@ const EmployeeDetails = () => {
                                           </tr>
                                         ),
                                       )}
-                                      <tr className="bg-gray-50 font-bold">
-                                        <td className="px-4 py-2 whitespace-nowrap text-sm font-bold text-gray-900">
+                                      <tr className="bg-[var(--form-surface)] font-bold">
+                                        <td className="px-4 py-2 whitespace-nowrap text-sm font-bold text-[var(--form-text)]">
                                           Package Total
                                         </td>
-                                        <td className="px-4 py-2 whitespace-nowrap text-sm font-bold text-green-600 text-right">
+                                        <td className="px-4 py-2 whitespace-nowrap text-sm font-bold text-green-600 dark:text-green-400 text-right">
                                           {pkg.currency || "AED"}{" "}
                                           {total.toLocaleString(undefined, {
                                             minimumFractionDigits: 2,
@@ -1220,7 +1214,7 @@ const EmployeeDetails = () => {
                                     <tr>
                                       <td
                                         colSpan="3"
-                                        className="px-4 py-4 text-center text-gray-500"
+                                        className="px-4 py-4 text-center text-[var(--form-text-muted)]"
                                       >
                                         No salary components in this package
                                       </td>
@@ -1235,9 +1229,9 @@ const EmployeeDetails = () => {
                     })}
                   </div>
                 ) : (
-                  <div className="text-center py-8 bg-gray-50 rounded-xl border border-gray-200 mb-6">
-                    <FiPackage className="text-4xl text-gray-400 mx-auto mb-2" />
-                    <p className="text-gray-500">
+                  <div className="text-center py-8 bg-[var(--form-surface)] rounded-xl border border-[var(--form-border)] mb-6">
+                    <FiPackage className="text-4xl text-[var(--form-text-muted)] mx-auto mb-2" />
+                    <p className="text-[var(--form-text-secondary)]">
                       No salary packages configured
                     </p>
                   </div>
@@ -1246,9 +1240,9 @@ const EmployeeDetails = () => {
                 {/* Add Component Modal */}
                 {showAddComponent && (
                   <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-xl max-w-md w-full p-6">
+                    <div className="bg-[var(--form-bg)] rounded-xl max-w-md w-full p-6 border border-[var(--form-border)]">
                       <div className="flex justify-between items-center mb-4">
-                        <h3 className="text-lg font-semibold">
+                        <h3 className="text-lg font-semibold text-[var(--form-text)]">
                           Add Salary Component
                         </h3>
                         <button
@@ -1260,14 +1254,14 @@ const EmployeeDetails = () => {
                               employee_salary_package_id: null,
                             });
                           }}
-                          className="text-gray-400 hover:text-gray-600"
+                          className="text-[var(--form-text-muted)] hover:text-[var(--form-text)]"
                         >
                           <FiX size={20} />
                         </button>
                       </div>
                       <div className="space-y-4">
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                          <label className="block text-sm font-medium text-[var(--form-label)] mb-1">
                             Employee Salary Package
                           </label>
                           <select
@@ -1282,7 +1276,7 @@ const EmployeeDetails = () => {
                                   : null,
                               })
                             }
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500"
+                            className="w-full px-3 py-2 border border-[var(--form-border)] rounded-lg focus:ring-green-500 focus:border-green-500 bg-[var(--form-surface)] text-[var(--form-text)]"
                           >
                             <option value="">Select a package</option>
                             {getEmployeePackages().map((pkg) => (
@@ -1291,13 +1285,13 @@ const EmployeeDetails = () => {
                               </option>
                             ))}
                           </select>
-                          <p className="text-xs text-gray-500 mt-1">
+                          <p className="text-xs text-[var(--form-text-muted)] mt-1">
                             Select the employee's salary package this component
                             belongs to
                           </p>
                         </div>
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                          <label className="block text-sm font-medium text-[var(--form-label)] mb-1">
                             Component Name
                           </label>
                           <input
@@ -1310,11 +1304,11 @@ const EmployeeDetails = () => {
                                 component_name: e.target.value,
                               })
                             }
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500"
+                            className="w-full px-3 py-2 border border-[var(--form-border)] rounded-lg focus:ring-green-500 focus:border-green-500 bg-[var(--form-surface)] text-[var(--form-text)] placeholder:text-[var(--form-placeholder)]"
                           />
                         </div>
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                          <label className="block text-sm font-medium text-[var(--form-label)] mb-1">
                             Amount
                           </label>
                           <input
@@ -1328,7 +1322,7 @@ const EmployeeDetails = () => {
                                 value: e.target.value,
                               })
                             }
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500"
+                            className="w-full px-3 py-2 border border-[var(--form-border)] rounded-lg focus:ring-green-500 focus:border-green-500 bg-[var(--form-surface)] text-[var(--form-text)] placeholder:text-[var(--form-placeholder)]"
                           />
                         </div>
                         <button
@@ -1342,9 +1336,9 @@ const EmployeeDetails = () => {
                   </div>
                 )}
 
-                {/* ─── Bank Details Section ───────────────────────────────────── */}
-                <div className="flex justify-between items-center mb-4 mt-8 pt-4 border-t border-gray-200">
-                  <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                {/* ─── Bank Details Section ───────────────────────────────── */}
+                <div className="flex justify-between items-center mb-4 mt-8 pt-4 border-t border-[var(--form-border)]">
+                  <h3 className="text-lg font-semibold text-[var(--form-text)] flex items-center gap-2">
                     <FiCreditCardIcon className="text-green-500" /> Bank Details
                   </h3>
                   <button
@@ -1358,21 +1352,21 @@ const EmployeeDetails = () => {
                 {/* Add Bank Modal */}
                 {showAddBank && (
                   <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
-                    <div className="bg-white rounded-xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto">
+                    <div className="bg-[var(--form-bg)] rounded-xl max-w-2xl w-full p-6 max-h-[90vh] overflow-y-auto border border-[var(--form-border)]">
                       <div className="flex justify-between items-center mb-4">
-                        <h3 className="text-lg font-semibold">
+                        <h3 className="text-lg font-semibold text-[var(--form-text)]">
                           Add Bank Account
                         </h3>
                         <button
                           onClick={() => setShowAddBank(false)}
-                          className="text-gray-400 hover:text-gray-600"
+                          className="text-[var(--form-text-muted)] hover:text-[var(--form-text)]"
                         >
                           <FiX size={20} />
                         </button>
                       </div>
                       <div className="space-y-4">
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                          <label className="block text-sm font-medium text-[var(--form-label)] mb-1">
                             Country
                           </label>
                           <select
@@ -1383,14 +1377,14 @@ const EmployeeDetails = () => {
                                 bank_country: e.target.value,
                               })
                             }
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500"
+                            className="w-full px-3 py-2 border border-[var(--form-border)] rounded-lg focus:ring-green-500 focus:border-green-500 bg-[var(--form-surface)] text-[var(--form-text)]"
                           >
                             <option value="India">India</option>
                             <option value="UAE">United Arab Emirates</option>
                           </select>
                         </div>
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                          <label className="block text-sm font-medium text-[var(--form-label)] mb-1">
                             Bank Name *
                           </label>
                           <input
@@ -1402,11 +1396,11 @@ const EmployeeDetails = () => {
                                 bank_name: e.target.value,
                               })
                             }
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500"
+                            className="w-full px-3 py-2 border border-[var(--form-border)] rounded-lg focus:ring-green-500 focus:border-green-500 bg-[var(--form-surface)] text-[var(--form-text)] placeholder:text-[var(--form-placeholder)]"
                           />
                         </div>
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                          <label className="block text-sm font-medium text-[var(--form-label)] mb-1">
                             Account Number *
                           </label>
                           <input
@@ -1418,13 +1412,13 @@ const EmployeeDetails = () => {
                                 account_number: e.target.value,
                               })
                             }
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500"
+                            className="w-full px-3 py-2 border border-[var(--form-border)] rounded-lg focus:ring-green-500 focus:border-green-500 bg-[var(--form-surface)] text-[var(--form-text)] placeholder:text-[var(--form-placeholder)]"
                           />
                         </div>
                         {newBank.bank_country === "India" ? (
                           <>
                             <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                              <label className="block text-sm font-medium text-[var(--form-label)] mb-1">
                                 IFSC Code *
                               </label>
                               <input
@@ -1436,11 +1430,11 @@ const EmployeeDetails = () => {
                                     ifsc_code: e.target.value.toUpperCase(),
                                   })
                                 }
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500"
+                                className="w-full px-3 py-2 border border-[var(--form-border)] rounded-lg focus:ring-green-500 focus:border-green-500 bg-[var(--form-surface)] text-[var(--form-text)] placeholder:text-[var(--form-placeholder)]"
                               />
                             </div>
                             <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                              <label className="block text-sm font-medium text-[var(--form-label)] mb-1">
                                 Branch Name
                               </label>
                               <input
@@ -1452,14 +1446,14 @@ const EmployeeDetails = () => {
                                     branch_name: e.target.value,
                                   })
                                 }
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500"
+                                className="w-full px-3 py-2 border border-[var(--form-border)] rounded-lg focus:ring-green-500 focus:border-green-500 bg-[var(--form-surface)] text-[var(--form-text)] placeholder:text-[var(--form-placeholder)]"
                               />
                             </div>
                           </>
                         ) : (
                           <>
                             <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                              <label className="block text-sm font-medium text-[var(--form-label)] mb-1">
                                 IBAN Number *
                               </label>
                               <input
@@ -1471,11 +1465,11 @@ const EmployeeDetails = () => {
                                     iban_number: e.target.value.toUpperCase(),
                                   })
                                 }
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500"
+                                className="w-full px-3 py-2 border border-[var(--form-border)] rounded-lg focus:ring-green-500 focus:border-green-500 bg-[var(--form-surface)] text-[var(--form-text)] placeholder:text-[var(--form-placeholder)]"
                               />
                             </div>
                             <div>
-                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                              <label className="block text-sm font-medium text-[var(--form-label)] mb-1">
                                 SWIFT/BIC Code
                               </label>
                               <input
@@ -1487,7 +1481,7 @@ const EmployeeDetails = () => {
                                     swift_code: e.target.value.toUpperCase(),
                                   })
                                 }
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500"
+                                className="w-full px-3 py-2 border border-[var(--form-border)] rounded-lg focus:ring-green-500 focus:border-green-500 bg-[var(--form-surface)] text-[var(--form-text)] placeholder:text-[var(--form-placeholder)]"
                               />
                             </div>
                           </>
@@ -1510,23 +1504,23 @@ const EmployeeDetails = () => {
                     {currentEmployee.bank_details.map((bank, index) => (
                       <div
                         key={bank.id || index}
-                        className="border border-gray-200 rounded-xl overflow-hidden"
+                        className="border border-[var(--form-border)] rounded-xl overflow-hidden"
                       >
-                        <div className="bg-gray-50 px-6 py-3 border-b border-gray-200 flex justify-between items-center">
-                          <h4 className="font-semibold text-gray-800 flex items-center gap-2">
+                        <div className="bg-[var(--form-surface)] px-6 py-3 border-b border-[var(--form-border)] flex justify-between items-center">
+                          <h4 className="font-semibold text-[var(--form-text)] flex items-center gap-2">
                             <FiGlobeIcon className="text-green-500" />
                             Bank Account{" "}
                             {currentEmployee.bank_details.length > 1
                               ? `#${index + 1}`
                               : ""}
-                            <span className="ml-2 px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs">
+                            <span className="ml-2 px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-full text-xs">
                               {bank.bank_country}
                             </span>
                           </h4>
                           <div className="flex items-center gap-2">
                             <button
                               onClick={() => setEditingBankDetail(bank.id)}
-                              className="text-blue-600 hover:text-blue-800"
+                              className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
                               title="Edit"
                             >
                               <FiEdit size={16} />
@@ -1538,7 +1532,7 @@ const EmployeeDetails = () => {
                                   bank.bank_name,
                                 )
                               }
-                              className="text-red-600 hover:text-red-800"
+                              className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300"
                               title="Delete"
                             >
                               <FiTrash2 size={16} />
@@ -1550,48 +1544,48 @@ const EmployeeDetails = () => {
                             <div className="space-y-4">
                               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
-                                  <label className="block text-xs text-gray-500 mb-1">
+                                  <label className="block text-xs text-[var(--form-text-muted)] mb-1">
                                     Bank Name
                                   </label>
                                   <input
                                     type="text"
                                     defaultValue={bank.bank_name}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                                    className="w-full px-3 py-2 border border-[var(--form-border)] rounded-lg bg-[var(--form-surface)] text-[var(--form-text)]"
                                     id={`bank-name-${bank.id}`}
                                   />
                                 </div>
                                 <div>
-                                  <label className="block text-xs text-gray-500 mb-1">
+                                  <label className="block text-xs text-[var(--form-text-muted)] mb-1">
                                     Account Number
                                   </label>
                                   <input
                                     type="text"
                                     defaultValue={bank.account_number}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                                    className="w-full px-3 py-2 border border-[var(--form-border)] rounded-lg bg-[var(--form-surface)] text-[var(--form-text)]"
                                     id={`bank-account-${bank.id}`}
                                   />
                                 </div>
                                 {bank.bank_country === "India" ? (
                                   <>
                                     <div>
-                                      <label className="block text-xs text-gray-500 mb-1">
+                                      <label className="block text-xs text-[var(--form-text-muted)] mb-1">
                                         IFSC Code
                                       </label>
                                       <input
                                         type="text"
                                         defaultValue={bank.ifsc_code || ""}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                                        className="w-full px-3 py-2 border border-[var(--form-border)] rounded-lg bg-[var(--form-surface)] text-[var(--form-text)]"
                                         id={`bank-ifsc-${bank.id}`}
                                       />
                                     </div>
                                     <div>
-                                      <label className="block text-xs text-gray-500 mb-1">
+                                      <label className="block text-xs text-[var(--form-text-muted)] mb-1">
                                         Branch Name
                                       </label>
                                       <input
                                         type="text"
                                         defaultValue={bank.branch_name || ""}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                                        className="w-full px-3 py-2 border border-[var(--form-border)] rounded-lg bg-[var(--form-surface)] text-[var(--form-text)]"
                                         id={`bank-branch-${bank.id}`}
                                       />
                                     </div>
@@ -1599,24 +1593,24 @@ const EmployeeDetails = () => {
                                 ) : (
                                   <>
                                     <div>
-                                      <label className="block text-xs text-gray-500 mb-1">
+                                      <label className="block text-xs text-[var(--form-text-muted)] mb-1">
                                         IBAN Number
                                       </label>
                                       <input
                                         type="text"
                                         defaultValue={bank.iban_number || ""}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                                        className="w-full px-3 py-2 border border-[var(--form-border)] rounded-lg bg-[var(--form-surface)] text-[var(--form-text)]"
                                         id={`bank-iban-${bank.id}`}
                                       />
                                     </div>
                                     <div>
-                                      <label className="block text-xs text-gray-500 mb-1">
+                                      <label className="block text-xs text-[var(--form-text-muted)] mb-1">
                                         SWIFT Code
                                       </label>
                                       <input
                                         type="text"
                                         defaultValue={bank.swift_code || ""}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                                        className="w-full px-3 py-2 border border-[var(--form-border)] rounded-lg bg-[var(--form-surface)] text-[var(--form-text)]"
                                         id={`bank-swift-${bank.id}`}
                                       />
                                     </div>
@@ -1626,7 +1620,7 @@ const EmployeeDetails = () => {
                               <div className="flex justify-end gap-2">
                                 <button
                                   onClick={() => setEditingBankDetail(null)}
-                                  className="px-4 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400"
+                                  className="px-4 py-2 bg-[var(--form-surface)] border border-[var(--form-border)] text-[var(--form-text)] rounded-lg hover:bg-[var(--form-surface-hover)]"
                                 >
                                   Cancel
                                 </button>
@@ -1675,27 +1669,27 @@ const EmployeeDetails = () => {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                               <div className="space-y-3">
                                 <div>
-                                  <label className="text-xs text-gray-500 uppercase tracking-wide">
+                                  <label className="text-xs text-[var(--form-text-muted)] uppercase tracking-wide">
                                     Bank Name
                                   </label>
-                                  <p className="text-gray-800 font-medium mt-1">
+                                  <p className="text-[var(--form-text)] font-medium mt-1">
                                     {bank.bank_name}
                                   </p>
                                 </div>
                                 <div>
-                                  <label className="text-xs text-gray-500 uppercase tracking-wide">
+                                  <label className="text-xs text-[var(--form-text-muted)] uppercase tracking-wide">
                                     Account Number
                                   </label>
-                                  <p className="text-gray-800 font-medium mt-1 font-mono">
+                                  <p className="text-[var(--form-text)] font-medium mt-1 font-mono">
                                     {bank.account_number}
                                   </p>
                                 </div>
                                 {bank.branch_name && (
                                   <div>
-                                    <label className="text-xs text-gray-500 uppercase tracking-wide">
+                                    <label className="text-xs text-[var(--form-text-muted)] uppercase tracking-wide">
                                       Branch Name
                                     </label>
-                                    <p className="text-gray-800 font-medium mt-1">
+                                    <p className="text-[var(--form-text)] font-medium mt-1">
                                       {bank.branch_name}
                                     </p>
                                   </div>
@@ -1704,30 +1698,30 @@ const EmployeeDetails = () => {
                               <div className="space-y-3">
                                 {bank.ifsc_code && (
                                   <div>
-                                    <label className="text-xs text-gray-500 uppercase tracking-wide">
+                                    <label className="text-xs text-[var(--form-text-muted)] uppercase tracking-wide">
                                       IFSC Code
                                     </label>
-                                    <p className="text-gray-800 font-medium mt-1 font-mono">
+                                    <p className="text-[var(--form-text)] font-medium mt-1 font-mono">
                                       {bank.ifsc_code}
                                     </p>
                                   </div>
                                 )}
                                 {bank.iban_number && (
                                   <div>
-                                    <label className="text-xs text-gray-500 uppercase tracking-wide">
+                                    <label className="text-xs text-[var(--form-text-muted)] uppercase tracking-wide">
                                       IBAN Number
                                     </label>
-                                    <p className="text-gray-800 font-medium mt-1 font-mono">
+                                    <p className="text-[var(--form-text)] font-medium mt-1 font-mono">
                                       {bank.iban_number}
                                     </p>
                                   </div>
                                 )}
                                 {bank.swift_code && (
                                   <div>
-                                    <label className="text-xs text-gray-500 uppercase tracking-wide">
+                                    <label className="text-xs text-[var(--form-text-muted)] uppercase tracking-wide">
                                       SWIFT/BIC Code
                                     </label>
-                                    <p className="text-gray-800 font-medium mt-1 font-mono">
+                                    <p className="text-[var(--form-text)] font-medium mt-1 font-mono">
                                       {bank.swift_code}
                                     </p>
                                   </div>
@@ -1740,51 +1734,53 @@ const EmployeeDetails = () => {
                     ))}
                   </div>
                 ) : (
-                  <div className="text-center py-8 bg-gray-50 rounded-xl border border-gray-200">
-                    <FiCreditCardIcon className="text-4xl text-gray-400 mx-auto mb-2" />
-                    <p className="text-gray-500">No bank details available</p>
+                  <div className="text-center py-8 bg-[var(--form-surface)] rounded-xl border border-[var(--form-border)]">
+                    <FiCreditCardIcon className="text-4xl text-[var(--form-text-muted)] mx-auto mb-2" />
+                    <p className="text-[var(--form-text-secondary)]">
+                      No bank details available
+                    </p>
                   </div>
                 )}
               </div>
             )}
 
-            {/* Passport Information Tab */}
+            {/* ─── PASSPORT INFORMATION TAB ──────────────────────────────── */}
             {activeTab === "passport" && (
               <div>
-                <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                <h3 className="text-lg font-semibold text-[var(--form-text)] mb-4 flex items-center gap-2">
                   <FaPassport className="text-green-500" /> Passport Details
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-4">
-                    <div className="border-b border-gray-100 pb-3">
-                      <label className="text-xs text-gray-500 uppercase tracking-wide">
+                    <div className="border-b border-[var(--form-border)] pb-3">
+                      <label className="text-xs text-[var(--form-text-muted)] uppercase tracking-wide">
                         Passport Full Name
                       </label>
-                      <p className="text-gray-800 font-medium mt-1">
+                      <p className="text-[var(--form-text)] font-medium mt-1">
                         {currentEmployee.passport_full_name || "N/A"}
                       </p>
                     </div>
-                    <div className="border-b border-gray-100 pb-3">
-                      <label className="text-xs text-gray-500 uppercase tracking-wide">
+                    <div className="border-b border-[var(--form-border)] pb-3">
+                      <label className="text-xs text-[var(--form-text-muted)] uppercase tracking-wide">
                         Passport Number
                       </label>
-                      <p className="text-gray-800 font-medium mt-1">
+                      <p className="text-[var(--form-text)] font-medium mt-1">
                         {currentEmployee.passport_number || "N/A"}
                       </p>
                     </div>
-                    <div className="border-b border-gray-100 pb-3">
-                      <label className="text-xs text-gray-500 uppercase tracking-wide">
+                    <div className="border-b border-[var(--form-border)] pb-3">
+                      <label className="text-xs text-[var(--form-text-muted)] uppercase tracking-wide">
                         Issued From
                       </label>
-                      <p className="text-gray-800 font-medium mt-1">
+                      <p className="text-[var(--form-text)] font-medium mt-1">
                         {currentEmployee.passport_issued_from || "N/A"}
                       </p>
                     </div>
-                    <div className="border-b border-gray-100 pb-3">
-                      <label className="text-xs text-gray-500 uppercase tracking-wide">
+                    <div className="border-b border-[var(--form-border)] pb-3">
+                      <label className="text-xs text-[var(--form-text-muted)] uppercase tracking-wide">
                         Issued Date
                       </label>
-                      <p className="text-gray-800 font-medium mt-1">
+                      <p className="text-[var(--form-text)] font-medium mt-1">
                         {currentEmployee.passport_issued_date
                           ? formatDate(currentEmployee.passport_issued_date)
                           : "N/A"}
@@ -1792,48 +1788,48 @@ const EmployeeDetails = () => {
                     </div>
                   </div>
                   <div className="space-y-4">
-                    <div className="border-b border-gray-100 pb-3">
-                      <label className="text-xs text-gray-500 uppercase tracking-wide">
+                    <div className="border-b border-[var(--form-border)] pb-3">
+                      <label className="text-xs text-[var(--form-text-muted)] uppercase tracking-wide">
                         Expiry Date
                       </label>
-                      <p className="text-gray-800 font-medium mt-1">
+                      <p className="text-[var(--form-text)] font-medium mt-1">
                         {currentEmployee.passport_expiry_date
                           ? formatDate(currentEmployee.passport_expiry_date)
                           : "N/A"}
                       </p>
                     </div>
-                    <div className="border-b border-gray-100 pb-3">
-                      <label className="text-xs text-gray-500 uppercase tracking-wide">
+                    <div className="border-b border-[var(--form-border)] pb-3">
+                      <label className="text-xs text-[var(--form-text-muted)] uppercase tracking-wide">
                         Place of Birth
                       </label>
-                      <p className="text-gray-800 font-medium mt-1">
+                      <p className="text-[var(--form-text)] font-medium mt-1">
                         {currentEmployee.place_of_birth || "N/A"}
                       </p>
                     </div>
-                    <div className="border-b border-gray-100 pb-3">
-                      <label className="text-xs text-gray-500 uppercase tracking-wide">
+                    <div className="border-b border-[var(--form-border)] pb-3">
+                      <label className="text-xs text-[var(--form-text-muted)] uppercase tracking-wide">
                         Father's Name
                       </label>
-                      <p className="text-gray-800 font-medium mt-1">
+                      <p className="text-[var(--form-text)] font-medium mt-1">
                         {currentEmployee.father_name || "N/A"}
                       </p>
                     </div>
-                    <div className="border-b border-gray-100 pb-3">
-                      <label className="text-xs text-gray-500 uppercase tracking-wide">
+                    <div className="border-b border-[var(--form-border)] pb-3">
+                      <label className="text-xs text-[var(--form-text-muted)] uppercase tracking-wide">
                         Mother's Name
                       </label>
-                      <p className="text-gray-800 font-medium mt-1">
+                      <p className="text-[var(--form-text)] font-medium mt-1">
                         {currentEmployee.mother_name || "N/A"}
                       </p>
                     </div>
                   </div>
                 </div>
                 <div className="mt-6">
-                  <div className="border-b border-gray-100 pb-3">
-                    <label className="text-xs text-gray-500 uppercase tracking-wide flex items-center gap-1">
+                  <div className="border-b border-[var(--form-border)] pb-3">
+                    <label className="text-xs text-[var(--form-text-muted)] uppercase tracking-wide flex items-center gap-1">
                       <FiHome /> Address
                     </label>
-                    <p className="text-gray-800 font-medium mt-1">
+                    <p className="text-[var(--form-text)] font-medium mt-1">
                       {currentEmployee.address || "N/A"}
                     </p>
                   </div>
@@ -1841,45 +1837,45 @@ const EmployeeDetails = () => {
               </div>
             )}
 
-            {/* Visa & Labor Tab */}
+            {/* ─── VISA & LABOR TAB ───────────────────────────────────────── */}
             {activeTab === "visa" && (
               <div>
-                <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                <h3 className="text-lg font-semibold text-[var(--form-text)] mb-4 flex items-center gap-2">
                   <FiCreditCard className="text-green-500" /> Visa Details
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-4">
-                    <div className="border-b border-gray-100 pb-3">
-                      <label className="text-xs text-gray-500 uppercase tracking-wide">
+                    <div className="border-b border-[var(--form-border)] pb-3">
+                      <label className="text-xs text-[var(--form-text-muted)] uppercase tracking-wide">
                         Visa Type
                       </label>
-                      <p className="text-gray-800 font-medium mt-1 capitalize">
+                      <p className="text-[var(--form-text)] font-medium mt-1 capitalize">
                         {currentEmployee.visa_type?.replace("_", " ") || "N/A"}
                       </p>
                     </div>
-                    <div className="border-b border-gray-100 pb-3">
-                      <label className="text-xs text-gray-500 uppercase tracking-wide">
+                    <div className="border-b border-[var(--form-border)] pb-3">
+                      <label className="text-xs text-[var(--form-text-muted)] uppercase tracking-wide">
                         Visa Number
                       </label>
-                      <p className="text-gray-800 font-medium mt-1">
+                      <p className="text-[var(--form-text)] font-medium mt-1">
                         {currentEmployee.visa_number || "N/A"}
                       </p>
                     </div>
-                    <div className="border-b border-gray-100 pb-3">
-                      <label className="text-xs text-gray-500 uppercase tracking-wide">
+                    <div className="border-b border-[var(--form-border)] pb-3">
+                      <label className="text-xs text-[var(--form-text-muted)] uppercase tracking-wide">
                         Visa Issued Date
                       </label>
-                      <p className="text-gray-800 font-medium mt-1">
+                      <p className="text-[var(--form-text)] font-medium mt-1">
                         {currentEmployee.visa_issued_date
                           ? formatDate(currentEmployee.visa_issued_date)
                           : "N/A"}
                       </p>
                     </div>
-                    <div className="border-b border-gray-100 pb-3">
-                      <label className="text-xs text-gray-500 uppercase tracking-wide">
+                    <div className="border-b border-[var(--form-border)] pb-3">
+                      <label className="text-xs text-[var(--form-text-muted)] uppercase tracking-wide">
                         Visa Expiry Date
                       </label>
-                      <p className="text-gray-800 font-medium mt-1">
+                      <p className="text-[var(--form-text)] font-medium mt-1">
                         {currentEmployee.visa_expiry_date
                           ? formatDate(currentEmployee.visa_expiry_date)
                           : "N/A"}
@@ -1887,29 +1883,29 @@ const EmployeeDetails = () => {
                     </div>
                   </div>
                   <div className="space-y-4">
-                    <div className="border-b border-gray-100 pb-3">
-                      <label className="text-xs text-gray-500 uppercase tracking-wide">
+                    <div className="border-b border-[var(--form-border)] pb-3">
+                      <label className="text-xs text-[var(--form-text-muted)] uppercase tracking-wide">
                         Labor Number
                       </label>
-                      <p className="text-gray-800 font-medium mt-1">
+                      <p className="text-[var(--form-text)] font-medium mt-1">
                         {currentEmployee.labor_number || "N/A"}
                       </p>
                     </div>
-                    <div className="border-b border-gray-100 pb-3">
-                      <label className="text-xs text-gray-500 uppercase tracking-wide">
+                    <div className="border-b border-[var(--form-border)] pb-3">
+                      <label className="text-xs text-[var(--form-text-muted)] uppercase tracking-wide">
                         Labor Issued Date
                       </label>
-                      <p className="text-gray-800 font-medium mt-1">
+                      <p className="text-[var(--form-text)] font-medium mt-1">
                         {currentEmployee.labor_issued_date
                           ? formatDate(currentEmployee.labor_issued_date)
                           : "N/A"}
                       </p>
                     </div>
-                    <div className="border-b border-gray-100 pb-3">
-                      <label className="text-xs text-gray-500 uppercase tracking-wide">
+                    <div className="border-b border-[var(--form-border)] pb-3">
+                      <label className="text-xs text-[var(--form-text-muted)] uppercase tracking-wide">
                         Labor Expiry Date
                       </label>
-                      <p className="text-gray-800 font-medium mt-1">
+                      <p className="text-[var(--form-text)] font-medium mt-1">
                         {currentEmployee.labor_expiry_date
                           ? formatDate(currentEmployee.labor_expiry_date)
                           : "N/A"}
@@ -1920,37 +1916,37 @@ const EmployeeDetails = () => {
               </div>
             )}
 
-            {/* EID Tab */}
+            {/* ─── EID TAB ────────────────────────────────────────────────── */}
             {activeTab === "eid" && (
               <div>
-                <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                <h3 className="text-lg font-semibold text-[var(--form-text)] mb-4 flex items-center gap-2">
                   <FaIdCard className="text-green-500" /> Emirates ID Details
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-4">
-                    <div className="border-b border-gray-100 pb-3">
-                      <label className="text-xs text-gray-500 uppercase tracking-wide">
+                    <div className="border-b border-[var(--form-border)] pb-3">
+                      <label className="text-xs text-[var(--form-text-muted)] uppercase tracking-wide">
                         EID Number
                       </label>
-                      <p className="text-gray-800 font-medium mt-1">
+                      <p className="text-[var(--form-text)] font-medium mt-1">
                         {currentEmployee.eid_number || "N/A"}
                       </p>
                     </div>
-                    <div className="border-b border-gray-100 pb-3">
-                      <label className="text-xs text-gray-500 uppercase tracking-wide">
+                    <div className="border-b border-[var(--form-border)] pb-3">
+                      <label className="text-xs text-[var(--form-text-muted)] uppercase tracking-wide">
                         EID Issued Date
                       </label>
-                      <p className="text-gray-800 font-medium mt-1">
+                      <p className="text-[var(--form-text)] font-medium mt-1">
                         {currentEmployee.eid_issued_date
                           ? formatDate(currentEmployee.eid_issued_date)
                           : "N/A"}
                       </p>
                     </div>
-                    <div className="border-b border-gray-100 pb-3">
-                      <label className="text-xs text-gray-500 uppercase tracking-wide">
+                    <div className="border-b border-[var(--form-border)] pb-3">
+                      <label className="text-xs text-[var(--form-text-muted)] uppercase tracking-wide">
                         EID Expiry Date
                       </label>
-                      <p className="text-gray-800 font-medium mt-1">
+                      <p className="text-[var(--form-text)] font-medium mt-1">
                         {currentEmployee.eid_expiry_date
                           ? formatDate(currentEmployee.eid_expiry_date)
                           : "N/A"}
@@ -1961,61 +1957,61 @@ const EmployeeDetails = () => {
               </div>
             )}
 
-            {/* Contact Information Tab */}
+            {/* ─── CONTACT TAB ────────────────────────────────────────────── */}
             {activeTab === "contact" && (
               <div>
-                <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                <h3 className="text-lg font-semibold text-[var(--form-text)] mb-4 flex items-center gap-2">
                   <FiPhoneCall className="text-green-500" /> Contact Details
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-4">
-                    <div className="border-b border-gray-100 pb-3">
-                      <label className="text-xs text-gray-500 uppercase tracking-wide">
+                    <div className="border-b border-[var(--form-border)] pb-3">
+                      <label className="text-xs text-[var(--form-text-muted)] uppercase tracking-wide">
                         Company Email
                       </label>
-                      <p className="text-gray-800 font-medium mt-1">
+                      <p className="text-[var(--form-text)] font-medium mt-1">
                         {currentEmployee.company_email || "N/A"}
                       </p>
                     </div>
-                    <div className="border-b border-gray-100 pb-3">
-                      <label className="text-xs text-gray-500 uppercase tracking-wide">
+                    <div className="border-b border-[var(--form-border)] pb-3">
+                      <label className="text-xs text-[var(--form-text-muted)] uppercase tracking-wide">
                         Personal Email
                       </label>
-                      <p className="text-gray-800 font-medium mt-1">
+                      <p className="text-[var(--form-text)] font-medium mt-1">
                         {currentEmployee.personal_email || "N/A"}
                       </p>
                     </div>
-                    <div className="border-b border-gray-100 pb-3">
-                      <label className="text-xs text-gray-500 uppercase tracking-wide">
+                    <div className="border-b border-[var(--form-border)] pb-3">
+                      <label className="text-xs text-[var(--form-text-muted)] uppercase tracking-wide">
                         Company Mobile Number
                       </label>
-                      <p className="text-gray-800 font-medium mt-1">
+                      <p className="text-[var(--form-text)] font-medium mt-1">
                         {currentEmployee.company_mobile_number || "N/A"}
                       </p>
                     </div>
                   </div>
                   <div className="space-y-4">
-                    <div className="border-b border-gray-100 pb-3">
-                      <label className="text-xs text-gray-500 uppercase tracking-wide">
+                    <div className="border-b border-[var(--form-border)] pb-3">
+                      <label className="text-xs text-[var(--form-text-muted)] uppercase tracking-wide">
                         Personal Number
                       </label>
-                      <p className="text-gray-800 font-medium mt-1">
+                      <p className="text-[var(--form-text)] font-medium mt-1">
                         {currentEmployee.personal_number || "N/A"}
                       </p>
                     </div>
-                    <div className="border-b border-gray-100 pb-3">
-                      <label className="text-xs text-gray-500 uppercase tracking-wide">
+                    <div className="border-b border-[var(--form-border)] pb-3">
+                      <label className="text-xs text-[var(--form-text-muted)] uppercase tracking-wide">
                         Other Number
                       </label>
-                      <p className="text-gray-800 font-medium mt-1">
+                      <p className="text-[var(--form-text)] font-medium mt-1">
                         {currentEmployee.other_number || "N/A"}
                       </p>
                     </div>
-                    <div className="border-b border-gray-100 pb-3">
-                      <label className="text-xs text-gray-500 uppercase tracking-wide">
+                    <div className="border-b border-[var(--form-border)] pb-3">
+                      <label className="text-xs text-[var(--form-text-muted)] uppercase tracking-wide">
                         Home Country Number
                       </label>
-                      <p className="text-gray-800 font-medium mt-1">
+                      <p className="text-[var(--form-text)] font-medium mt-1">
                         {currentEmployee.home_country_number || "N/A"}
                       </p>
                     </div>
@@ -2024,17 +2020,16 @@ const EmployeeDetails = () => {
               </div>
             )}
 
-            {/* Documents Tab */}
+            {/* ─── DOCUMENTS TAB ──────────────────────────────────────────── */}
             {activeTab === "documents" && (
               <div>
-                <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                <h3 className="text-lg font-semibold text-[var(--form-text)] mb-4 flex items-center gap-2">
                   <FiFileText className="text-green-500" /> Employee Documents
                 </h3>
 
-                {/* Avatar/Photo Document */}
                 {(currentEmployee.avatar || currentEmployee.avatar_path) && (
-                  <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-                    <h4 className="font-semibold text-gray-700 mb-3">
+                  <div className="mb-6 p-4 bg-[var(--form-surface)] rounded-lg">
+                    <h4 className="font-semibold text-[var(--form-text)] mb-3">
                       Profile Photo
                     </h4>
                     <a
@@ -2057,19 +2052,19 @@ const EmployeeDetails = () => {
                     return (
                       <div
                         key={doc.key}
-                        className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
+                        className="border border-[var(--form-border)] rounded-lg p-4 hover:shadow-md transition-shadow bg-[var(--form-bg)]"
                       >
                         <div className="flex items-center gap-3 mb-3">
-                          <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                          <div className="w-10 h-10 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center">
                             <i
-                              className={`${doc.icon} text-green-600 text-lg`}
+                              className={`${doc.icon} text-green-600 dark:text-green-400 text-lg`}
                             ></i>
                           </div>
                           <div>
-                            <h4 className="font-semibold text-gray-800 text-sm">
+                            <h4 className="font-semibold text-[var(--form-text)] text-sm">
                               {doc.label}
                             </h4>
-                            <p className="text-xs text-gray-500">
+                            <p className="text-xs text-[var(--form-text-muted)]">
                               {hasDocument ? "Uploaded" : "Not Uploaded"}
                             </p>
                           </div>
@@ -2079,12 +2074,12 @@ const EmployeeDetails = () => {
                             href={getDocumentUrl(documentPath)}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="inline-flex items-center gap-2 px-3 py-2 bg-green-50 text-green-600 rounded-lg text-sm hover:bg-green-100 transition-colors w-full justify-center"
+                            className="inline-flex items-center gap-2 px-3 py-2 bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 rounded-lg text-sm hover:bg-green-100 dark:hover:bg-green-900/40 transition-colors w-full justify-center"
                           >
                             <FiDownload /> View Document
                           </a>
                         ) : (
-                          <div className="text-center py-2 text-gray-400 text-sm">
+                          <div className="text-center py-2 text-[var(--form-text-muted)] text-sm">
                             <FiXCircle className="inline mr-1" /> No document
                             uploaded
                           </div>
@@ -2098,7 +2093,8 @@ const EmployeeDetails = () => {
           </div>
         </div>
       </main>
-      {/* Confirm Delete Modal */}
+
+      {/* ─── CONFIRM DELETE MODAL ───────────────────────────────────────── */}
       <ConfirmModal
         isOpen={confirmModal.isOpen}
         onClose={closeConfirmModal}

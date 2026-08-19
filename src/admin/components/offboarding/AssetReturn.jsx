@@ -20,6 +20,7 @@ const AssetReturn = () => {
   const [searchParams] = useSearchParams();
   const location = useLocation();
   const offboardingId = location.state?.id || searchParams.get("id");
+  const isViewMode = !!location.state?.isView;
   
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -72,20 +73,22 @@ const AssetReturn = () => {
       }
       if (currentOffboarding.employee_id) {
         setEmployeeId(currentOffboarding.employee_id);
-        dispatch(fetchEmployeeById(currentOffboarding.employee_id));
+        if (String(currentEmployee?.id) !== String(currentOffboarding.employee_id)) {
+          dispatch(fetchEmployeeById(currentOffboarding.employee_id));
+        }
       }
       
       setLoading(false);
     }
-  }, [currentOffboarding, offboardingLoading, dispatch]);
+  }, [currentOffboarding, offboardingLoading, dispatch, currentEmployee]);
 
   // Update employee name when fetched
   useEffect(() => {
-    if (currentEmployee) {
+    if (currentEmployee && String(currentEmployee.id) === String(currentOffboarding?.employee_id)) {
       setEmployeeName(`${currentEmployee.first_name} ${currentEmployee.last_name}`);
       setEmployeeId(currentEmployee.id);
     }
-  }, [currentEmployee]);
+  }, [currentEmployee, currentOffboarding?.employee_id]);
 
   // Filter assets assigned to this employee
   useEffect(() => {
@@ -359,88 +362,48 @@ const AssetReturn = () => {
 
 
 
-          {/* Asset Progress - Only show if there are assets */}
-          {!hasNoAssets && assets.length > 0 && (
-            <div className="space-y-2">
-              <div className="flex justify-between text-xs font-bold">
-                <span className="text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                  Asset Return Progress
-                </span>
-                <span className="text-green-600 dark:text-green-400">{assetsProgressPercentage}%</span>
+          <fieldset disabled={isViewMode} className="w-full">
+            {/* Asset Progress - Only show if there are assets */}
+            {!hasNoAssets && assets.length > 0 && (
+              <div className="space-y-2">
+                <div className="flex justify-between text-xs font-bold">
+                  <span className="text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                    Asset Return Progress
+                  </span>
+                  <span className="text-green-600 dark:text-green-400">{assetsProgressPercentage}%</span>
+                </div>
+                <div className="w-full h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-blue-500 dark:bg-blue-600 transition-all duration-500 ease-out" 
+                    style={{ width: `${assetsProgressPercentage}%` }}
+                  ></div>
+                </div>
               </div>
-              <div className="w-full h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
-                <div 
-                  className="h-full bg-blue-500 dark:bg-blue-600 transition-all duration-500 ease-out" 
-                  style={{ width: `${assetsProgressPercentage}%` }}
-                ></div>
-              </div>
-            </div>
-          )}
+            )}
 
-          {/* No Assets Message with Skip Button */}
-          {hasNoAssets ? (
-            <div className="text-center py-12 bg-gray-50 dark:bg-gray-900/30 rounded-xl space-y-6">
-              <div className="flex flex-col items-center gap-3">
-                <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center">
-                  <Laptop size={32} className="text-gray-400" />
-                </div>
-                <div>
-                  <p className="text-gray-700 dark:text-gray-300 font-semibold text-lg">
-                    No Assets Assigned
-                  </p>
-                  <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
-                    This employee doesn't have any company assets assigned to them.
-                  </p>
-                  <p className="text-gray-400 dark:text-gray-500 text-xs mt-2">
-                    You can skip this step and proceed to the Final Settlement.
-                  </p>
+            {/* No Assets Message with Skip Button */}
+            {hasNoAssets ? (
+              <div className="text-center py-12 bg-gray-50 dark:bg-gray-900/30 rounded-xl space-y-6">
+                <div className="flex flex-col items-center gap-3">
+                  <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center">
+                    <Laptop size={32} className="text-gray-400" />
+                  </div>
+                  <div>
+                    <p className="text-gray-700 dark:text-gray-300 font-semibold text-lg">
+                      No Assets Assigned
+                    </p>
+                    <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
+                      This employee doesn't have any company assets assigned to them.
+                    </p>
+                    <p className="text-gray-400 dark:text-gray-500 text-xs mt-2">
+                      You can skip this step and proceed to the Final Settlement.
+                    </p>
+                  </div>
                 </div>
               </div>
-              
-              <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                <button
-                  onClick={handleSkipStep}
-                  disabled={isSkipping}
-                  className="px-6 py-2.5 rounded-full font-semibold bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-                >
-                  {isSkipping ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-gray-700 border-t-transparent rounded-full animate-spin"></div>
-                      Skipping...
-                    </>
-                  ) : (
-                    <>
-                      <SkipForward size={18} />
-                      Skip This Step
-                    </>
-                  )}
-                </button>
-                
-                <button
-                  onClick={handleProceedToSettlement}
-                  disabled={isSubmitting}
-                  className="px-6 py-2.5 rounded-full font-semibold bg-green-500 text-white hover:bg-green-600 transition-all flex items-center justify-center gap-2 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isSubmitting ? (
-                    <>
-                      <Loader className="w-5 h-5 animate-spin" />
-                      Proceeding...
-                    </>
-                  ) : (
-                    <>
-                      Proceed to Final Settlement
-                      <ArrowRight size={18} />
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
-          ) : (
-            <>
-              {/* Asset Table */}
-              <div className="overflow-hidden border border-gray-200/60 dark:border-gray-700/60 rounded-xl">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-sm text-gray-600 dark:text-gray-300">
+            ) : (
+              <div className="overflow-x-auto overflow-y-visible">
+                <table className="w-full text-left border-collapse">
                     <thead className="bg-gray-50 dark:bg-gray-800/80 border-b border-gray-200/60 dark:border-gray-700/60 text-xs uppercase font-bold text-gray-500 dark:text-gray-400">
                       <tr>
                         <th scope="col" className="p-4">Asset</th>
@@ -491,30 +454,39 @@ const AssetReturn = () => {
                     </tbody>
                   </table>
                 </div>
-              </div>
+            )}
+          </fieldset>
 
               {/* Footer Actions */}
               <div className="pt-6 border-t border-gray-100 dark:border-gray-700 flex justify-end gap-4">
-                <button
-                  onClick={handleProceedToSettlement}
-                  disabled={isSubmitting}
-                  className="px-6 py-2.5 rounded-full font-semibold bg-green-500 text-white hover:bg-green-600 transition-all flex items-center justify-center gap-2 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isSubmitting ? (
-                    <>
-                      <Loader className="w-5 h-5 animate-spin" />
-                      Proceeding...
-                    </>
-                  ) : (
-                    <>
-                      Proceed to Final Settlement
-                      <ArrowRight size={18} />
-                    </>
-                  )}
-                </button>
+                {isViewMode ? (
+                  <button
+                    onClick={() => navigate(`/admin/employees/final-settlement?id=${offboardingId}`, { state: { id: offboardingId, isView: true } })}
+                    className="px-6 py-2.5 rounded-full font-semibold bg-blue-500 text-white hover:bg-blue-600 transition-all flex items-center justify-center gap-2"
+                  >
+                    Next Step <ArrowRight size={18} />
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleProceedToSettlement}
+                    disabled={isSubmitting}
+                    className="px-6 py-2.5 rounded-full font-semibold bg-green-500 text-white hover:bg-green-600 transition-all flex items-center justify-center gap-2 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <Loader className="w-5 h-5 animate-spin" />
+                        Proceeding...
+                      </>
+                    ) : (
+                      <>
+                        Proceed to Final Settlement
+                        <ArrowRight size={18} />
+                      </>
+                    )}
+                  </button>
+                )}
               </div>
-            </>
-          )}
+
 
         </div>
       </div>

@@ -14,6 +14,7 @@ const ExitInterview = () => {
   const [searchParams] = useSearchParams();
   const location = useLocation();
   const offboardingId = location.state?.id || searchParams.get("id");
+  const isViewMode = !!location.state?.isView;
 
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -60,7 +61,7 @@ const ExitInterview = () => {
       // Load employee name
       if (currentOffboarding.employee_name) {
         setEmployeeName(currentOffboarding.employee_name);
-      } else if (currentOffboarding.employee_id) {
+      } else if (currentOffboarding.employee_id && String(currentEmployee?.id) !== String(currentOffboarding.employee_id)) {
         dispatch(fetchEmployeeById(currentOffboarding.employee_id));
       }
 
@@ -107,14 +108,14 @@ const ExitInterview = () => {
 
       setLoading(false);
     }
-  }, [currentOffboarding, offboardingLoading, dispatch]);
+  }, [currentOffboarding, offboardingLoading, dispatch, currentEmployee]);
 
   // Update employee name when fetched
   useEffect(() => {
-    if (currentEmployee) {
+    if (currentEmployee && String(currentEmployee.id) === String(currentOffboarding?.employee_id)) {
       setEmployeeName(`${currentEmployee.first_name} ${currentEmployee.last_name}`);
     }
-  }, [currentEmployee]);
+  }, [currentEmployee, currentOffboarding?.employee_id]);
 
   const handleInputChange = (field, value) => {
     setInterviewData(prev => ({
@@ -286,7 +287,7 @@ const ExitInterview = () => {
               </div>
               <div>
                 <h1 className="text-xl sm:text-2xl font-black text-gray-900 dark:text-white tracking-tight">
-                  Exit interview form
+                  {isViewMode ? "View Exit Interview" : "Exit interview form"}
                 </h1>
                 <p className="text-sm font-semibold text-gray-500 dark:text-gray-400 mt-1">
                   {employeeName || "Employee"}
@@ -311,7 +312,7 @@ const ExitInterview = () => {
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-8">
-
+            <fieldset disabled={isViewMode} className="w-full">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
 
               {/* Interview Details Section */}
@@ -518,45 +519,58 @@ const ExitInterview = () => {
               </div>
 
             </div>
+            </fieldset>
 
             {/* Footer Actions */}
             <div className="flex flex-col-reverse sm:flex-row justify-end items-center gap-3 pt-2">
-              <button
-                type="button"
-                onClick={handleSaveDraft}
-                disabled={isSavingDraft}
-                className="px-6 py-2.5 rounded-full font-semibold bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-              >
-                {isSavingDraft ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-gray-700 border-t-transparent rounded-full animate-spin"></div>
-                    Saving...
-                  </>
-                ) : (
-                  <>
-                    <Save size={18} />
-                    Save draft
-                  </>
-                )}
-              </button>
+              {isViewMode ? (
+                <button
+                  type="button"
+                  onClick={() => navigate(`/admin/employees/letters-and-clearance?id=${offboardingId}`, { state: { id: offboardingId, isView: true } })}
+                  className="px-6 py-2.5 rounded-full font-semibold bg-blue-500 text-white hover:bg-blue-600 transition-all flex items-center justify-center gap-2"
+                >
+                  Next Step <ArrowRight size={16} />
+                </button>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={handleSaveDraft}
+                    disabled={isSavingDraft}
+                    className="px-6 py-2.5 rounded-full font-semibold bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                  >
+                    {isSavingDraft ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-gray-700 border-t-transparent rounded-full animate-spin"></div>
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <Save size={18} />
+                        Save draft
+                      </>
+                    )}
+                  </button>
 
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="px-6 py-2.5 rounded-full font-semibold bg-green-500 text-white hover:bg-green-600 transition-all flex items-center justify-center gap-2 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isSubmitting ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    Submitting...
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle2 size={18} />
-                    Submit interview
-                  </>
-                )}
-              </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="px-6 py-2.5 rounded-full font-semibold bg-green-500 text-white hover:bg-green-600 transition-all flex items-center justify-center gap-2 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        Submitting...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 size={18} />
+                        Submit interview
+                      </>
+                    )}
+                  </button>
+                </>
+              )}
             </div>
 
           </form>

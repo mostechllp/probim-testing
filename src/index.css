@@ -1044,3 +1044,43 @@ i.text-green-600 {
 .animate-slide-up {
   animation: slide-up 0.3s ease-out forwards;
 }
+
+:root {
+  /* Form Colors - Light Theme */
+  --form-bg: #ffffff;
+  --form-surface: #f9fafb;
+  --form-surface-hover: #f3f4f6;
+  --form-border: #e5e7eb;
+  --form-border-focus: #22c55e;
+  --form-text: #1f2937;
+  --form-text-secondary: #6b7280;
+  --form-text-muted: #9ca3af;
+  --form-label: #374151;
+  --form-placeholder: #9ca3af;
+  --form-error: #ef4444;
+  --form-error-bg: #fef2f2;
+  --form-error-border: #fca5a5;
+  --form-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  --form-select-option-bg: #ffffff;
+  --form-select-option-hover: #f3f4f6;
+}
+
+.dark {
+  /* Form Colors - Dark Theme */
+  --form-bg: #1f2937;
+  --form-surface: #374151;
+  --form-surface-hover: #4b5563;
+  --form-border: #4b5563;
+  --form-border-focus: #22c55e;
+  --form-text: #f3f4f6;
+  --form-text-secondary: #d1d5db;
+  --form-text-muted: #9ca3af;
+  --form-label: #e5e7eb;
+  --form-placeholder: #6b7280;
+  --form-error: #f87171;
+  --form-error-bg: #7f1d1d;
+  --form-error-border: #fca5a5;
+  --form-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --form-select-option-bg: #374151;
+  --form-select-option-hover: #4b5563;
+}

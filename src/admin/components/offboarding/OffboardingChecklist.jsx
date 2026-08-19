@@ -25,6 +25,7 @@ const OffboardingChecklist = () => {
   const [searchParams] = useSearchParams();
   const location = useLocation();
   const offboardingId = location.state?.id || searchParams.get("id");
+  const isViewMode = !!location.state?.isView;
 
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -64,7 +65,7 @@ const OffboardingChecklist = () => {
     if (currentOffboarding && !offboardingLoading) {
       if (currentOffboarding.employee_name) {
         setEmployeeName(currentOffboarding.employee_name);
-      } else if (currentOffboarding.employee_id) {
+      } else if (currentOffboarding.employee_id && String(currentEmployee?.id) !== String(currentOffboarding.employee_id)) {
         dispatch(fetchEmployeeById(currentOffboarding.employee_id));
       }
 
@@ -75,15 +76,15 @@ const OffboardingChecklist = () => {
 
       setLoading(false);
     }
-  }, [currentOffboarding, offboardingLoading, dispatch]);
+  }, [currentOffboarding, offboardingLoading, dispatch, currentEmployee]);
 
   useEffect(() => {
-    if (currentEmployee) {
+    if (currentEmployee && String(currentEmployee.id) === String(currentOffboarding?.employee_id)) {
       setEmployeeName(
         `${currentEmployee.first_name} ${currentEmployee.last_name}`,
       );
     }
-  }, [currentEmployee]);
+  }, [currentEmployee, currentOffboarding?.employee_id]);
 
   const handleSave = async () => {
     setIsSubmitting(true);
@@ -228,7 +229,7 @@ const OffboardingChecklist = () => {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
                 <h1 className="text-xl sm:text-2xl font-black text-gray-900 dark:text-white tracking-tight">
-                  Final Clearance
+                  {isViewMode ? "View Offboarding Checklist" : "Final Clearance Checklist"}
                 </h1>
                 <p className="text-sm font-semibold text-gray-500 dark:text-gray-400 mt-1">
                   Review the details for {employeeName || "Employee"} before finalizing
@@ -425,7 +426,8 @@ const OffboardingChecklist = () => {
                 type="checkbox" 
                 checked={isConfirmed}
                 onChange={(e) => setIsConfirmed(e.target.checked)}
-                className="w-5 h-5 rounded border-gray-300 text-green-500 focus:ring-green-500 cursor-pointer"
+                disabled={isViewMode}
+                className="w-5 h-5 rounded border-gray-300 text-green-500 focus:ring-green-500 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               />
               <span className="text-gray-700 dark:text-gray-300 font-bold text-sm uppercase tracking-wide">
                 I confirm all offboarding activities are completed
@@ -433,29 +435,40 @@ const OffboardingChecklist = () => {
             </label>
 
             <div className="flex justify-end gap-3">
-              <button
-                onClick={() => navigate("/admin/employees/offboarding")}
-                className="px-6 py-2.5 rounded-xl font-semibold bg-gray-100 text-gray-700 hover:bg-gray-200 transition-all flex items-center justify-center gap-2"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSave}
-                disabled={isSubmitting || !isConfirmed}
-                className="px-6 py-2.5 rounded-xl font-semibold bg-green-500 text-white hover:bg-green-600 shadow-md shadow-green-500/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isSubmitting ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    Completing...
-                  </>
-                ) : (
-                  <>
-                    <Save size={18} />
-                    Complete Offboarding
-                  </>
-                )}
-              </button>
+              {isViewMode ? (
+                <button
+                  onClick={() => navigate("/admin/employees/offboarding")}
+                  className="px-6 py-2.5 rounded-xl font-semibold bg-blue-500 text-white hover:bg-blue-600 shadow-md shadow-blue-500/20 transition-all flex items-center justify-center gap-2"
+                >
+                  Return to Dashboard
+                </button>
+              ) : (
+                <>
+                  <button
+                    onClick={() => navigate("/admin/employees/offboarding")}
+                    className="px-6 py-2.5 rounded-xl font-semibold bg-gray-100 text-gray-700 hover:bg-gray-200 transition-all flex items-center justify-center gap-2"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSave}
+                    disabled={isSubmitting || !isConfirmed}
+                    className="px-6 py-2.5 rounded-xl font-semibold bg-green-500 text-white hover:bg-green-600 shadow-md shadow-green-500/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        Completing...
+                      </>
+                    ) : (
+                      <>
+                        <Save size={18} />
+                        Complete Offboarding
+                      </>
+                    )}
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>

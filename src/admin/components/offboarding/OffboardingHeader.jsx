@@ -92,7 +92,20 @@ const OffboardingHeader = ({ currentStep }) => {
   
   const handleStepClick = (step, originalStepId) => {
     if (canNavigateToStep(step.id, originalStepId)) {
-      navigate(step.path);
+      const urlParams = new URLSearchParams(location.search);
+      const currentId = urlParams.get("id") || location.state?.id || currentOffboarding?.id || localStorage.getItem("offboarding_id");
+      
+      if (currentId) {
+        navigate(`${step.path}?id=${currentId}`, { 
+          state: { 
+            ...location.state, 
+            id: currentId,
+            isView: location.state?.isView || false 
+          } 
+        });
+      } else {
+        navigate(step.path);
+      }
     }
   };
 

@@ -69,6 +69,8 @@ const CompanyUpcomingRenewalsReport = () => {
           company.establishment_card_number || org.establishment_card_number,
         establishment_card_expiry:
           company.establishment_card_expiry || org.establishment_card_expiry,
+        expiry_date:
+          company.expiry_date || org.expiry_date,
         phone: company.phone || org.phone,
         email: company.email || org.email,
         address: company.address || org.address,
@@ -84,6 +86,7 @@ const CompanyUpcomingRenewalsReport = () => {
         trade_license_expiry: org.trade_license_expiry,
         establishment_card_number: org.establishment_card_number,
         establishment_card_expiry: org.establishment_card_expiry,
+        expiry_date: org.expiry_date,
         phone: org.phone,
         email: org.email,
         address: org.address,
@@ -137,6 +140,10 @@ const CompanyUpcomingRenewalsReport = () => {
             date: company.establishment_card_expiry,
             days: getDaysDifference(company.establishment_card_expiry),
           },
+          {
+            date: company.expiry_date,
+            days: getDaysDifference(company.expiry_date),
+          },
         ].filter(
           (item) =>
             item.days !== null && item.days >= minDays && item.days <= maxDays,
@@ -162,18 +169,30 @@ const CompanyUpcomingRenewalsReport = () => {
   // Transform data for export
   const getExportData = () => {
     const filteredCompanies = getCompaniesWithUpcomingRenewals();
-    return filteredCompanies.map((company) => ({
-      company_name: company.name,
-      trade_license_number: company.trade_license_number || "-",
-      trade_license_expiry: formatDate(company.trade_license_expiry),
-      trade_license_days_left: getDaysDifference(company.trade_license_expiry) || "-",
-      establishment_card_number: company.establishment_card_number || "-",
-      establishment_card_expiry: formatDate(company.establishment_card_expiry),
-      establishment_card_days_left: getDaysDifference(company.establishment_card_expiry) || "-",
-      phone: company.phone || "-",
-      email: company.email || "-",
-      renewal_range: `${minDays}-${maxDays} days`,
-    }));
+    return filteredCompanies.map((company) => {
+      const expiryDates = [
+        company.trade_license_expiry,
+        company.establishment_card_expiry,
+        company.expiry_date,
+      ].filter((date) => date);
+
+      const earliestExpiry = expiryDates.length > 0
+        ? expiryDates.reduce((earliest, current) =>
+          new Date(current) < new Date(earliest) ? current : earliest
+        )
+        : null;
+
+      const daysLeft = earliestExpiry ? getDaysDifference(earliestExpiry) : null;
+
+      return {
+        company_name: company.name,
+        expiry_date: earliestExpiry ? formatDate(earliestExpiry) : "-",
+        days_left: daysLeft !== null ? `${daysLeft} days` : "-",
+        phone: company.phone || "-",
+        email: company.email || "-",
+        renewal_range: `${minDays}-${maxDays} days`,
+      };
+    });
   };
 
   // Backend returns only current page data
@@ -201,13 +220,9 @@ const CompanyUpcomingRenewalsReport = () => {
     }
 
     const headers = [
-      { key: "company_name", label: "Company Name" },
-      { key: "trade_license_number", label: "Trade License" },
-      { key: "trade_license_expiry", label: "TL Expiry Date" },
-      { key: "trade_license_days_left", label: "Days Left (TL)" },
-      { key: "establishment_card_number", label: "Establishment Card" },
-      { key: "establishment_card_expiry", label: "EC Expiry Date" },
-      { key: "establishment_card_days_left", label: "Days Left (EC)" },
+      { key: "company_name", label: "Document Name" },
+      { key: "expiry_date", label: "Expiry Date" },
+      { key: "days_left", label: "Days Left" },
       { key: "phone", label: "Phone" },
       { key: "email", label: "Email" },
       { key: "renewal_range", label: "Renewal Range" },
@@ -220,7 +235,7 @@ const CompanyUpcomingRenewalsReport = () => {
       showToast("Company upcoming renewals exported successfully!", "success");
     } else if (format === "pdf") {
       try {
-        const response = await apiClient.post('/admin/reports/export', 
+        const response = await apiClient.post('/admin/reports/export',
           { report_type: 'company_upcoming_renewals', format: 'pdf' },
           { responseType: 'blob' }
         );
@@ -268,10 +283,12 @@ const CompanyUpcomingRenewalsReport = () => {
     allCompanies.forEach((company) => {
       const tlDays = getDaysDifference(company.trade_license_expiry);
       const ecDays = getDaysDifference(company.establishment_card_expiry);
+      const docDays = getDaysDifference(company.expiry_date);
 
       if (
         (tlDays !== null && tlDays >= start && tlDays <= end) ||
-        (ecDays !== null && ecDays >= start && ecDays <= end)
+        (ecDays !== null && ecDays >= start && ecDays <= end) ||
+        (docDays !== null && docDays >= start && docDays <= end)
       ) {
         count++;
       }
@@ -301,6 +318,8 @@ const CompanyUpcomingRenewalsReport = () => {
         tradeLicenseUpcoming++;
       if (isUpcomingRenewal(company.establishment_card_expiry))
         establishmentCardUpcoming++;
+      if (isUpcomingRenewal(company.expiry_date))
+        tradeLicenseUpcoming++;
     });
 
     return { tradeLicenseUpcoming, establishmentCardUpcoming };
@@ -385,40 +404,6 @@ const CompanyUpcomingRenewalsReport = () => {
           </div>
         </div>
 
-        {/* Info Cards for Document Types */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Trade License Upcoming
-                </p>
-                <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                  {stats.tradeLicenseUpcoming}
-                </p>
-              </div>
-              <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
-                <i className="fas fa-file-alt text-blue-600 dark:text-blue-400"></i>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Establishment Card Upcoming
-                </p>
-                <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">
-                  {stats.establishmentCardUpcoming}
-                </p>
-              </div>
-              <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center">
-                <i className="fas fa-id-card text-purple-600 dark:text-purple-400"></i>
-              </div>
-            </div>
-          </div>
-        </div>
 
         {/* Filters Bar */}
         <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 mb-6">
@@ -483,7 +468,7 @@ const CompanyUpcomingRenewalsReport = () => {
                 setSearchTerm(val);
                 setCurrentPage(1);
               }}
-              placeholder="Search by company name, trade license, establishment card..."
+              placeholder="Search by document name, trade license, establishment card..."
             />
             <button
               onClick={() => setShowExportModal(true)}
@@ -514,22 +499,10 @@ const CompanyUpcomingRenewalsReport = () => {
                         S.No
                       </th>
                       <th className="px-3 md:px-4 py-2 md:py-3 text-left text-[10px] md:text-xs font-semibold text-gray-500 dark:text-gray-400">
-                        COMPANY NAME
+                        DOCUMENT NAME
                       </th>
                       <th className="px-3 md:px-4 py-2 md:py-3 text-left text-[10px] md:text-xs font-semibold text-gray-500 dark:text-gray-400">
-                        TRADE LICENSE
-                      </th>
-                      <th className="px-3 md:px-4 py-2 md:py-3 text-left text-[10px] md:text-xs font-semibold text-gray-500 dark:text-gray-400">
-                        TL EXPIRY
-                      </th>
-                      <th className="px-3 md:px-4 py-2 md:py-3 text-left text-[10px] md:text-xs font-semibold text-gray-500 dark:text-gray-400">
-                        DAYS LEFT
-                      </th>
-                      <th className="px-3 md:px-4 py-2 md:py-3 text-left text-[10px] md:text-xs font-semibold text-gray-500 dark:text-gray-400">
-                        EST. CARD
-                      </th>
-                      <th className="px-3 md:px-4 py-2 md:py-3 text-left text-[10px] md:text-xs font-semibold text-gray-500 dark:text-gray-400">
-                        EC EXPIRY
+                        EXPIRY DATE
                       </th>
                       <th className="px-3 md:px-4 py-2 md:py-3 text-left text-[10px] md:text-xs font-semibold text-gray-500 dark:text-gray-400">
                         DAYS LEFT
@@ -539,25 +512,27 @@ const CompanyUpcomingRenewalsReport = () => {
                   <tbody>
                     {pageCompanies.length > 0 ? (
                       pageCompanies.map((company, idx) => {
-                        const tlDays = getDaysDifference(
+                        const expiryDates = [
                           company.trade_license_expiry,
-                        );
-                        const ecDays = getDaysDifference(
                           company.establishment_card_expiry,
-                        );
+                          company.expiry_date,
+                        ].filter((date) => date);
 
-                        // Only show if at least one document is in the upcoming range
-                        const showTradeLicense =
-                          tlDays !== null &&
-                          tlDays >= minDays &&
-                          tlDays <= maxDays;
-                        const showEstablishmentCard =
-                          ecDays !== null &&
-                          ecDays >= minDays &&
-                          ecDays <= maxDays;
+                        const earliestExpiry = expiryDates.length > 0
+                          ? expiryDates.reduce((earliest, current) =>
+                            new Date(current) < new Date(earliest) ? current : earliest
+                          )
+                          : null;
 
-                        if (!showTradeLicense && !showEstablishmentCard)
-                          return null;
+                        const daysLeft = earliestExpiry ? getDaysDifference(earliestExpiry) : null;
+
+                        // Only show if the document's renewal is in the upcoming range
+                        const showRenewal =
+                          daysLeft !== null &&
+                          daysLeft >= minDays &&
+                          daysLeft <= maxDays;
+
+                        if (!showRenewal) return null;
 
                         return (
                           <tr
@@ -570,51 +545,24 @@ const CompanyUpcomingRenewalsReport = () => {
                             <td className="px-3 md:px-4 py-2 md:py-3 text-xs md:text-sm font-semibold text-gray-800 dark:text-gray-200">
                               {company.name}
                             </td>
-                            <td className="px-3 md:px-4 py-2 md:py-3 text-xs md:text-sm font-mono text-gray-600 dark:text-gray-400">
-                              {company.trade_license_number || "-"}
-                            </td>
                             <td
-                              className={`px-3 md:px-4 py-2 md:py-3 text-xs md:text-sm ${showTradeLicense ? getUpcomingClass(company.trade_license_expiry) : ""}`}
+                              className={`px-3 md:px-4 py-2 md:py-3 text-xs md:text-sm ${earliestExpiry ? getUpcomingClass(earliestExpiry) : ""
+                                }`}
                             >
-                              {formatDate(company.trade_license_expiry)}
+                              {earliestExpiry ? formatDate(earliestExpiry) : "-"}
                             </td>
                             <td className="px-3 md:px-4 py-2 md:py-3 text-xs md:text-sm">
-                              {showTradeLicense && tlDays !== null ? (
+                              {daysLeft !== null ? (
                                 <span
-                                  className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold ${tlDays >= 31 && tlDays <= 45
+                                  className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold ${daysLeft >= 31 && daysLeft <= 45
                                       ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
-                                      : tlDays >= 46 && tlDays <= 60
+                                      : daysLeft >= 46 && daysLeft <= 60
                                         ? "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400"
                                         : "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
                                     }`}
                                 >
                                   <i className="fas fa-hourglass-half text-[10px]"></i>
-                                  {tlDays} days
-                                </span>
-                              ) : (
-                                "-"
-                              )}
-                            </td>
-                            <td className="px-3 md:px-4 py-2 md:py-3 text-xs md:text-sm font-mono text-gray-600 dark:text-gray-400">
-                              {company.establishment_card_number || "-"}
-                            </td>
-                            <td
-                              className={`px-3 md:px-4 py-2 md:py-3 text-xs md:text-sm ${showEstablishmentCard ? getUpcomingClass(company.establishment_card_expiry) : ""}`}
-                            >
-                              {formatDate(company.establishment_card_expiry)}
-                            </td>
-                            <td className="px-3 md:px-4 py-2 md:py-3 text-xs md:text-sm">
-                              {showEstablishmentCard && ecDays !== null ? (
-                                <span
-                                  className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold ${ecDays >= 31 && ecDays <= 45
-                                      ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
-                                      : ecDays >= 46 && ecDays <= 60
-                                        ? "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400"
-                                        : "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
-                                    }`}
-                                >
-                                  <i className="fas fa-hourglass-half text-[10px]"></i>
-                                  {ecDays} days
+                                  {daysLeft} days
                                 </span>
                               ) : (
                                 "-"
@@ -626,7 +574,7 @@ const CompanyUpcomingRenewalsReport = () => {
                     ) : (
                       <tr>
                         <td
-                          colSpan="8"
+                          colSpan="4"
                           className="px-4 py-8 text-center text-gray-500 dark:text-gray-400"
                         >
                           <div className="flex flex-col items-center justify-center gap-2">

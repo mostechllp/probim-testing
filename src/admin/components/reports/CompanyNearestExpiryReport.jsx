@@ -67,6 +67,8 @@ const CompanyNearestExpiryReport = () => {
           company.establishment_card_number || org.establishment_card_number,
         establishment_card_expiry:
           company.establishment_card_expiry || org.establishment_card_expiry,
+        expiry_date:
+          company.expiry_date || org.expiry_date,
         // Additional fields that might be useful
         phone: company.phone || org.phone,
         email: company.email || org.email,
@@ -83,6 +85,7 @@ const CompanyNearestExpiryReport = () => {
         trade_license_expiry: org.trade_license_expiry,
         establishment_card_number: org.establishment_card_number,
         establishment_card_expiry: org.establishment_card_expiry,
+        expiry_date: org.expiry_date,
         phone: org.phone,
         email: org.email,
         address: org.address,
@@ -136,6 +139,7 @@ const CompanyNearestExpiryReport = () => {
         const expiryDates = [
           company.trade_license_expiry,
           company.establishment_card_expiry,
+          company.expiry_date,
         ].filter((date) => date);
 
         if (expiryDates.length === 0) return null;
@@ -158,18 +162,30 @@ const CompanyNearestExpiryReport = () => {
   // Transform data for export
   const getExportData = () => {
     const filteredCompanies = getCompaniesWithNearestExpiry();
-    return filteredCompanies.map((company) => ({
-      company_name: company.name,
-      trade_license_number: company.trade_license_number || "-",
-      trade_license_expiry: formatDate(company.trade_license_expiry),
-      trade_license_days_left: getDaysDifference(company.trade_license_expiry) || "-",
-      establishment_card_number: company.establishment_card_number || "-",
-      establishment_card_expiry: formatDate(company.establishment_card_expiry),
-      establishment_card_days_left: getDaysDifference(company.establishment_card_expiry) || "-",
-      // Additional fields for export
-      phone: company.phone || "-",
-      email: company.email || "-",
-    }));
+    return filteredCompanies.map((company) => {
+      const expiryDates = [
+        company.trade_license_expiry,
+        company.establishment_card_expiry,
+        company.expiry_date,
+      ].filter((date) => date);
+
+      const earliestExpiry = expiryDates.length > 0
+        ? expiryDates.reduce((earliest, current) =>
+          new Date(current) < new Date(earliest) ? current : earliest
+        )
+        : null;
+
+      const daysLeft = earliestExpiry ? getDaysDifference(earliestExpiry) : null;
+
+      return {
+        company_name: company.name,
+        expiry_date: earliestExpiry ? formatDate(earliestExpiry) : "-",
+        days_left: daysLeft !== null ? (daysLeft < 0 ? `Expired ${Math.abs(daysLeft)} days ago` : `${daysLeft} days`) : "-",
+        // Additional fields for export
+        phone: company.phone || "-",
+        email: company.email || "-",
+      };
+    });
   };
 
   // Backend returns only current page data
@@ -195,13 +211,9 @@ const CompanyNearestExpiryReport = () => {
     }
 
     const headers = [
-      { key: "company_name", label: "Company Name" },
-      { key: "trade_license_number", label: "Trade License" },
-      { key: "trade_license_expiry", label: "TL Expiry Date" },
-      { key: "trade_license_days_left", label: "Days Left (TL)" },
-      { key: "establishment_card_number", label: "Establishment Card" },
-      { key: "establishment_card_expiry", label: "EC Expiry Date" },
-      { key: "establishment_card_days_left", label: "Days Left (EC)" },
+      { key: "company_name", label: "Document Name" },
+      { key: "expiry_date", label: "Expiry Date" },
+      { key: "days_left", label: "Days Left" },
       { key: "phone", label: "Phone" },
       { key: "email", label: "Email" },
     ];
@@ -213,7 +225,7 @@ const CompanyNearestExpiryReport = () => {
       showToast("Company expiry data exported successfully!", "success");
     } else if (format === "pdf") {
       try {
-        const response = await apiClient.post('/admin/reports/export', 
+        const response = await apiClient.post('/admin/reports/export',
           { report_type: 'company_nearest_expiry', format: 'pdf' },
           { responseType: 'blob' }
         );
@@ -265,6 +277,7 @@ const CompanyNearestExpiryReport = () => {
       if (isWithinExpiry(company.trade_license_expiry)) tradeLicenseExpiring++;
       if (isWithinExpiry(company.establishment_card_expiry))
         establishmentCardExpiring++;
+      if (isWithinExpiry(company.expiry_date)) tradeLicenseExpiring++;
     });
 
     return { tradeLicenseExpiring, establishmentCardExpiring, totalCompanies };
@@ -275,9 +288,11 @@ const CompanyNearestExpiryReport = () => {
   const expiringWithin7Days = filteredCompanies.filter((company) => {
     const tlDays = getDaysDifference(company.trade_license_expiry);
     const ecDays = getDaysDifference(company.establishment_card_expiry);
+    const docDays = getDaysDifference(company.expiry_date);
     return (
       (tlDays !== null && tlDays <= 7 && tlDays >= 0) ||
-      (ecDays !== null && ecDays <= 7 && ecDays >= 0)
+      (ecDays !== null && ecDays <= 7 && ecDays >= 0) ||
+      (docDays !== null && docDays <= 7 && docDays >= 0)
     );
   }).length;
 
@@ -285,9 +300,11 @@ const CompanyNearestExpiryReport = () => {
     filteredCompanies.filter((company) => {
       const tlDays = getDaysDifference(company.trade_license_expiry);
       const ecDays = getDaysDifference(company.establishment_card_expiry);
+      const docDays = getDaysDifference(company.expiry_date);
       return (
         (tlDays !== null && tlDays <= 15 && tlDays >= 0) ||
-        (ecDays !== null && ecDays <= 15 && ecDays >= 0)
+        (ecDays !== null && ecDays <= 15 && ecDays >= 0) ||
+        (docDays !== null && docDays <= 15 && docDays >= 0)
       );
     }).length - expiringWithin7Days;
 
@@ -368,40 +385,6 @@ const CompanyNearestExpiryReport = () => {
           </div>
         </div>
 
-        {/* Info Cards for Document Types */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Trade License Expiring
-                </p>
-                <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                  {stats.tradeLicenseExpiring}
-                </p>
-              </div>
-              <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
-                <i className="fas fa-file-alt text-blue-600 dark:text-blue-400"></i>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  Establishment Card Expiring
-                </p>
-                <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">
-                  {stats.establishmentCardExpiring}
-                </p>
-              </div>
-              <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center">
-                <i className="fas fa-id-card text-purple-600 dark:text-purple-400"></i>
-              </div>
-            </div>
-          </div>
-        </div>
 
         {/* Filters Bar */}
         <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4 mb-6">
@@ -452,7 +435,7 @@ const CompanyNearestExpiryReport = () => {
                 setSearchTerm(val);
                 setCurrentPage(1);
               }}
-              placeholder="Search by company name, trade license, establishment card..."
+              placeholder="Search by document name, trade license, establishment card..."
             />
             <button
               onClick={() => setShowExportModal(true)}
@@ -483,22 +466,10 @@ const CompanyNearestExpiryReport = () => {
                         S.No
                       </th>
                       <th className="px-3 md:px-4 py-2 md:py-3 text-left text-[10px] md:text-xs font-semibold text-gray-500 dark:text-gray-400">
-                        COMPANY NAME
+                        DOCUMENT NAME
                       </th>
                       <th className="px-3 md:px-4 py-2 md:py-3 text-left text-[10px] md:text-xs font-semibold text-gray-500 dark:text-gray-400">
-                        TRADE LICENSE
-                      </th>
-                      <th className="px-3 md:px-4 py-2 md:py-3 text-left text-[10px] md:text-xs font-semibold text-gray-500 dark:text-gray-400">
-                        TL EXPIRY
-                      </th>
-                      <th className="px-3 md:px-4 py-2 md:py-3 text-left text-[10px] md:text-xs font-semibold text-gray-500 dark:text-gray-400">
-                        DAYS LEFT
-                      </th>
-                      <th className="px-3 md:px-4 py-2 md:py-3 text-left text-[10px] md:text-xs font-semibold text-gray-500 dark:text-gray-400">
-                        EST. CARD
-                      </th>
-                      <th className="px-3 md:px-4 py-2 md:py-3 text-left text-[10px] md:text-xs font-semibold text-gray-500 dark:text-gray-400">
-                        EC EXPIRY
+                        EXPIRY DATE
                       </th>
                       <th className="px-3 md:px-4 py-2 md:py-3 text-left text-[10px] md:text-xs font-semibold text-gray-500 dark:text-gray-400">
                         DAYS LEFT
@@ -508,12 +479,19 @@ const CompanyNearestExpiryReport = () => {
                   <tbody>
                     {pageCompanies.length > 0 ? (
                       pageCompanies.map((company, idx) => {
-                        const tlDays = getDaysDifference(
+                        const expiryDates = [
                           company.trade_license_expiry,
-                        );
-                        const ecDays = getDaysDifference(
                           company.establishment_card_expiry,
-                        );
+                          company.expiry_date,
+                        ].filter((date) => date);
+
+                        const earliestExpiry = expiryDates.length > 0
+                          ? expiryDates.reduce((earliest, current) =>
+                            new Date(current) < new Date(earliest) ? current : earliest
+                          )
+                          : null;
+
+                        const daysLeft = earliestExpiry ? getDaysDifference(earliestExpiry) : null;
 
                         return (
                           <tr
@@ -526,51 +504,24 @@ const CompanyNearestExpiryReport = () => {
                             <td className="px-3 md:px-4 py-2 md:py-3 text-xs md:text-sm font-semibold text-gray-800 dark:text-gray-200">
                               {company.name}
                             </td>
-                            <td className="px-3 md:px-4 py-2 md:py-3 text-xs md:text-sm font-mono text-gray-600 dark:text-gray-400">
-                              {company.trade_license_number || "-"}
-                            </td>
                             <td
-                              className={`px-3 md:px-4 py-2 md:py-3 text-xs md:text-sm ${getExpiryClass(company.trade_license_expiry)}`}
+                              className={`px-3 md:px-4 py-2 md:py-3 text-xs md:text-sm ${earliestExpiry ? getExpiryClass(earliestExpiry) : ""
+                                }`}
                             >
-                              {formatDate(company.trade_license_expiry)}
+                              {earliestExpiry ? formatDate(earliestExpiry) : "-"}
                             </td>
                             <td className="px-3 md:px-4 py-2 md:py-3 text-xs md:text-sm">
-                              {tlDays !== null && tlDays >= 0 ? (
+                              {daysLeft !== null ? (
                                 <span
-                                  className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold ${tlDays <= 7
+                                  className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold ${daysLeft <= 7
                                       ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
-                                      : tlDays <= 15
+                                      : daysLeft <= 15
                                         ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
                                         : "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"
                                     }`}
                                 >
-                                  <i className="fas fa-hourglass-half text-[10px]"></i>
-                                  {tlDays} days
-                                </span>
-                              ) : (
-                                "-"
-                              )}
-                            </td>
-                            <td className="px-3 md:px-4 py-2 md:py-3 text-xs md:text-sm font-mono text-gray-600 dark:text-gray-400">
-                              {company.establishment_card_number || "-"}
-                            </td>
-                            <td
-                              className={`px-3 md:px-4 py-2 md:py-3 text-xs md:text-sm ${getExpiryClass(company.establishment_card_expiry)}`}
-                            >
-                              {formatDate(company.establishment_card_expiry)}
-                            </td>
-                            <td className="px-3 md:px-4 py-2 md:py-3 text-xs md:text-sm">
-                              {ecDays !== null && ecDays >= 0 ? (
-                                <span
-                                  className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold ${ecDays <= 7
-                                      ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
-                                      : ecDays <= 15
-                                        ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
-                                        : "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"
-                                    }`}
-                                >
-                                  <i className="fas fa-hourglass-half text-[10px]"></i>
-                                  {ecDays} days
+                                  <i className={`fas ${daysLeft < 0 ? "fa-exclamation-triangle" : "fa-hourglass-half"} text-[10px]`}></i>
+                                  {daysLeft < 0 ? `Expired ${Math.abs(daysLeft)} days ago` : `${daysLeft} days`}
                                 </span>
                               ) : (
                                 "-"
@@ -582,7 +533,7 @@ const CompanyNearestExpiryReport = () => {
                     ) : (
                       <tr>
                         <td
-                          colSpan="8"
+                          colSpan="4"
                           className="px-4 py-8 text-center text-gray-500 dark:text-gray-400"
                         >
                           <div className="flex flex-col items-center justify-center gap-2">

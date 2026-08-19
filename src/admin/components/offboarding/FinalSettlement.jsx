@@ -14,6 +14,7 @@ const FinalSettlement = () => {
   const [searchParams] = useSearchParams();
   const location = useLocation();
   const offboardingId = location.state?.id || searchParams.get("id");
+  const isViewMode = !!location.state?.isView;
   
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -143,6 +144,24 @@ const FinalSettlement = () => {
     }
   };
 
+  const handleNextView = () => {
+    const currentId = offboardingId || localStorage.getItem("offboarding_id");
+    const savedVisaSponsorship = localStorage.getItem("offboarding_visa_sponsorship");
+    let isVisaReq = true;
+    
+    if (savedVisaSponsorship) {
+      isVisaReq = savedVisaSponsorship !== "Not Applicable";
+    } else if (currentId) {
+      const sessionVisaStatus = sessionStorage.getItem(`visa_required_${currentId}`);
+      if (sessionVisaStatus) {
+        isVisaReq = sessionVisaStatus === "true";
+      }
+    }
+    
+    const targetRoute = isVisaReq ? "visa-cancellation" : "exit-interview";
+    navigate(`/admin/employees/${targetRoute}?id=${currentId}`, { state: { id: currentId, isView: true } });
+  };
+
   const formatDate = (dateString) => {
     if (!dateString) return "";
     return new Date(dateString).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -196,11 +215,12 @@ const FinalSettlement = () => {
         <div className="bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700/80 rounded-2xl shadow-soft p-6 sm:p-8">
           <div className="flex justify-between items-center mb-8">
             <h1 className="text-2xl font-black text-gray-900 dark:text-white tracking-tight">
-              Final Settlement
+              {isViewMode ? "View Final Settlement" : "Final Settlement"}
             </h1>
           </div>
 
           <div className="space-y-8">
+            <fieldset disabled={isViewMode} className="w-full space-y-8">
             {/* 1. Employee Details */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <ReadOnlyInput label="Employee Name" value={emp.name} />
@@ -338,32 +358,44 @@ const FinalSettlement = () => {
                 </div>
               </div>
             </div>
+            </fieldset>
 
             {/* Submit Button */}
             <div className="flex justify-end gap-4 pt-6">
-              <button
-                onClick={() => navigate(`/admin/employees/exit-interview?id=${offboardingId}`)}
-                className="px-6 py-2.5 text-sm font-bold text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleUpdateSettlement}
-                disabled={isSubmitting}
-                className="px-6 py-2.5 text-sm font-bold text-white bg-green-500 rounded-lg hover:bg-green-600 focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-all flex items-center gap-2"
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader size={16} className="animate-spin" />
-                    Processing...
-                  </>
-                ) : (
-                  <>
-                    Update Final Settlement
-                    <ArrowRight size={16} />
-                  </>
-                )}
-              </button>
+              {isViewMode ? (
+                <button
+                  onClick={handleNextView}
+                  className="px-6 py-2.5 rounded-full font-semibold bg-blue-500 text-white hover:bg-blue-600 transition-all flex items-center justify-center gap-2"
+                >
+                  Next Step <ArrowRight size={16} />
+                </button>
+              ) : (
+                <>
+                  <button
+                    onClick={() => navigate(`/admin/employees/exit-interview?id=${offboardingId}`)}
+                    className="px-6 py-2.5 text-sm font-bold text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleUpdateSettlement}
+                    disabled={isSubmitting}
+                    className="px-6 py-2.5 text-sm font-bold text-white bg-green-500 rounded-lg hover:bg-green-600 focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-all flex items-center gap-2"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <Loader size={16} className="animate-spin" />
+                        Processing...
+                      </>
+                    ) : (
+                      <>
+                        Update Final Settlement
+                        <ArrowRight size={16} />
+                      </>
+                    )}
+                  </button>
+                </>
+              )}
             </div>
 
           </div>

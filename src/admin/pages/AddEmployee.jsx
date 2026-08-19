@@ -22,6 +22,193 @@ import {
   fetchDesignations,
 } from "../store/slices/designationSlice";
 
+// ─── HELPER COMPONENTS ──────────────────────────────────────────────────
+
+// Theme-aware Form Input
+const FormInput = ({
+  label,
+  icon,
+  required,
+  error,
+  className = "",
+  ...props
+}) => {
+  return (
+    <div className="form-group">
+      <label className="block text-xs md:text-sm font-semibold text-[var(--form-label)] mb-1 md:mb-2">
+        <i className={`${icon} text-green-500 mr-1`}></i> {label}
+        {required && <span className="text-[var(--form-error)] ml-1">*</span>}
+      </label>
+      <input
+        {...props}
+        className={`w-full px-3 md:px-4 py-2 md:py-3 bg-[var(--form-surface)] border rounded-lg text-sm md:text-base text-[var(--form-text)] transition-all focus:outline-none focus:ring-2 placeholder:text-[var(--form-placeholder)] ${
+          error
+            ? "border-[var(--form-error)] focus:border-[var(--form-error)] focus:ring-[var(--form-error)]/20"
+            : "border-[var(--form-border)] focus:border-[var(--form-border-focus)] focus:ring-[var(--form-border-focus)]/20"
+        } ${className}`}
+      />
+      {error && (
+        <p className="mt-1 text-xs text-[var(--form-error)]">{error}</p>
+      )}
+    </div>
+  );
+};
+
+// Theme-aware Form Select
+// Theme-aware Form Select - UPDATED
+const FormSelect = ({
+  label,
+  icon,
+  required,
+  error,
+  options,
+  placeholder,
+  ...props
+}) => {
+  return (
+    <div className="form-group">
+      <label className="block text-xs md:text-sm font-semibold text-[var(--form-label)] mb-1 md:mb-2">
+        <i className={`${icon} text-green-500 mr-1`}></i> {label}
+        {required && <span className="text-[var(--form-error)] ml-1">*</span>}
+      </label>
+      <select
+        {...props}
+        className={`w-full px-3 md:px-4 py-2 md:py-3 bg-[var(--form-surface)] border rounded-lg text-sm md:text-base text-[var(--form-text)] transition-all focus:outline-none focus:ring-2 ${
+          error
+            ? "border-[var(--form-error)] focus:border-[var(--form-error)] focus:ring-[var(--form-error)]/20"
+            : "border-[var(--form-border)] focus:border-[var(--form-border-focus)] focus:ring-[var(--form-border-focus)]/20"
+        } disabled:opacity-50 disabled:cursor-not-allowed appearance-none`}
+        style={{
+          // Ensure dropdown options inherit dark theme
+          colorScheme: 'dark',
+        }}
+      >
+        <option value="" className="bg-[var(--form-surface)] text-[var(--form-text)]">
+          {placeholder}
+        </option>
+        {options.map((option) => (
+          <option 
+            key={option.value} 
+            value={option.value}
+            className="bg-[var(--form-surface)] text-[var(--form-text)] hover:bg-[var(--form-surface-hover)]"
+          >
+            {option.label}
+          </option>
+        ))}
+      </select>
+      {error && (
+        <p className="mt-1 text-xs text-[var(--form-error)]">{error}</p>
+      )}
+    </div>
+  );
+};
+
+// Theme-aware Document Upload
+const DocumentUpload = ({
+  fieldKey,
+  label,
+  icon,
+  accept = "image/*,.pdf",
+  documents,
+  documentPreviews,
+  uploadingFiles,
+  handleFileChange,
+  setDocuments,
+  setDocumentPreviews,
+}) => {
+  const fileInputId = `doc_${fieldKey}`;
+  const isUploading = uploadingFiles[fieldKey];
+
+  return (
+    <div className="border border-[var(--form-border)] rounded-lg p-4 bg-[var(--form-surface)]/30">
+      <label className="block text-sm font-semibold text-[var(--form-label)] mb-3">
+        <i className={`${icon} text-green-500 mr-2`}></i>
+        {label}
+        <span className="text-xs text-[var(--form-text-muted)] ml-2">
+          (Optional)
+        </span>
+      </label>
+      <div className="flex items-center gap-3 flex-wrap">
+        <input
+          type="file"
+          id={fileInputId}
+          accept={accept}
+          onChange={(e) => {
+            e.stopPropagation();
+            handleFileChange(fieldKey, e.target.files[0]);
+          }}
+          className="hidden"
+        />
+        <button
+          type="button"
+          disabled={isUploading}
+          onClick={() => document.getElementById(fileInputId).click()}
+          className="px-4 py-2 bg-blue-500 text-white rounded-lg text-sm font-semibold hover:bg-blue-600 transition-colors flex items-center gap-2 disabled:opacity-60"
+        >
+          {isUploading ? (
+            <>
+              <i className="fas fa-spinner fa-spin"></i> Uploading...
+            </>
+          ) : (
+            <>
+              <i className="fas fa-upload"></i> Choose File
+            </>
+          )}
+        </button>
+        <span className="text-sm text-[var(--form-text-secondary)] truncate flex-1">
+          {isUploading
+            ? "Uploading file..."
+            : documents[fieldKey]
+              ? "File uploaded ✓"
+              : "No file chosen"}
+        </span>
+      </div>
+      {documentPreviews[fieldKey] && documentPreviews[fieldKey] !== "pdf" && (
+        <div className="mt-3">
+          <img
+            src={documentPreviews[fieldKey]}
+            alt={label}
+            className="h-20 w-20 object-cover rounded-lg border border-[var(--form-border)]"
+          />
+          <button
+            type="button"
+            onClick={() => {
+              setDocuments({ ...documents, [fieldKey]: null });
+              setDocumentPreviews({ ...documentPreviews, [fieldKey]: null });
+            }}
+            className="mt-2 text-xs text-[var(--form-error)] hover:text-[var(--form-error)]/80 flex items-center gap-1"
+          >
+            <i className="fas fa-trash"></i> Remove
+          </button>
+        </div>
+      )}
+      {documentPreviews[fieldKey] === "pdf" && (
+        <div className="mt-3">
+          <div className="h-20 w-20 bg-red-100 dark:bg-red-900/30 rounded-lg flex items-center justify-center border border-[var(--form-border)]">
+            <i className="fas fa-file-pdf text-red-500 text-3xl"></i>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setDocuments({ ...documents, [fieldKey]: null });
+              setDocumentPreviews({ ...documentPreviews, [fieldKey]: null });
+            }}
+            className="mt-2 text-xs text-[var(--form-error)] hover:text-[var(--form-error)]/80 flex items-center gap-1"
+          >
+            <i className="fas fa-trash"></i> Remove
+          </button>
+        </div>
+      )}
+      <p className="text-xs text-[var(--form-text-muted)] mt-2">
+        <i className="fas fa-info-circle mr-1"></i> Max size: 5MB. Allowed: JPG,
+        PNG, PDF
+      </p>
+    </div>
+  );
+};
+
+// ─── MAIN COMPONENT ─────────────────────────────────────────────────────
+
 const AddEmployee = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
@@ -30,7 +217,6 @@ const AddEmployee = () => {
   const [, setVisitedSteps] = useState([0]);
   const [stepErrors, setStepErrors] = useState({});
   const [uploadingFiles, setUploadingFiles] = useState({});
-  // Document file states
   const [documents, setDocuments] = useState({
     avatar: null,
     avatarFile: null,
@@ -59,9 +245,9 @@ const AddEmployee = () => {
   const [selectedOrgDetails, setSelectedOrgDetails] = useState(null);
   const [selectedCompanyDetails, setSelectedCompanyDetails] = useState(null);
 
-  const [idGenerationMethod, setIdGenerationMethod] = useState("manual"); // manual, auto
+  const [idGenerationMethod, setIdGenerationMethod] = useState("manual");
   const [idPrefix, setIdPrefix] = useState("EMP");
-  const [idFormat, setIdFormat] = useState("prefix+year+month+day+random"); // template
+  const [idFormat, setIdFormat] = useState("prefix+year+month+day+random");
   const [manualEmployeeId, setManualEmployeeId] = useState("");
   const [generatedPreview, setGeneratedPreview] = useState("");
 
@@ -81,7 +267,6 @@ const AddEmployee = () => {
   const { departments = [] } = useSelector((state) => state.departments || {});
   const { roles = [] } = useSelector((state) => state.roles || {});
 
-  // Initialize useForm with updated validation
   const {
     control,
     handleSubmit,
@@ -91,7 +276,6 @@ const AddEmployee = () => {
     setValue,
   } = useForm({
     defaultValues: {
-      // Step 1: Basic Info
       first_name: "",
       last_name: "",
       organization_id: "",
@@ -114,8 +298,6 @@ const AddEmployee = () => {
       nationality: "",
       marital_status: "",
       special_days: [{ name: "", date: "" }],
-
-      // Step 2: Passport Details
       passport_full_name: "",
       passport_number: "",
       passport_issued_date: "",
@@ -125,8 +307,6 @@ const AddEmployee = () => {
       address: "",
       passport_issued_from: "",
       place_of_birth: "",
-
-      // Step 3: Visa, Labor & EID Details (Merged)
       visa_number: "",
       visa_type: "",
       visa_issued_date: "",
@@ -137,8 +317,6 @@ const AddEmployee = () => {
       eid_number: "",
       eid_issued_date: "",
       eid_expiry_date: "",
-
-      // Step 5: Contact & Others
       dependents: 0,
       company_email: "",
       company_mobile_number: "",
@@ -152,7 +330,6 @@ const AddEmployee = () => {
     mode: "onChange",
   });
 
-  // UseFieldArray for special days
   const { fields, append, remove } = useFieldArray({
     control,
     name: "special_days",
@@ -171,6 +348,8 @@ const AddEmployee = () => {
   const eidIssued = watch("eid_issued_date");
   const eidExpiry = watch("eid_expiry_date");
 
+  // ─── ID GENERATION FUNCTIONS ──────────────────────────────────────────
+
   const generateEmployeeIdWithOptions = (dob, joiningDate, prefix, format) => {
     if (
       (format !== "manual" && (!dob || !joiningDate)) ||
@@ -179,7 +358,6 @@ const AddEmployee = () => {
       return "";
     }
 
-    // Parse dates
     let dobFormatted = dob;
     let joiningFormatted = joiningDate;
 
@@ -195,18 +373,12 @@ const AddEmployee = () => {
 
     const dobDate = dob ? new Date(dobFormatted) : null;
     const joiningDateObj = joiningDate ? new Date(joiningFormatted) : null;
-
-    // Get current timestamp for uniqueness
     const timestamp = Date.now().toString().slice(-4);
     const random = Math.random().toString(36).substring(2, 6).toUpperCase();
 
-    // Replace placeholders in format
     let generatedId = format;
-
-    // Replace prefix
     generatedId = generatedId.replace(/prefix/g, prefix || "EMP");
 
-    // Replace year (joining or current)
     if (generatedId.includes("year")) {
       const year = joiningDateObj
         ? joiningDateObj.getFullYear()
@@ -214,7 +386,6 @@ const AddEmployee = () => {
       generatedId = generatedId.replace(/year/g, year);
     }
 
-    // Replace month (from joining date or DOB or current)
     if (generatedId.includes("month")) {
       let month;
       if (generatedId.includes("dob_month") && dobDate) {
@@ -229,7 +400,6 @@ const AddEmployee = () => {
       }
     }
 
-    // Replace day (from DOB or joining date or current)
     if (generatedId.includes("day")) {
       let day;
       if (generatedId.includes("dob_day") && dobDate) {
@@ -244,34 +414,30 @@ const AddEmployee = () => {
       }
     }
 
-    // Replace DOB day+month (DDMM)
     if (generatedId.includes("dob_ddmm") && dobDate) {
       const dobDay = String(dobDate.getDate()).padStart(2, "0");
       const dobMonth = String(dobDate.getMonth() + 1).padStart(2, "0");
       generatedId = generatedId.replace(/dob_ddmm/g, `${dobDay}${dobMonth}`);
     }
 
-    // Replace timestamp
     if (generatedId.includes("timestamp")) {
       generatedId = generatedId.replace(/timestamp/g, timestamp);
     }
 
-    // Replace random
     if (generatedId.includes("random")) {
       generatedId = generatedId.replace(/random/g, random);
     }
 
-    // Replace sequence (you can implement DB check for uniqueness)
     if (generatedId.includes("sequence")) {
       generatedId = generatedId.replace(/sequence/g, "001");
     }
 
     generatedId = generatedId.replace(/\+/g, "-");
-
     return generatedId;
   };
 
-  // Preview generated ID when user selects auto-generation
+  // ─── EFFECTS ────────────────────────────────────────────────────────────
+
   useEffect(() => {
     if (idGenerationMethod === "auto" && watchDob && watchJoiningDate) {
       const preview = generateEmployeeIdWithOptions(
@@ -295,14 +461,12 @@ const AddEmployee = () => {
     setValue,
   ]);
 
-  // When manual ID changes
   useEffect(() => {
     if (idGenerationMethod === "manual") {
       setValue("employee_id", manualEmployeeId);
     }
   }, [manualEmployeeId, idGenerationMethod, setValue]);
 
-  // Format templates for user to choose from
   const formatOptions = [
     {
       value: "prefix+year+month+day+random",
@@ -336,12 +500,12 @@ const AddEmployee = () => {
     },
   ];
 
-  // Custom format builder helper
   const [customFormat, setCustomFormat] = useState(
     "prefix+year+month+day+timestamp",
   );
 
-  // Add these handler functions
+  // ─── HANDLERS ──────────────────────────────────────────────────────────
+
   const handleAddDepartment = async (data) => {
     setDepartmentModalLoading(true);
     try {
@@ -349,7 +513,6 @@ const AddEmployee = () => {
       if (addDepartment.fulfilled.match(result)) {
         showToast("Department added successfully", "success");
         setIsDepartmentModalOpen(false);
-        // Refresh departments list
         dispatch(fetchDepartments());
       } else {
         showToast(result.payload || "Failed to add department", "error");
@@ -368,7 +531,6 @@ const AddEmployee = () => {
       if (addDesignation.fulfilled.match(result)) {
         showToast("Designation added successfully", "success");
         setIsDesignationModalOpen(false);
-        // Refresh designations list
         dispatch(fetchDesignations());
       } else {
         showToast(result.payload || "Failed to add designation", "error");
@@ -380,62 +542,8 @@ const AddEmployee = () => {
     }
   };
 
-  const getFormatPreview = (format) => {
-    if (format === "custom") return customFormat;
-    return format;
-  };
+  // ─── FETCH DATA ────────────────────────────────────────────────────────
 
-  // Generate Employee ID function
-  const generateEmployeeId = (dob, joiningDate) => {
-    if (!dob || !joiningDate) return "";
-
-    // Parse DOB (dd/mm/yyyy)
-    let dobFormatted = dob;
-    let joiningFormatted = joiningDate;
-
-    // Convert from DD/MM/YYYY to YYYY-MM-DD for parsing
-    if (dob.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
-      const [day, month, year] = dob.split("/");
-      dobFormatted = `${year}-${month}-${day}`;
-    }
-
-    if (joiningDate.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
-      const [day, month, year] = joiningDate.split("/");
-      joiningFormatted = `${year}-${month}-${day}`;
-    }
-
-    const dobDate = new Date(dobFormatted);
-    const joiningDateObj = new Date(joiningFormatted);
-
-    if (isNaN(dobDate.getTime()) || isNaN(joiningDateObj.getTime())) {
-      return "";
-    }
-
-    // Get Joining Year (4 digits)
-    const joiningYear = joiningDateObj.getFullYear();
-
-    // Get DOB Day and Month (2 digits each)
-    const dobDay = String(dobDate.getDate()).padStart(2, "0");
-    const dobMonth = String(dobDate.getMonth() + 1).padStart(2, "0");
-    const dobDayMonth = `${dobDay}${dobMonth}`; // DDMM format
-
-    // Use last 4 digits of timestamp
-    const timestamp = Date.now().toString().slice(-4);
-
-    return `EMP${joiningYear}${dobDayMonth}${timestamp}`;
-  };
-
-  // Auto-generate employee ID when DOB or Joining Date changes
-  useEffect(() => {
-    if (watchDob && watchJoiningDate) {
-      const generatedId = generateEmployeeId(watchDob, watchJoiningDate);
-      if (generatedId) {
-        setValue("employee_id", generatedId);
-      }
-    }
-  }, [watchDob, watchJoiningDate, setValue]);
-
-  // Fetch initial data
   useEffect(() => {
     dispatch(fetchOrganizations());
     dispatch(fetchDesignations());
@@ -443,20 +551,15 @@ const AddEmployee = () => {
     dispatch(fetchRoles());
   }, [dispatch]);
 
-  // Fetch companies when organization changes
   useEffect(() => {
     if (watchOrganizationId) {
       const org = organizations.find(
         (org) => org.id === parseInt(watchOrganizationId),
       );
-
       setSelectedOrgDetails(org || null);
-
-      // Fetch companies only if organization has multiple companies (multi_company === "Yes")
       if (org && org.multi_company === "Yes") {
         dispatch(fetchCompanies(watchOrganizationId));
       } else {
-        // Clear company selection if organization doesn't have multiple companies
         setValue("company_id", "");
         setSelectedCompanyDetails(null);
       }
@@ -466,15 +569,12 @@ const AddEmployee = () => {
     }
   }, [watchOrganizationId, organizations, dispatch, setValue]);
 
-  // Get company details when company_id changes
   useEffect(() => {
     if (watchCompanyId && companies.length > 0) {
       const company = companies.find(
         (comp) => comp.id === parseInt(watchCompanyId),
       );
       setSelectedCompanyDetails(company || null);
-
-      // Clear labor fields if company has freezone trade license
       if (company && company.raw?.trade_license === "freezone") {
         setValue("labor_number", "");
         setValue("labor_issued_date", "");
@@ -485,6 +585,8 @@ const AddEmployee = () => {
     }
   }, [watchCompanyId, companies, setValue]);
 
+  // ─── STEP CONFIGURATION ───────────────────────────────────────────────
+
   const steps = [
     { number: 1, title: "Basic Info", icon: "fas fa-user-circle" },
     { number: 2, title: "Passport", icon: "fas fa-passport" },
@@ -492,7 +594,6 @@ const AddEmployee = () => {
     { number: 4, title: "Contact", icon: "fas fa-address-card" },
   ];
 
-  // Only employee and admin user types
   const userTypeOptions = [
     { value: "employee", label: "Employee" },
     { value: "admin", label: "Admin" },
@@ -536,7 +637,6 @@ const AddEmployee = () => {
           "dob",
           "joining_date",
         ];
-        // Only add company_id to validation if multi_company is "Yes"
         if (selectedOrgDetails?.multi_company === "Yes") {
           fields.push("company_id");
         }
@@ -562,101 +662,7 @@ const AddEmployee = () => {
     }
   };
 
-  // Document upload component
-  const DocumentUpload = ({
-    fieldKey,
-    label,
-    icon,
-    accept = "image/*,.pdf",
-  }) => {
-    const fileInputId = `doc_${fieldKey}`;
-    const isUploading = uploadingFiles[fieldKey];
-
-    return (
-      <div className="border border-gray-200 rounded-lg p-4 bg-gray-50/30">
-        <label className="block text-sm font-semibold text-gray-700 mb-3">
-          <i className={`${icon} text-green-500 mr-2`}></i>
-          {label}
-          <span className="text-xs text-gray-400 ml-2">(Optional)</span>
-        </label>
-        <div className="flex items-center gap-3 flex-wrap">
-          <input
-            type="file"
-            id={fileInputId}
-            accept={accept}
-            onChange={(e) => {
-              e.stopPropagation();
-              handleFileChange(fieldKey, e.target.files[0]);
-            }}
-            className="hidden"
-          />
-          <button
-            type="button"
-            disabled={isUploading}
-            onClick={() => document.getElementById(fileInputId).click()}
-            className="px-4 py-2 bg-blue-500 text-white rounded-lg text-sm font-semibold hover:bg-blue-600 transition-colors flex items-center gap-2 disabled:opacity-60"
-          >
-            {isUploading ? (
-              <>
-                <i className="fas fa-spinner fa-spin"></i> Uploading...
-              </>
-            ) : (
-              <>
-                <i className="fas fa-upload"></i> Choose File
-              </>
-            )}
-          </button>
-          <span className="text-sm text-gray-500 truncate flex-1">
-            {isUploading
-              ? "Uploading file..."
-              : documents[fieldKey]
-                ? "File uploaded ✓"
-                : "No file chosen"}
-          </span>
-        </div>
-        {documentPreviews[fieldKey] && documentPreviews[fieldKey] !== "pdf" && (
-          <div className="mt-3">
-            <img
-              src={documentPreviews[fieldKey]}
-              alt={label}
-              className="h-20 w-20 object-cover rounded-lg border border-gray-200"
-            />
-            <button
-              type="button"
-              onClick={() => {
-                setDocuments({ ...documents, [fieldKey]: null });
-                setDocumentPreviews({ ...documentPreviews, [fieldKey]: null });
-              }}
-              className="mt-2 text-xs text-red-500 hover:text-red-600 flex items-center gap-1"
-            >
-              <i className="fas fa-trash"></i> Remove
-            </button>
-          </div>
-        )}
-        {documentPreviews[fieldKey] === "pdf" && (
-          <div className="mt-3">
-            <div className="h-20 w-20 bg-red-100 rounded-lg flex items-center justify-center border border-gray-200">
-              <i className="fas fa-file-pdf text-red-500 text-3xl"></i>
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                setDocuments({ ...documents, [fieldKey]: null });
-                setDocumentPreviews({ ...documentPreviews, [fieldKey]: null });
-              }}
-              className="mt-2 text-xs text-red-500 hover:text-red-600 flex items-center gap-1"
-            >
-              <i className="fas fa-trash"></i> Remove
-            </button>
-          </div>
-        )}
-        <p className="text-xs text-gray-400 mt-2">
-          <i className="fas fa-info-circle mr-1"></i> Max size: 5MB. Allowed:
-          JPG, PNG, PDF
-        </p>
-      </div>
-    );
-  };
+  // ─── FILE HANDLING ─────────────────────────────────────────────────────
 
   const handleFileChange = async (fieldKey, file) => {
     if (!file) return;
@@ -668,7 +674,6 @@ const AddEmployee = () => {
       return;
     }
 
-    // Create preview for display
     if (file.type.startsWith("image/")) {
       const reader = new FileReader();
       reader.onload = (e) => {
@@ -698,7 +703,6 @@ const AddEmployee = () => {
 
       const result = response.data;
       if (result.status && result.path) {
-        // Store the temp path for ALL files (including avatar)
         setDocuments((prev) => ({ ...prev, [fieldKey]: result.path }));
         setUploadedTempFiles((prev) => ({ ...prev, [fieldKey]: true }));
         showToast(`File uploaded successfully`, "success");
@@ -714,9 +718,10 @@ const AddEmployee = () => {
     }
   };
 
+  // ─── NAVIGATION ────────────────────────────────────────────────────────
+
   const handleNext = async () => {
     const fieldsToValidate = getStepFields(currentStep);
-
     const isValid = await trigger(fieldsToValidate);
 
     if (isValid) {
@@ -756,11 +761,11 @@ const AddEmployee = () => {
     }
   };
 
+  // ─── FORM SUBMISSION ──────────────────────────────────────────────────
+
   const onSubmit = async (data) => {
     setLoading(true);
 
-
-    // Helper function to convert date from dd/mm/yyyy to YYYY-MM-DD
     const convertDateToBackend = (dateString) => {
       if (!dateString) return "";
       if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
@@ -775,11 +780,9 @@ const AddEmployee = () => {
 
     const formData = new FormData();
 
-    // Basic required fields
     formData.append("first_name", data.first_name);
     formData.append("last_name", data.last_name || "");
 
-    // Use auto-generated employee ID
     const employeeId = data.employee_id;
     if (!employeeId) {
       showToast("Please wait, Employee ID is being generated", "error");
@@ -814,7 +817,6 @@ const AddEmployee = () => {
     formData.append("nationality", data.nationality || "");
     formData.append("marital_status", data.marital_status || "");
 
-    // DOB and Joining Date - required
     const dob = convertDateToBackend(data.dob);
     const joiningDate = convertDateToBackend(data.joining_date);
 
@@ -832,17 +834,52 @@ const AddEmployee = () => {
     formData.append("dob", dob);
     formData.append("joining_date", joiningDate);
 
-    if (data.probation_start_date) formData.append("probation_start_date", convertDateToBackend(data.probation_start_date));
-    if (data.probation_end_date) formData.append("probation_end_date", convertDateToBackend(data.probation_end_date));
-    if (data.confirmation_date) formData.append("confirmation_date", convertDateToBackend(data.confirmation_date));
-    if (data.contract_start_date) formData.append("contract_start_date", convertDateToBackend(data.contract_start_date));
-    if (data.contract_end_date) formData.append("contract_end_date", convertDateToBackend(data.contract_end_date));
-    if (data.notice_period_start_date) formData.append("notice_period_start_date", convertDateToBackend(data.notice_period_start_date));
-    if (data.last_working_day) formData.append("last_working_day", convertDateToBackend(data.last_working_day));
-    if (data.resignation_date) formData.append("resignation_date", convertDateToBackend(data.resignation_date));
-    if (data.relieving_date) formData.append("relieving_date", convertDateToBackend(data.relieving_date));
+    if (data.probation_start_date)
+      formData.append(
+        "probation_start_date",
+        convertDateToBackend(data.probation_start_date),
+      );
+    if (data.probation_end_date)
+      formData.append(
+        "probation_end_date",
+        convertDateToBackend(data.probation_end_date),
+      );
+    if (data.confirmation_date)
+      formData.append(
+        "confirmation_date",
+        convertDateToBackend(data.confirmation_date),
+      );
+    if (data.contract_start_date)
+      formData.append(
+        "contract_start_date",
+        convertDateToBackend(data.contract_start_date),
+      );
+    if (data.contract_end_date)
+      formData.append(
+        "contract_end_date",
+        convertDateToBackend(data.contract_end_date),
+      );
+    if (data.notice_period_start_date)
+      formData.append(
+        "notice_period_start_date",
+        convertDateToBackend(data.notice_period_start_date),
+      );
+    if (data.last_working_day)
+      formData.append(
+        "last_working_day",
+        convertDateToBackend(data.last_working_day),
+      );
+    if (data.resignation_date)
+      formData.append(
+        "resignation_date",
+        convertDateToBackend(data.resignation_date),
+      );
+    if (data.relieving_date)
+      formData.append(
+        "relieving_date",
+        convertDateToBackend(data.relieving_date),
+      );
 
-    // Special days - Send as arrays
     if (data.special_days && data.special_days.length > 0) {
       const validSpecialDays = data.special_days.filter(
         (day) => day.name && day.name.trim() !== "" && day.date,
@@ -886,7 +923,6 @@ const AddEmployee = () => {
     formData.append("address", data.address || "");
 
     formData.append("visa_number", data.visa_number || "");
-
     formData.append("visa_type", data.visa_type || "");
 
     const visaIssuedConverted = convertDateToBackend(data.visa_issued_date);
@@ -895,17 +931,13 @@ const AddEmployee = () => {
     const visaExpiryConverted = convertDateToBackend(data.visa_expiry_date);
     formData.append("visa_expiry_date", visaExpiryConverted);
 
-    // Only send labor data if company trade license is "mainland"
     if (selectedCompanyDetails?.raw?.trade_license === "mainland") {
       formData.append("labor_number", data.labor_number || "");
-
       const laborIssuedConverted = convertDateToBackend(data.labor_issued_date);
       formData.append("labor_issued_date", laborIssuedConverted);
-
       const laborExpiryConverted = convertDateToBackend(data.labor_expiry_date);
       formData.append("labor_expiry_date", laborExpiryConverted);
     } else {
-      // Send empty strings for freezone companies
       formData.append("labor_number", "");
       formData.append("labor_issued_date", "");
       formData.append("labor_expiry_date", "");
@@ -931,14 +963,10 @@ const AddEmployee = () => {
     formData.append("home_country_number", data.home_country_number || "");
     formData.append("role_id", data.role || "");
 
-    // ============ Documents - send temp paths ============
-
-    // Avatar
     if (documents.avatar) {
       formData.append("avatar", documents.avatar);
     }
 
-    // All document fields
     const documentFields = [
       "passport_1st_page",
       "passport_2nd_page",
@@ -960,37 +988,29 @@ const AddEmployee = () => {
       }
     });
 
-    // Additional documents
-    // Additional documents - FIXED with correct field names and file paths
     if (additionalDocuments.length > 0) {
-      // Send each additional document as separate fields with indices
       additionalDocuments.forEach((doc, index) => {
-        // Send the file path (temp path from server)
         if (doc.file_path) {
           formData.append(
             `additional_documents[${index}][file_path]`,
             doc.file_path,
           );
         }
-        // Send the file (as backup)
         if (doc.file) {
           formData.append(`additional_documents[${index}][file]`, doc.file);
         }
-        // Send the document name
         if (doc.document_name || doc.name) {
           formData.append(
             `additional_documents[${index}][document_name]`,
             doc.document_name || doc.name,
           );
         }
-        // Send the filename
         if (doc.filename) {
           formData.append(
             `additional_documents[${index}][filename]`,
             doc.filename,
           );
         }
-        // Send expiry date if exists
         if (doc.expiry_date) {
           formData.append(
             `additional_documents[${index}][expiry_date]`,
@@ -1006,7 +1026,6 @@ const AddEmployee = () => {
       showToast(`Employee added successfully!`, "success");
       navigate("/admin/employees");
     } else {
-      console.error("8. Failed to add employee:", result.payload);
       const errorPayload = result.payload;
       if (errorPayload && errorPayload.errors) {
         const errorMessages = Object.entries(errorPayload.errors).map(
@@ -1023,11 +1042,12 @@ const AddEmployee = () => {
     setLoading(false);
   };
 
+  // ─── DOCUMENT MODAL HANDLER ───────────────────────────────────────────
+
   const handleAddDocument = async (docData) => {
     setUploadingDoc(true);
 
     try {
-      // Upload the file to temp storage
       const formData = new FormData();
       formData.append("file", docData.file);
 
@@ -1049,7 +1069,6 @@ const AddEmployee = () => {
 
         const filename = extractFilename(result.path);
 
-        // Create preview for display
         let preview = null;
         if (docData.file.type.startsWith("image/")) {
           const reader = new FileReader();
@@ -1057,14 +1076,14 @@ const AddEmployee = () => {
             setAdditionalDocuments((prev) => [
               ...prev,
               {
-                id: Date.now() + Math.random(), // unique id
+                id: Date.now() + Math.random(),
                 name: docData.name,
-                document_name: docData.name, // for backend compatibility
+                document_name: docData.name,
                 filename: filename,
-                file_path: result.path, // IMPORTANT: Store the temp path
+                file_path: result.path,
                 file: docData.file,
                 preview: e.target.result,
-                expiry_date: docData.expiry_date || null, // Add expiry date
+                expiry_date: docData.expiry_date || null,
               },
             ]);
           };
@@ -1077,7 +1096,7 @@ const AddEmployee = () => {
               name: docData.name,
               document_name: docData.name,
               filename: filename,
-              file_path: result.path, // IMPORTANT: Store the temp path
+              file_path: result.path,
               file: docData.file,
               preview: "pdf",
               expiry_date: docData.expiry_date || null,
@@ -1096,7 +1115,9 @@ const AddEmployee = () => {
       setUploadingDoc(false);
     }
   };
-  // Validation rules
+
+  // ─── VALIDATION RULES ─────────────────────────────────────────────────
+
   const validationRules = {
     first_name: {
       required: "First name is required",
@@ -1141,7 +1162,8 @@ const AddEmployee = () => {
     },
   };
 
-  // Date validation functions
+  // ─── DATE VALIDATION ──────────────────────────────────────────────────
+
   const validateIssueDate = (issueDate, expiryDate, fieldName) => {
     if (!issueDate) return true;
     const today = new Date();
@@ -1172,6 +1194,8 @@ const AddEmployee = () => {
     return true;
   };
 
+  // ─── RENDER ─────────────────────────────────────────────────────────────
+
   return (
     <div className="w-full overflow-x-hidden px-4 md:px-6">
       {/* Breadcrumbs */}
@@ -1182,16 +1206,16 @@ const AddEmployee = () => {
         >
           Employees
         </Link>
-        <i className="fas fa-chevron-right text-gray-400 text-[10px] md:text-xs"></i>
-        <span className="text-gray-500">Add Employee</span>
+        <i className="fas fa-chevron-right text-[var(--form-text-muted)] text-[10px] md:text-xs"></i>
+        <span className="text-[var(--form-text-secondary)]">Add Employee</span>
       </div>
 
       {/* Page Header */}
       <div className="mb-4 md:mb-6">
-        <h2 className="text-xl md:text-3xl font-bold bg-gradient-to-r from-gray-800 to-green-600 bg-clip-text text-transparent">
+        <h2 className="text-xl md:text-3xl font-bold bg-gradient-to-r from-gray-800 to-green-600 bg-clip-text text-transparent dark:from-gray-200 dark:to-green-400">
           <i className="fas fa-user-plus mr-2"></i> Add New Employee
         </h2>
-        <p className="text-sm text-gray-500 mt-1">
+        <p className="text-sm text-[var(--form-text-secondary)] mt-1">
           Fill in the employee details below
         </p>
       </div>
@@ -1208,10 +1232,10 @@ const AddEmployee = () => {
                 currentStep === index
                   ? "bg-green-500 text-white shadow-md"
                   : stepErrors[index]
-                    ? "bg-red-50 text-red-600 border border-red-300"
+                    ? "bg-[var(--form-error-bg)] text-[var(--form-error)] border border-[var(--form-error-border)]"
                     : index < currentStep
                       ? "text-green-500"
-                      : "text-gray-500 bg-gray-100"
+                      : "bg-[var(--form-surface)] text-[var(--form-text-secondary)] border border-[var(--form-border)]"
               }`}
             >
               <i className={`${step.icon} mr-1 text-xs md:text-sm`}></i>
@@ -1228,7 +1252,7 @@ const AddEmployee = () => {
       </div>
 
       {/* Form Container */}
-      <div className="bg-white border border-gray-200 rounded-xl p-4 md:p-6 lg:p-8 shadow-soft">
+      <div className="bg-[var(--form-bg)] border border-[var(--form-border)] rounded-xl p-4 md:p-6 lg:p-8 shadow-[var(--form-shadow)]">
         <form
           onSubmit={(e) => {
             if (currentStep !== steps.length - 1) {
@@ -1240,185 +1264,151 @@ const AddEmployee = () => {
         >
           <div className="space-y-8">
             {stepErrors[currentStep] && (
-              <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2">
-                <p className="text-xs md:text-sm text-red-600">
+              <div className="rounded-lg border border-[var(--form-error-border)] bg-[var(--form-error-bg)] px-3 py-2">
+                <p className="text-xs md:text-sm text-[var(--form-error)]">
                   <i className="fas fa-exclamation-circle mr-1"></i>
                   Please complete required fields in this section.
                 </p>
               </div>
             )}
 
-            {/* Step 0 - Basic Info */}
+            {/* ─── STEP 0: BASIC INFO ────────────────────────────────────── */}
             <div className={currentStep === 0 ? "block" : "hidden"}>
               <div>
                 <div className="form-section-title mb-4 md:mb-6">
                   <i className="fas fa-user-circle text-green-500 mr-2"></i>
-                  <h3 className="text-base md:text-lg font-bold text-gray-800">
+                  <h3 className="text-base md:text-lg font-bold text-[var(--form-text)]">
                     Basic Information
                   </h3>
                 </div>
                 {stepErrors[0] && (
-                  <p className="text-xs md:text-sm text-red-500 mb-4">
+                  <p className="text-xs md:text-sm text-[var(--form-error)] mb-4">
                     <i className="fas fa-exclamation-triangle mr-1"></i>
                     Please fill all mandatory fields in this section.
                   </p>
                 )}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5">
-                  <div>
-                    <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
-                      <i className="fas fa-user text-green-500 mr-1"></i> First
-                      Name <span className="text-red-500">*</span>
-                    </label>
-                    <Controller
-                      name="first_name"
-                      control={control}
-                      rules={validationRules.first_name}
-                      render={({ field }) => (
-                        <>
-                          <input
-                            {...field}
-                            type="text"
-                            className={`w-full px-3 md:px-4 py-2 md:py-3 bg-gray-50 border rounded-lg text-sm md:text-base text-gray-800 transition-all focus:outline-none focus:ring-2 ${errors.first_name ? "border-red-500 focus:border-red-500" : "border-gray-200 focus:border-green-500 focus:ring-green-500/20"}`}
-                            placeholder="Enter first name"
-                          />
-                          {errors.first_name && (
-                            <p className="mt-1 text-xs text-red-500">
-                              {errors.first_name.message}
-                            </p>
-                          )}
-                        </>
-                      )}
-                    />
-                  </div>
+                  <Controller
+                    name="first_name"
+                    control={control}
+                    rules={validationRules.first_name}
+                    render={({ field }) => (
+                      <FormInput
+                        {...field}
+                        label="First Name"
+                        icon="fas fa-user"
+                        required
+                        error={errors.first_name?.message}
+                        placeholder="Enter first name"
+                      />
+                    )}
+                  />
 
-                  <div>
-                    <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
-                      <i className="fas fa-user text-green-500 mr-1"></i> Last
-                      Name
-                    </label>
-                    <Controller
-                      name="last_name"
-                      control={control}
-                      render={({ field }) => (
-                        <input
-                          {...field}
-                          type="text"
-                          className="w-full px-3 md:px-4 py-2 md:py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm md:text-base text-gray-800 focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-500/20"
-                          placeholder="Enter last name"
-                        />
-                      )}
-                    />
-                  </div>
+                  <Controller
+                    name="last_name"
+                    control={control}
+                    render={({ field }) => (
+                      <FormInput
+                        {...field}
+                        label="Last Name"
+                        icon="fas fa-user"
+                        placeholder="Enter last name"
+                      />
+                    )}
+                  />
 
-                  <div>
-                    <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
-                      <i className="fas fa-building text-green-500 mr-1"></i>{" "}
-                      Organization <span className="text-red-500">*</span>
-                    </label>
-                    <Controller
-                      name="organization_id"
-                      control={control}
-                      rules={validationRules.organization_id}
-                      render={({ field }) => (
-                        <>
-                          <select
-                            {...field}
-                            className={`w-full px-3 md:px-4 py-2 md:py-3 bg-gray-50 border rounded-lg text-sm md:text-base text-gray-800 transition-all focus:outline-none focus:ring-2 ${errors.organization_id ? "border-red-500" : "border-gray-200 focus:border-green-500"}`}
-                          >
-                            <option value="">Select Organization</option>
-                            {organizations.map((org) => (
-                              <option key={org.id} value={org.id}>
-                                {org.name}
-                              </option>
-                            ))}
-                          </select>
-                          {errors.organization_id && (
-                            <p className="mt-1 text-xs text-red-500">
-                              {errors.organization_id.message}
-                            </p>
-                          )}
-                        </>
-                      )}
-                    />
-                  </div>
+                  <Controller
+                    name="organization_id"
+                    control={control}
+                    rules={validationRules.organization_id}
+                    render={({ field }) => (
+                      <FormSelect
+                        {...field}
+                        label="Organization"
+                        icon="fas fa-building"
+                        required
+                        error={errors.organization_id?.message}
+                        options={organizations.map((org) => ({
+                          value: org.id,
+                          label: org.name,
+                        }))}
+                        placeholder="Select Organization"
+                      />
+                    )}
+                  />
 
-                  <div>
-                    <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
-                      <i className="fas fa-building text-green-500 mr-1"></i>{" "}
-                      Company
-                      {selectedOrgDetails?.multi_company === "Yes" && (
-                        <span className="text-red-500">*</span>
-                      )}
-                    </label>
-                    <Controller
-                      name="company_id"
-                      control={control}
-                      rules={{
-                        required:
-                          selectedOrgDetails?.multi_company === "Yes"
-                            ? "Company is required"
-                            : false,
-                      }}
-                      render={({ field }) => (
-                        <>
-                          <select
-                            {...field}
-                            disabled={
-                              selectedOrgDetails?.multi_company !== "Yes"
-                            }
-                            className={`w-full px-3 md:px-4 py-2 md:py-3 bg-gray-50 border rounded-lg text-sm md:text-base text-gray-800 transition-all focus:outline-none focus:ring-2 ${
-                              selectedOrgDetails?.multi_company !== "Yes"
-                                ? "opacity-50 cursor-not-allowed"
+                  <Controller
+                    name="company_id"
+                    control={control}
+                    rules={{
+                      required:
+                        selectedOrgDetails?.multi_company === "Yes"
+                          ? "Company is required"
+                          : false,
+                    }}
+                    render={({ field }) => (
+                      <FormSelect
+                        {...field}
+                        label="Company"
+                        icon="fas fa-building"
+                        required={selectedOrgDetails?.multi_company === "Yes"}
+                        error={errors.company_id?.message}
+                        options={
+                          companies.map((company) => ({
+                            value: company.id,
+                            label: `${company.company_name || company.name}${
+                              company.raw?.trade_license
+                                ? ` (${company.raw?.trade_license})`
                                 : ""
-                            } ${errors.company_id ? "border-red-500" : "border-gray-200 focus:border-green-500"}`}
-                          >
-                            <option value="">
-                              {selectedOrgDetails?.multi_company === "Yes"
-                                ? "Select Company"
-                                : selectedOrgDetails
-                                  ? "No multiple companies"
-                                  : "Select organization first"}
-                            </option>
-                            {companies.map((company) => (
-                              <option key={company.id} value={company.id}>
-                                {company.company_name || company.name}
-                                {company.raw?.trade_license && (
-                                  <span className="text-xs text-gray-500 ml-1">
-                                    ({company.raw?.trade_license})
-                                  </span>
-                                )}
-                              </option>
-                            ))}
-                          </select>
-                          {errors.company_id && (
-                            <p className="mt-1 text-xs text-red-500">
-                              {errors.company_id.message}
-                            </p>
-                          )}
-                        </>
-                      )}
-                    />
-                  </div>
+                            }`,
+                          })) || []
+                        }
+                        placeholder={
+                          selectedOrgDetails?.multi_company === "Yes"
+                            ? "Select Company"
+                            : selectedOrgDetails
+                              ? "No multiple companies"
+                              : "Select organization first"
+                        }
+                        disabled={selectedOrgDetails?.multi_company !== "Yes"}
+                      />
+                    )}
+                  />
 
-                  {/* Show trade license info when company is selected */}
+                  {/* Trade License Info */}
                   {selectedCompanyDetails &&
                     selectedCompanyDetails.raw?.trade_license && (
                       <div className="md:col-span-2">
                         <div
-                          className={`p-3 rounded-lg ${selectedCompanyDetails.raw?.trade_license === "mainland" ? "bg-blue-50 border border-blue-200" : "bg-yellow-50 border border-yellow-200"}`}
+                          className={`p-3 rounded-lg ${
+                            selectedCompanyDetails.raw?.trade_license ===
+                            "mainland"
+                              ? "bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800"
+                              : "bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800"
+                          }`}
                         >
                           <div className="flex items-center gap-2">
                             <i
-                              className={`fas ${selectedCompanyDetails.raw?.trade_license === "mainland" ? "fa-building" : "fa-globe"} ${selectedCompanyDetails.raw?.trade_license === "mainland" ? "text-blue-600" : "text-yellow-600"}`}
+                              className={`fas ${
+                                selectedCompanyDetails.raw?.trade_license ===
+                                "mainland"
+                                  ? "fa-building"
+                                  : "fa-globe"
+                              } ${
+                                selectedCompanyDetails.raw?.trade_license ===
+                                "mainland"
+                                  ? "text-blue-600 dark:text-blue-400"
+                                  : "text-yellow-600 dark:text-yellow-400"
+                              }`}
                             ></i>
-                            <span className="text-sm font-semibold text-gray-700">
+                            <span className="text-sm font-semibold text-[var(--form-text)]">
                               Company Trade License:{" "}
                               <span
                                 className={
                                   selectedCompanyDetails.raw?.trade_license ===
                                   "mainland"
-                                    ? "text-blue-600"
-                                    : "text-yellow-600"
+                                    ? "text-blue-600 dark:text-blue-400"
+                                    : "text-yellow-600 dark:text-yellow-400"
                                 }
                               >
                                 {selectedCompanyDetails.raw?.trade_license.toUpperCase()}
@@ -1429,221 +1419,184 @@ const AddEmployee = () => {
                       </div>
                     )}
 
-                  <div>
-                    <div className="flex items-center justify-between mb-1 md:mb-2">
-                      <label className="block text-xs md:text-sm font-semibold text-gray-700">
-                        <i className="fas fa-diagram-project text-green-500 mr-1"></i>{" "}
-                        Department <span className="text-red-500">*</span>
-                      </label>
-                      <button
-                        type="button"
-                        onClick={() => setIsDepartmentModalOpen(true)}
-                        className="text-green-500 hover:text-green-600 text-xs font-normal transition-colors flex items-center gap-1"
-                        title="Add new department"
-                      >
-                        <i className="fas fa-plus-circle text-sm"></i>
-                      </button>
-                    </div>
-                    <Controller
-                      name="department_id"
-                      control={control}
-                      rules={validationRules.department_id}
-                      render={({ field }) => (
-                        <>
-                          <select
-                            {...field}
-                            className={`w-full px-3 md:px-4 py-2 md:py-3 bg-gray-50 border rounded-lg text-sm md:text-base text-gray-800 focus:outline-none focus:ring-2 ${errors.department_id ? "border-red-500" : "border-gray-200 focus:border-green-500 focus:ring-green-500/20"}`}
+                  <Controller
+                    name="department_id"
+                    control={control}
+                    rules={validationRules.department_id}
+                    render={({ field }) => (
+                      <div>
+                        <div className="flex items-center justify-between mb-1 md:mb-2">
+                          <label className="block text-xs md:text-sm font-semibold text-[var(--form-label)]">
+                            <i className="fas fa-diagram-project text-green-500 mr-1"></i>{" "}
+                            Department{" "}
+                            <span className="text-[var(--form-error)]">*</span>
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => setIsDepartmentModalOpen(true)}
+                            className="text-green-500 hover:text-green-600 text-xs font-normal transition-colors flex items-center gap-1"
+                            title="Add new department"
                           >
-                            <option value="">Select Department</option>
-                            {departments.map((dept) => (
-                              <option key={dept.id} value={dept.id}>
-                                {dept.name}
-                              </option>
-                            ))}
-                          </select>
-                          {errors.department_id && (
-                            <p className="mt-1 text-xs text-red-500">
-                              {errors.department_id.message}
-                            </p>
-                          )}
-                        </>
-                      )}
-                    />
-                  </div>
-                  <div>
-                    <div className="flex items-center justify-between mb-1 md:mb-2">
-                      <label className="block text-xs md:text-sm font-semibold text-gray-700">
-                        <i className="fas fa-briefcase text-green-500 mr-1"></i>{" "}
-                        Designation <span className="text-red-500">*</span>
-                      </label>
-                      <button
-                        type="button"
-                        onClick={() => setIsDesignationModalOpen(true)}
-                        className="text-green-500 hover:text-green-600 text-xs font-normal transition-colors flex items-center gap-1"
-                        title="Add new designation"
-                      >
-                        <i className="fas fa-plus-circle text-sm"></i>
-                      </button>
-                    </div>
-                    <Controller
-                      name="designation_id"
-                      control={control}
-                      rules={validationRules.designation_id}
-                      render={({ field }) => (
-                        <>
-                          <select
-                            {...field}
-                            className={`w-full px-3 md:px-4 py-2 md:py-3 bg-gray-50 border rounded-lg text-sm md:text-base text-gray-800 focus:outline-none focus:ring-2 ${errors.designation_id ? "border-red-500" : "border-gray-200 focus:border-green-500 focus:ring-green-500/20"}`}
+                            <i className="fas fa-plus-circle text-sm"></i>
+                          </button>
+                        </div>
+                        <select
+                          {...field}
+                          className={`w-full px-3 md:px-4 py-2 md:py-3 bg-[var(--form-surface)] border rounded-lg text-sm md:text-base text-[var(--form-text)] transition-all focus:outline-none focus:ring-2 ${
+                            errors.department_id
+                              ? "border-[var(--form-error)] focus:border-[var(--form-error)] focus:ring-[var(--form-error)]/20"
+                              : "border-[var(--form-border)] focus:border-[var(--form-border-focus)] focus:ring-[var(--form-border-focus)]/20"
+                          }`}
+                        >
+                          <option value="">Select Department</option>
+                          {departments.map((dept) => (
+                            <option key={dept.id} value={dept.id}>
+                              {dept.name}
+                            </option>
+                          ))}
+                        </select>
+                        {errors.department_id && (
+                          <p className="mt-1 text-xs text-[var(--form-error)]">
+                            {errors.department_id.message}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  />
+
+                  <Controller
+                    name="designation_id"
+                    control={control}
+                    rules={validationRules.designation_id}
+                    render={({ field }) => (
+                      <div>
+                        <div className="flex items-center justify-between mb-1 md:mb-2">
+                          <label className="block text-xs md:text-sm font-semibold text-[var(--form-label)]">
+                            <i className="fas fa-briefcase text-green-500 mr-1"></i>{" "}
+                            Designation{" "}
+                            <span className="text-[var(--form-error)]">*</span>
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => setIsDesignationModalOpen(true)}
+                            className="text-green-500 hover:text-green-600 text-xs font-normal transition-colors flex items-center gap-1"
+                            title="Add new designation"
                           >
-                            <option value="">Select Designation</option>
-                            {designations.map((desig) => (
-                              <option key={desig.id} value={desig.id}>
-                                {desig.name}
-                              </option>
-                            ))}
-                          </select>
-                          {errors.designation_id && (
-                            <p className="mt-1 text-xs text-red-500">
-                              {errors.designation_id.message}
-                            </p>
-                          )}
-                        </>
-                      )}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
-                      <i className="fas fa-user-tag text-green-500 mr-1"></i>{" "}
-                      User Type <span className="text-red-500">*</span>
-                    </label>
-                    <Controller
-                      name="type"
-                      control={control}
-                      rules={validationRules.type}
-                      render={({ field }) => (
-                        <>
-                          <select
-                            {...field}
-                            className={`w-full px-3 md:px-4 py-2 md:py-3 bg-gray-50 border rounded-lg text-sm md:text-base text-gray-800 transition-all focus:outline-none focus:ring-2 ${errors.type ? "border-red-500" : "border-gray-200 focus:border-green-500"}`}
-                          >
-                            <option value="">Select User Type</option>
-                            {userTypeOptions.map((type) => (
-                              <option key={type.value} value={type.value}>
-                                {type.label}
-                              </option>
-                            ))}
-                          </select>
-                          {errors.type && (
-                            <p className="mt-1 text-xs text-red-500">
-                              {errors.type.message}
-                            </p>
-                          )}
-                        </>
-                      )}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
-                      <i className="fas fa-venus-mars text-green-500 mr-1"></i>{" "}
-                      Gender
-                    </label>
-                    <Controller
-                      name="gender"
-                      control={control}
-                      render={({ field }) => (
+                            <i className="fas fa-plus-circle text-sm"></i>
+                          </button>
+                        </div>
                         <select
                           {...field}
-                          className="w-full px-3 md:px-4 py-2 md:py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm md:text-base text-gray-800 focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-500/20"
+                          className={`w-full px-3 md:px-4 py-2 md:py-3 bg-[var(--form-surface)] border rounded-lg text-sm md:text-base text-[var(--form-text)] transition-all focus:outline-none focus:ring-2 ${
+                            errors.designation_id
+                              ? "border-[var(--form-error)] focus:border-[var(--form-error)] focus:ring-[var(--form-error)]/20"
+                              : "border-[var(--form-border)] focus:border-[var(--form-border-focus)] focus:ring-[var(--form-border-focus)]/20"
+                          }`}
                         >
-                          <option value="">Select Gender</option>
-                          {genderOptions.map((gender) => (
-                            <option key={gender.value} value={gender.value}>
-                              {gender.label}
+                          <option value="">Select Designation</option>
+                          {designations.map((desig) => (
+                            <option key={desig.id} value={desig.id}>
+                              {desig.name}
                             </option>
                           ))}
                         </select>
-                      )}
-                    />
-                  </div>
+                        {errors.designation_id && (
+                          <p className="mt-1 text-xs text-[var(--form-error)]">
+                            {errors.designation_id.message}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  />
 
-                  <div>
-                    <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
-                      <i className="fas fa-globe-asia text-green-500 mr-1"></i>{" "}
-                      Nationality
-                    </label>
-                    <Controller
-                      name="nationality"
-                      control={control}
-                      render={({ field }) => (
-                        <select
-                          {...field}
-                          className="w-full px-3 md:px-4 py-2 md:py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm md:text-base text-gray-800 focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-500/20"
-                        >
-                          <option value="">Select Nationality</option>
-                          {nationalityOptions.map((nationality) => (
-                            <option key={nationality} value={nationality}>
-                              {nationality}
-                            </option>
-                          ))}
-                        </select>
-                      )}
-                    />
-                  </div>
+                  <Controller
+                    name="type"
+                    control={control}
+                    rules={validationRules.type}
+                    render={({ field }) => (
+                      <FormSelect
+                        {...field}
+                        label="User Type"
+                        icon="fas fa-user-tag"
+                        required
+                        error={errors.type?.message}
+                        options={userTypeOptions}
+                        placeholder="Select User Type"
+                      />
+                    )}
+                  />
 
-                  <div>
-                    <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
-                      <i className="fas fa-user-friends text-green-500 mr-1"></i>{" "}
-                      Marital Status
-                    </label>
-                    <Controller
-                      name="marital_status"
-                      control={control}
-                      render={({ field }) => (
-                        <select
-                          {...field}
-                          className="w-full px-3 md:px-4 py-2 md:py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm md:text-base text-gray-800 focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-500/20"
-                        >
-                          <option value="">Select Marital Status</option>
-                          {maritalStatusOptions.map((status) => (
-                            <option key={status} value={status}>
-                              {status}
-                            </option>
-                          ))}
-                        </select>
-                      )}
-                    />
-                  </div>
+                  <Controller
+                    name="gender"
+                    control={control}
+                    render={({ field }) => (
+                      <FormSelect
+                        {...field}
+                        label="Gender"
+                        icon="fas fa-venus-mars"
+                        options={genderOptions}
+                        placeholder="Select Gender"
+                      />
+                    )}
+                  />
 
-                  <div>
-                    <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
-                      <i className="fas fa-user-tag text-green-500 mr-1"></i>{" "}
-                      Role <span className="text-red-500">*</span>
-                    </label>
-                    <Controller
-                      name="role"
-                      control={control}
-                      rules={validationRules.role}
-                      render={({ field }) => (
-                        <select
-                          {...field}
-                          className="w-full px-3 md:px-4 py-2 md:py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm md:text-base text-gray-800 focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-500/20"
-                        >
-                          <option value="">Select Role</option>
-                          {roles.map((role) => (
-                            <option key={role.id} value={role.id}>
-                              {role.name}
-                            </option>
-                          ))}
-                        </select>
-                      )}
-                    />
-                  </div>
+                  <Controller
+                    name="nationality"
+                    control={control}
+                    render={({ field }) => (
+                      <FormSelect
+                        {...field}
+                        label="Nationality"
+                        icon="fas fa-globe-asia"
+                        options={nationalityOptions.map((n) => ({
+                          value: n,
+                          label: n,
+                        }))}
+                        placeholder="Select Nationality"
+                      />
+                    )}
+                  />
 
-                  {/* Special Days - Array of name and date */}
+                  <Controller
+                    name="marital_status"
+                    control={control}
+                    render={({ field }) => (
+                      <FormSelect
+                        {...field}
+                        label="Marital Status"
+                        icon="fas fa-user-friends"
+                        options={maritalStatusOptions.map((s) => ({
+                          value: s,
+                          label: s,
+                        }))}
+                        placeholder="Select Marital Status"
+                      />
+                    )}
+                  />
+
+                  <Controller
+                    name="role"
+                    control={control}
+                    rules={validationRules.role}
+                    render={({ field }) => (
+                      <FormSelect
+                        {...field}
+                        label="Role"
+                        icon="fas fa-user-tag"
+                        required
+                        error={errors.role?.message}
+                        options={roles.map((role) => ({
+                          value: role.id,
+                          label: role.name,
+                        }))}
+                        placeholder="Select Role"
+                      />
+                    )}
+                  />
+
+                  {/* Special Days */}
                   <div className="md:col-span-2">
-                    <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-2">
+                    <label className="block text-xs md:text-sm font-semibold text-[var(--form-label)] mb-2">
                       <i className="fas fa-gift text-green-500 mr-1"></i>{" "}
                       Special Days
                     </label>
@@ -1660,14 +1613,14 @@ const AddEmployee = () => {
                                     {...field}
                                     type="text"
                                     placeholder="e.g., Birthday / Anniversary"
-                                    className={`w-full px-3 py-2 bg-gray-50 border rounded-lg text-sm focus:outline-none ${
+                                    className={`w-full px-3 py-2 bg-[var(--form-surface)] border rounded-lg text-sm text-[var(--form-text)] focus:outline-none focus:ring-2 ${
                                       errors?.special_days?.[index]?.name
-                                        ? "border-red-500 focus:border-red-500 focus:ring-red-500/20"
-                                        : "border-gray-200 focus:border-green-500 focus:ring-2 focus:ring-green-500/20"
+                                        ? "border-[var(--form-error)] focus:border-[var(--form-error)] focus:ring-[var(--form-error)]/20"
+                                        : "border-[var(--form-border)] focus:border-[var(--form-border-focus)] focus:ring-[var(--form-border-focus)]/20"
                                     }`}
                                   />
                                   {errors?.special_days?.[index]?.name && (
-                                    <p className="mt-1 text-xs text-red-500">
+                                    <p className="mt-1 text-xs text-[var(--form-error)]">
                                       {errors.special_days[index].name.message}
                                     </p>
                                   )}
@@ -1690,7 +1643,7 @@ const AddEmployee = () => {
                                     }
                                   />
                                   {errors?.special_days?.[index]?.date && (
-                                    <p className="mt-1 text-xs text-red-500">
+                                    <p className="mt-1 text-xs text-[var(--form-error)]">
                                       {errors.special_days[index].date.message}
                                     </p>
                                   )}
@@ -1702,7 +1655,7 @@ const AddEmployee = () => {
                             <button
                               type="button"
                               onClick={() => remove(index)}
-                              className="p-2 text-red-500 hover:text-red-600 transition-colors"
+                              className="p-2 text-[var(--form-error)] hover:text-[var(--form-error)]/80 transition-colors"
                             >
                               <i className="fas fa-trash"></i>
                             </button>
@@ -1718,49 +1671,42 @@ const AddEmployee = () => {
                         Add Special Day
                       </button>
                     </div>
-                    <p className="text-xs text-gray-400 mt-2">
+                    <p className="text-xs text-[var(--form-text-muted)] mt-2">
                       <i className="fas fa-info-circle mr-1"></i> Add special
                       occasions like birthday, anniversary, etc.
                     </p>
                   </div>
 
-                  {/* Auto-generated Employee ID - Display Only */}
-                  {/* Enhanced Employee ID Generation */}
+                  {/* Employee ID Generation */}
                   <div className="md:col-span-2">
-                    <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-2">
+                    <label className="block text-xs md:text-sm font-semibold text-[var(--form-label)] mb-2">
                       <i className="fas fa-id-card text-green-500 mr-1"></i>
                       Employee ID Generation{" "}
-                      <span className="text-red-500">*</span>
+                      <span className="text-[var(--form-error)]">*</span>
                     </label>
 
-                    {/* Generation Method Toggle */}
                     <div className="flex gap-4 mb-4">
-                      <label className="flex items-center">
+                      <label className="flex items-center text-[var(--form-text)]">
                         <input
                           type="radio"
                           checked={idGenerationMethod === "manual"}
                           onChange={() => setIdGenerationMethod("manual")}
                           className="mr-2 text-green-500 focus:ring-green-500"
                         />
-                        <span className="text-sm text-gray-700">
-                          Manual Entry
-                        </span>
+                        <span className="text-sm">Manual Entry</span>
                       </label>
-                      <label className="flex items-center">
+                      <label className="flex items-center text-[var(--form-text)]">
                         <input
                           type="radio"
                           checked={idGenerationMethod === "auto"}
                           onChange={() => setIdGenerationMethod("auto")}
                           className="mr-2 text-green-500 focus:ring-green-500"
                         />
-                        <span className="text-sm text-gray-700">
-                          Auto-Generate
-                        </span>
+                        <span className="text-sm">Auto-Generate</span>
                       </label>
                     </div>
 
                     {idGenerationMethod === "manual" ? (
-                      // Manual Entry
                       <div>
                         <input
                           type="text"
@@ -1769,20 +1715,17 @@ const AddEmployee = () => {
                             setManualEmployeeId(e.target.value.toUpperCase())
                           }
                           placeholder="Enter Employee ID (e.g., EMP001, STAFF-001)"
-                          className="w-full px-3 md:px-4 py-2 md:py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm md:text-base text-gray-800 focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-500/20"
+                          className="w-full px-3 md:px-4 py-2 md:py-3 bg-[var(--form-surface)] border border-[var(--form-border)] rounded-lg text-sm md:text-base text-[var(--form-text)] focus:outline-none focus:border-[var(--form-border-focus)] focus:ring-2 focus:ring-[var(--form-border-focus)]/20"
                         />
-                        <p className="text-xs text-gray-400 mt-1">
+                        <p className="text-xs text-[var(--form-text-muted)] mt-1">
                           <i className="fas fa-info-circle mr-1"></i>
-                          You can enter any unique ID format (e.g., EMP001,
-                          STAFF-2024-001)
+                          You can enter any unique ID format
                         </p>
                       </div>
                     ) : (
-                      // Auto-Generation Options
                       <div className="space-y-4">
-                        {/* Prefix */}
                         <div>
-                          <label className="block text-xs font-semibold text-gray-700 mb-1">
+                          <label className="block text-xs font-semibold text-[var(--form-label)] mb-1">
                             Prefix
                           </label>
                           <input
@@ -1792,19 +1735,18 @@ const AddEmployee = () => {
                               setIdPrefix(e.target.value.toUpperCase())
                             }
                             placeholder="e.g., EMP, STAFF, ENG"
-                            className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-green-500"
+                            className="w-full px-3 py-2 bg-[var(--form-surface)] border border-[var(--form-border)] rounded-lg text-sm text-[var(--form-text)] focus:outline-none focus:border-[var(--form-border-focus)]"
                           />
                         </div>
 
-                        {/* Format Selection */}
                         <div>
-                          <label className="block text-xs font-semibold text-gray-700 mb-1">
+                          <label className="block text-xs font-semibold text-[var(--form-label)] mb-1">
                             ID Format
                           </label>
                           <select
                             value={idFormat}
                             onChange={(e) => setIdFormat(e.target.value)}
-                            className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-green-500"
+                            className="w-full px-3 py-2 bg-[var(--form-surface)] border border-[var(--form-border)] rounded-lg text-sm text-[var(--form-text)] focus:outline-none focus:border-[var(--form-border-focus)]"
                           >
                             {formatOptions.map((option) => (
                               <option key={option.value} value={option.value}>
@@ -1814,10 +1756,9 @@ const AddEmployee = () => {
                           </select>
                         </div>
 
-                        {/* Custom Format Builder */}
                         {idFormat === "custom" && (
                           <div>
-                            <label className="block text-xs font-semibold text-gray-700 mb-1">
+                            <label className="block text-xs font-semibold text-[var(--form-label)] mb-1">
                               Custom Format Pattern
                             </label>
                             <input
@@ -1825,53 +1766,57 @@ const AddEmployee = () => {
                               value={customFormat}
                               onChange={(e) => setCustomFormat(e.target.value)}
                               placeholder="e.g., prefix+year+month+day+random"
-                              className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm font-mono focus:outline-none focus:border-green-500"
+                              className="w-full px-3 py-2 bg-[var(--form-surface)] border border-[var(--form-border)] rounded-lg text-sm font-mono text-[var(--form-text)] focus:outline-none focus:border-[var(--form-border-focus)]"
                             />
-                            <div className="mt-2 text-xs text-gray-500">
-                              <p className="font-semibold mb-1">
+                            <div className="mt-2 text-xs text-[var(--form-text-muted)]">
+                              <p className="font-semibold mb-1 text-[var(--form-text-secondary)]">
                                 Available placeholders:
                               </p>
                               <div className="grid grid-cols-2 gap-1">
                                 <span>
-                                  <code className="bg-gray-100 px-1">
+                                  <code className="bg-[var(--form-surface)] px-1 rounded">
                                     prefix
                                   </code>{" "}
                                   - Your prefix
                                 </span>
                                 <span>
-                                  <code className="bg-gray-100 px-1">year</code>{" "}
+                                  <code className="bg-[var(--form-surface)] px-1 rounded">
+                                    year
+                                  </code>{" "}
                                   - Joining year
                                 </span>
                                 <span>
-                                  <code className="bg-gray-100 px-1">
+                                  <code className="bg-[var(--form-surface)] px-1 rounded">
                                     month
                                   </code>{" "}
                                   - Joining month
                                 </span>
                                 <span>
-                                  <code className="bg-gray-100 px-1">day</code>{" "}
+                                  <code className="bg-[var(--form-surface)] px-1 rounded">
+                                    day
+                                  </code>{" "}
                                   - Joining day
                                 </span>
                                 <span>
-                                  <code className="bg-gray-100 px-1">
+                                  <code className="bg-[var(--form-surface)] px-1 rounded">
                                     dob_ddmm
                                   </code>{" "}
                                   - DOB (DDMM)
                                 </span>
                                 <span>
-                                  <code className="bg-gray-100 px-1">
+                                  <code className="bg-[var(--form-surface)] px-1 rounded">
                                     timestamp
                                   </code>{" "}
                                   - Unix timestamp
                                 </span>
                                 <span>
-                                  <code className="bg-gray-100 px-1">
+                                  <code className="bg-[var(--form-surface)] px-1 rounded">
                                     random
                                   </code>{" "}
                                   - Random string
                                 </span>
                                 <span>
-                                  <code className="bg-gray-100 px-1">
+                                  <code className="bg-[var(--form-surface)] px-1 rounded">
                                     sequence
                                   </code>{" "}
                                   - Sequence number
@@ -1881,16 +1826,15 @@ const AddEmployee = () => {
                           </div>
                         )}
 
-                        {/* Preview Section */}
                         {watchDob && watchJoiningDate && generatedPreview && (
-                          <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
-                            <p className="text-xs text-green-700 font-semibold mb-1">
+                          <div className="mt-3 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+                            <p className="text-xs text-green-700 dark:text-green-400 font-semibold mb-1">
                               Preview:
                             </p>
-                            <p className="text-sm font-mono font-bold text-green-800">
+                            <p className="text-sm font-mono font-bold text-green-800 dark:text-green-300">
                               {generatedPreview}
                             </p>
-                            <p className="text-xs text-green-600 mt-1">
+                            <p className="text-xs text-green-600 dark:text-green-400 mt-1">
                               <i className="fas fa-check-circle mr-1"></i>
                               ID will be generated based on DOB and Joining Date
                             </p>
@@ -1898,8 +1842,8 @@ const AddEmployee = () => {
                         )}
 
                         {(!watchDob || !watchJoiningDate) && (
-                          <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                            <p className="text-xs text-yellow-700">
+                          <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+                            <p className="text-xs text-yellow-700 dark:text-yellow-400">
                               <i className="fas fa-info-circle mr-1"></i>
                               Please enter DOB and Joining Date to see ID
                               preview
@@ -1909,7 +1853,6 @@ const AddEmployee = () => {
                       </div>
                     )}
 
-                    {/* Employee ID Field (Hidden/Disabled based on method) */}
                     <Controller
                       name="employee_id"
                       control={control}
@@ -1918,206 +1861,204 @@ const AddEmployee = () => {
                     />
 
                     {errors.employee_id && (
-                      <p className="mt-1 text-xs text-red-500">
+                      <p className="mt-1 text-xs text-[var(--form-error)]">
                         {errors.employee_id.message}
                       </p>
                     )}
                   </div>
 
-                  <div>
-                    <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
-                      <i className="fas fa-calendar text-green-500 mr-1"></i>{" "}
-                      Date of Birth <span className="text-red-500">*</span>
-                    </label>
-                    <Controller
-                      name="dob"
-                      control={control}
-                      rules={{ required: "Date of Birth is required" }}
-                      render={({ field }) => (
-                        <>
-                          <DateInput
-                            type="dob"
-                            {...field}
-                            placeholder="dd/mm/yyyy"
-                            error={!!errors.dob}
-                          />
-                          {errors.dob && (
-                            <p className="mt-1 text-xs text-red-500">
-                              {errors.dob.message}
-                            </p>
-                          )}
-                        </>
-                      )}
-                    />
-                  </div>
+                  <Controller
+                    name="dob"
+                    control={control}
+                    rules={{ required: "Date of Birth is required" }}
+                    render={({ field }) => (
+                      <div>
+                        <label className="block text-xs md:text-sm font-semibold text-[var(--form-label)] mb-1 md:mb-2">
+                          <i className="fas fa-calendar text-green-500 mr-1"></i>{" "}
+                          Date of Birth{" "}
+                          <span className="text-[var(--form-error)]">*</span>
+                        </label>
+                        <DateInput
+                          type="dob"
+                          {...field}
+                          placeholder="dd/mm/yyyy"
+                          error={!!errors.dob}
+                        />
+                        {errors.dob && (
+                          <p className="mt-1 text-xs text-[var(--form-error)]">
+                            {errors.dob.message}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  />
 
-                  <div>
-                    <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
-                      <i className="fas fa-calendar-alt text-green-500 mr-1"></i>{" "}
-                      Joining Date <span className="text-red-500">*</span>
-                    </label>
-                    <Controller
-                      name="joining_date"
-                      control={control}
-                      rules={{ required: "Joining Date is required" }}
-                      render={({ field }) => (
-                        <>
-                          <DateInput
-                            {...field}
-                            placeholder="dd/mm/yyyy"
-                            error={!!errors.joining_date}
-                          />
-                          {errors.joining_date && (
-                            <p className="mt-1 text-xs text-red-500">
-                              {errors.joining_date.message}
-                            </p>
-                          )}
-                        </>
-                      )}
-                    />
-                  </div>
+                  <Controller
+                    name="joining_date"
+                    control={control}
+                    rules={{ required: "Joining Date is required" }}
+                    render={({ field }) => (
+                      <div>
+                        <label className="block text-xs md:text-sm font-semibold text-[var(--form-label)] mb-1 md:mb-2">
+                          <i className="fas fa-calendar-alt text-green-500 mr-1"></i>{" "}
+                          Joining Date{" "}
+                          <span className="text-[var(--form-error)]">*</span>
+                        </label>
+                        <DateInput
+                          {...field}
+                          placeholder="dd/mm/yyyy"
+                          error={!!errors.joining_date}
+                        />
+                        {errors.joining_date && (
+                          <p className="mt-1 text-xs text-[var(--form-error)]">
+                            {errors.joining_date.message}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  />
 
-                  {/* Employment Timeline & Dates Section */}
+                  {/* Employment Timeline */}
                   <div className="md:col-span-2 mt-6 mb-2">
-                    <h3 className="text-lg font-bold text-gray-800 flex items-center">
+                    <h3 className="text-lg font-bold text-[var(--form-text)] flex items-center">
                       <i className="fas fa-calendar-alt text-green-500 mr-2"></i>
                       Employment Timeline & Dates
                     </h3>
                   </div>
 
-                  <div>
-                    <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
-                      <i className="fas fa-calendar-plus text-green-500 mr-1"></i>
-                      Probation Start Date
-                    </label>
-                    <Controller
-                      name="probation_start_date"
-                      control={control}
-                      render={({ field }) => (
+                  <Controller
+                    name="probation_start_date"
+                    control={control}
+                    render={({ field }) => (
+                      <div>
+                        <label className="block text-xs md:text-sm font-semibold text-[var(--form-label)] mb-1 md:mb-2">
+                          <i className="fas fa-calendar-plus text-green-500 mr-1"></i>
+                          Probation Start Date
+                        </label>
                         <DateInput {...field} placeholder="dd/mm/yyyy" />
-                      )}
-                    />
-                  </div>
+                      </div>
+                    )}
+                  />
 
-                  <div>
-                    <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
-                      <i className="fas fa-calendar-minus text-green-500 mr-1"></i>
-                      Probation End Date
-                    </label>
-                    <Controller
-                      name="probation_end_date"
-                      control={control}
-                      render={({ field }) => (
+                  <Controller
+                    name="probation_end_date"
+                    control={control}
+                    render={({ field }) => (
+                      <div>
+                        <label className="block text-xs md:text-sm font-semibold text-[var(--form-label)] mb-1 md:mb-2">
+                          <i className="fas fa-calendar-minus text-green-500 mr-1"></i>
+                          Probation End Date
+                        </label>
                         <DateInput {...field} placeholder="dd/mm/yyyy" />
-                      )}
-                    />
-                  </div>
+                      </div>
+                    )}
+                  />
 
-                  <div>
-                    <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
-                      <i className="fas fa-user-check text-green-500 mr-1"></i>
-                      Confirmation Date
-                    </label>
-                    <Controller
-                      name="confirmation_date"
-                      control={control}
-                      render={({ field }) => (
+                  <Controller
+                    name="confirmation_date"
+                    control={control}
+                    render={({ field }) => (
+                      <div>
+                        <label className="block text-xs md:text-sm font-semibold text-[var(--form-label)] mb-1 md:mb-2">
+                          <i className="fas fa-user-check text-green-500 mr-1"></i>
+                          Confirmation Date
+                        </label>
                         <DateInput {...field} placeholder="dd/mm/yyyy" />
-                      )}
-                    />
-                  </div>
+                      </div>
+                    )}
+                  />
 
-                  <div>
-                    <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
-                      <i className="fas fa-file-signature text-green-500 mr-1"></i>
-                      Contract Start Date
-                    </label>
-                    <Controller
-                      name="contract_start_date"
-                      control={control}
-                      render={({ field }) => (
+                  <Controller
+                    name="contract_start_date"
+                    control={control}
+                    render={({ field }) => (
+                      <div>
+                        <label className="block text-xs md:text-sm font-semibold text-[var(--form-label)] mb-1 md:mb-2">
+                          <i className="fas fa-file-signature text-green-500 mr-1"></i>
+                          Contract Start Date
+                        </label>
                         <DateInput {...field} placeholder="dd/mm/yyyy" />
-                      )}
-                    />
-                  </div>
+                      </div>
+                    )}
+                  />
 
-                  <div>
-                    <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
-                      <i className="fas fa-file-contract text-green-500 mr-1"></i>
-                      Contract End Date
-                    </label>
-                    <Controller
-                      name="contract_end_date"
-                      control={control}
-                      render={({ field }) => (
+                  <Controller
+                    name="contract_end_date"
+                    control={control}
+                    render={({ field }) => (
+                      <div>
+                        <label className="block text-xs md:text-sm font-semibold text-[var(--form-label)] mb-1 md:mb-2">
+                          <i className="fas fa-file-contract text-green-500 mr-1"></i>
+                          Contract End Date
+                        </label>
                         <DateInput {...field} placeholder="dd/mm/yyyy" />
-                      )}
-                    />
-                  </div>
+                      </div>
+                    )}
+                  />
 
-                  <div>
-                    <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
-                      <i className="fas fa-sign-out-alt text-green-500 mr-1"></i>
-                      Resignation Date
-                    </label>
-                    <Controller
-                      name="resignation_date"
-                      control={control}
-                      render={({ field }) => (
+                  <Controller
+                    name="resignation_date"
+                    control={control}
+                    render={({ field }) => (
+                      <div>
+                        <label className="block text-xs md:text-sm font-semibold text-[var(--form-label)] mb-1 md:mb-2">
+                          <i className="fas fa-sign-out-alt text-green-500 mr-1"></i>
+                          Resignation Date
+                        </label>
                         <DateInput {...field} placeholder="dd/mm/yyyy" />
-                      )}
-                    />
-                  </div>
+                      </div>
+                    )}
+                  />
 
-                  <div>
-                    <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
-                      <i className="fas fa-hourglass-start text-green-500 mr-1"></i>
-                      Notice Period Start Date
-                    </label>
-                    <Controller
-                      name="notice_period_start_date"
-                      control={control}
-                      render={({ field }) => (
+                  <Controller
+                    name="notice_period_start_date"
+                    control={control}
+                    render={({ field }) => (
+                      <div>
+                        <label className="block text-xs md:text-sm font-semibold text-[var(--form-label)] mb-1 md:mb-2">
+                          <i className="fas fa-hourglass-start text-green-500 mr-1"></i>
+                          Notice Period Start Date
+                        </label>
                         <DateInput {...field} placeholder="dd/mm/yyyy" />
-                      )}
-                    />
-                  </div>
+                      </div>
+                    )}
+                  />
 
-                  <div>
-                    <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
-                      <i className="fas fa-briefcase text-green-500 mr-1"></i>
-                      Last Working Day (LWD)
-                    </label>
-                    <Controller
-                      name="last_working_day"
-                      control={control}
-                      render={({ field }) => (
+                  <Controller
+                    name="last_working_day"
+                    control={control}
+                    render={({ field }) => (
+                      <div>
+                        <label className="block text-xs md:text-sm font-semibold text-[var(--form-label)] mb-1 md:mb-2">
+                          <i className="fas fa-briefcase text-green-500 mr-1"></i>
+                          Last Working Day (LWD)
+                        </label>
                         <DateInput {...field} placeholder="dd/mm/yyyy" />
-                      )}
-                    />
-                  </div>
+                      </div>
+                    )}
+                  />
 
-                  <div>
-                    <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
-                      <i className="fas fa-door-open text-green-500 mr-1"></i>
-                      Relieving Date
-                    </label>
-                    <Controller
-                      name="relieving_date"
-                      control={control}
-                      render={({ field }) => (
+                  <Controller
+                    name="relieving_date"
+                    control={control}
+                    render={({ field }) => (
+                      <div>
+                        <label className="block text-xs md:text-sm font-semibold text-[var(--form-label)] mb-1 md:mb-2">
+                          <i className="fas fa-door-open text-green-500 mr-1"></i>
+                          Relieving Date
+                        </label>
                         <DateInput {...field} placeholder="dd/mm/yyyy" />
-                      )}
-                    />
-                  </div>
+                      </div>
+                    )}
+                  />
 
-                  {/* Passport Size Photo - OUTSIDE isSkilled, visible for all employees */}
+                  {/* Avatar Upload */}
                   <div className="md:col-span-2">
-                    <div className="border border-gray-200 rounded-lg p-4 bg-gray-50/30 mb-4">
-                      <label className="block text-sm font-semibold text-gray-700 mb-3">
+                    <div className="border border-[var(--form-border)] rounded-lg p-4 bg-[var(--form-surface)]/30 mb-4">
+                      <label className="block text-sm font-semibold text-[var(--form-label)] mb-3">
                         <i className="fas fa-camera text-green-500 mr-2"></i>
                         Passport Size Photo
-                        <span className="text-xs text-gray-400 ml-2">
+                        <span className="text-xs text-[var(--form-text-muted)] ml-2">
                           (Optional)
                         </span>
                       </label>
@@ -2147,7 +2088,7 @@ const AddEmployee = () => {
                           onClick={() =>
                             document.getElementById("doc_avatar").click()
                           }
-                          className="h-40 w-32 border-2 border-dashed border-gray-300 rounded-xl bg-gray-50 hover:border-green-400 transition-colors flex items-center justify-center overflow-hidden"
+                          className="h-40 w-32 border-2 border-dashed border-[var(--form-border)] rounded-xl bg-[var(--form-surface)] hover:border-green-400 transition-colors flex items-center justify-center overflow-hidden"
                           aria-label="Upload passport size photo"
                         >
                           {documentPreviews.avatar ? (
@@ -2157,7 +2098,7 @@ const AddEmployee = () => {
                               className="h-full w-full object-cover"
                             />
                           ) : (
-                            <div className="text-center text-gray-400">
+                            <div className="text-center text-[var(--form-text-muted)]">
                               <i className="far fa-user text-3xl mb-2"></i>
                               <p className="text-lg leading-none">Photo</p>
                             </div>
@@ -2169,19 +2110,18 @@ const AddEmployee = () => {
                             onClick={() =>
                               document.getElementById("doc_avatar").click()
                             }
-                            className="px-4 py-2 bg-white border border-green-200 text-green-600 rounded-full text-sm font-semibold hover:bg-green-50 transition-colors flex items-center gap-2"
+                            className="px-4 py-2 bg-white dark:bg-[var(--form-surface)] border border-green-200 dark:border-green-800 text-green-600 dark:text-green-400 rounded-full text-sm font-semibold hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors flex items-center gap-2"
                           >
                             <i className="fas fa-upload"></i> Upload Photo
                           </button>
-                          <p className="text-sm text-gray-500 mt-2 truncate">
+                          <p className="text-sm text-[var(--form-text-secondary)] mt-2 truncate">
                             {documents.avatar
                               ? documents.avatar.name || "Photo selected"
                               : "No photo chosen"}
                           </p>
-                          <p className="text-xs text-gray-400 mt-2">
+                          <p className="text-xs text-[var(--form-text-muted)] mt-2">
                             <i className="fas fa-info-circle mr-1"></i>{" "}
-                            Accepted: JPG, PNG, GIF. Max 2MB. Recommended size:
-                            35mm x 45mm (passport size).
+                            Accepted: JPG, PNG, GIF. Max 2MB.
                           </p>
                         </div>
                       </div>
@@ -2195,7 +2135,7 @@ const AddEmployee = () => {
                               avatar: null,
                             });
                           }}
-                          className="mt-2 text-xs text-red-500 hover:text-red-600 flex items-center gap-1"
+                          className="mt-2 text-xs text-[var(--form-error)] hover:text-[var(--form-error)]/80 flex items-center gap-1"
                         >
                           <i className="fas fa-trash"></i> Remove
                         </button>
@@ -2203,14 +2143,15 @@ const AddEmployee = () => {
                     </div>
                   </div>
 
-                  {/* Skilled/Unskilled Dropdown */}
+                  {/* Employee Category */}
                   <div className="md:col-span-2">
-                    <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-2">
+                    <label className="block text-xs md:text-sm font-semibold text-[var(--form-label)] mb-2">
                       <i className="fas fa-graduation-cap text-green-500 mr-1"></i>
-                      Employee Category <span className="text-red-500">*</span>
+                      Employee Category{" "}
+                      <span className="text-[var(--form-error)]">*</span>
                     </label>
                     <div className="flex gap-4">
-                      <label className="flex items-center">
+                      <label className="flex items-center text-[var(--form-text)]">
                         <input
                           type="radio"
                           name="skillStatus"
@@ -2219,9 +2160,9 @@ const AddEmployee = () => {
                           onChange={() => setIsSkilled(true)}
                           className="mr-2 text-green-500 focus:ring-green-500"
                         />
-                        <span className="text-sm text-gray-700">Skilled</span>
+                        <span className="text-sm">Skilled</span>
                       </label>
-                      <label className="flex items-center">
+                      <label className="flex items-center text-[var(--form-text)]">
                         <input
                           type="radio"
                           name="skillStatus"
@@ -2230,21 +2171,21 @@ const AddEmployee = () => {
                           onChange={() => setIsSkilled(false)}
                           className="mr-2 text-green-500 focus:ring-green-500"
                         />
-                        <span className="text-sm text-gray-700">Unskilled</span>
+                        <span className="text-sm">Unskilled</span>
                       </label>
                     </div>
-                    <p className="text-xs text-gray-400 mt-1">
+                    <p className="text-xs text-[var(--form-text-muted)] mt-1">
                       <i className="fas fa-info-circle mr-1"></i>
                       Skilled employees need to provide educational documents
                     </p>
                   </div>
 
-                  {/* Educational Documents - Only show if Skilled is selected */}
+                  {/* Educational Documents - Skilled only */}
                   {isSkilled === true && (
                     <>
                       <div className="md:col-span-2">
-                        <div className="border-t border-gray-200 pt-4 mt-2">
-                          <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center">
+                        <div className="border-t border-[var(--form-border)] pt-4 mt-2">
+                          <h4 className="text-sm font-semibold text-[var(--form-label)] mb-3 flex items-center">
                             <i className="fas fa-graduation-cap text-green-500 mr-2"></i>
                             Educational Documents
                           </h4>
@@ -2253,32 +2194,49 @@ const AddEmployee = () => {
                               fieldKey="educational_1st_page"
                               label="Educational Certificate (Front)"
                               icon="fas fa-graduation-cap"
+                              documents={documents}
+                              documentPreviews={documentPreviews}
+                              uploadingFiles={uploadingFiles}
+                              handleFileChange={handleFileChange}
+                              setDocuments={setDocuments}
+                              setDocumentPreviews={setDocumentPreviews}
                             />
                             <DocumentUpload
                               fieldKey="educational_2nd_page"
                               label="Educational Certificate (Back)"
                               icon="fas fa-graduation-cap"
+                              documents={documents}
+                              documentPreviews={documentPreviews}
+                              uploadingFiles={uploadingFiles}
+                              handleFileChange={handleFileChange}
+                              setDocuments={setDocuments}
+                              setDocumentPreviews={setDocumentPreviews}
                             />
                           </div>
                         </div>
                       </div>
 
-                      {/* Home Country ID */}
                       <div className="md:col-span-2">
                         <DocumentUpload
                           fieldKey="home_country_id_proof"
                           label="Home Country ID Proof"
                           icon="fas fa-home"
+                          documents={documents}
+                          documentPreviews={documentPreviews}
+                          uploadingFiles={uploadingFiles}
+                          handleFileChange={handleFileChange}
+                          setDocuments={setDocuments}
+                          setDocumentPreviews={setDocumentPreviews}
                         />
                       </div>
                     </>
                   )}
 
-                  {/* Additional Documents Section - Show for all employees */}
+                  {/* Additional Documents */}
                   <div className="md:col-span-2">
-                    <div className="border-t border-gray-200 pt-4 mt-4">
+                    <div className="border-t border-[var(--form-border)] pt-4 mt-4">
                       <div className="flex justify-between items-center mb-3">
-                        <h4 className="text-sm font-semibold text-gray-700 flex items-center">
+                        <h4 className="text-sm font-semibold text-[var(--form-label)] flex items-center">
                           <i className="fas fa-folder-open text-green-500 mr-2"></i>
                           Additional Documents
                         </h4>
@@ -2292,33 +2250,27 @@ const AddEmployee = () => {
                         </button>
                       </div>
 
-                      {/* Display added documents */}
                       {additionalDocuments.length > 0 ? (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mt-3">
                           {additionalDocuments.map((doc, index) => (
                             <div
                               key={doc.id || index}
-                              className="border border-gray-200 rounded-lg p-3 bg-gray-50"
+                              className="border border-[var(--form-border)] rounded-lg p-3 bg-[var(--form-surface)]/30"
                             >
                               <div className="flex items-start justify-between">
                                 <div className="flex-1">
-                                  <p className="text-sm font-semibold text-gray-700 truncate">
+                                  <p className="text-sm font-semibold text-[var(--form-text)] truncate">
                                     {doc.document_name || doc.name}
                                   </p>
-                                  <p className="text-xs text-gray-500 mt-1">
+                                  <p className="text-xs text-[var(--form-text-secondary)] mt-1">
                                     {doc.filename ||
                                       doc.file?.name ||
                                       "Document uploaded"}
                                   </p>
                                   {doc.expiry_date && (
-                                    <p className="text-xs text-red-500 mt-1">
+                                    <p className="text-xs text-[var(--form-error)] mt-1">
                                       <i className="fas fa-calendar-times mr-1"></i>
                                       Expires: {doc.expiry_date}
-                                    </p>
-                                  )}
-                                  {doc.file_path && (
-                                    <p className="text-xs text-gray-400 mt-1 truncate">
-                                      Path: {doc.file_path}
                                     </p>
                                   )}
                                 </div>
@@ -2331,7 +2283,7 @@ const AddEmployee = () => {
                                       );
                                     setAdditionalDocuments(updatedDocs);
                                   }}
-                                  className="text-red-500 hover:text-red-600 ml-2"
+                                  className="text-[var(--form-error)] hover:text-[var(--form-error)]/80 ml-2"
                                 >
                                   <i className="fas fa-trash"></i>
                                 </button>
@@ -2340,11 +2292,11 @@ const AddEmployee = () => {
                                 <img
                                   src={doc.preview}
                                   alt={doc.name}
-                                  className="mt-2 h-16 w-16 object-cover rounded-lg"
+                                  className="mt-2 h-16 w-16 object-cover rounded-lg border border-[var(--form-border)]"
                                 />
                               )}
                               {doc.preview === "pdf" && (
-                                <div className="mt-2 h-16 w-16 bg-red-100 rounded-lg flex items-center justify-center">
+                                <div className="mt-2 h-16 w-16 bg-red-100 dark:bg-red-900/30 rounded-lg flex items-center justify-center border border-[var(--form-border)]">
                                   <i className="fas fa-file-pdf text-red-500 text-2xl"></i>
                                 </div>
                               )}
@@ -2352,12 +2304,12 @@ const AddEmployee = () => {
                           ))}
                         </div>
                       ) : (
-                        <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
-                          <i className="fas fa-file-upload text-gray-400 text-4xl mb-2"></i>
-                          <p className="text-sm text-gray-500">
+                        <div className="text-center py-8 bg-[var(--form-surface)]/30 rounded-lg border-2 border-dashed border-[var(--form-border)]">
+                          <i className="fas fa-file-upload text-[var(--form-text-muted)] text-4xl mb-2"></i>
+                          <p className="text-sm text-[var(--form-text-secondary)]">
                             No additional documents added
                           </p>
-                          <p className="text-xs text-gray-400 mt-1">
+                          <p className="text-xs text-[var(--form-text-muted)] mt-1">
                             Click the "Add Document" button to upload additional
                             documents
                           </p>
@@ -2369,221 +2321,183 @@ const AddEmployee = () => {
               </div>
             </div>
 
-            {/* Step 1 - Passport */}
+            {/* ─── STEP 1: PASSPORT ────────────────────────────────────── */}
             <div className={currentStep === 1 ? "block" : "hidden"}>
               <div>
                 <div className="form-section-title mb-4 md:mb-6">
                   <i className="fas fa-passport text-green-500 mr-2"></i>
-                  <h3 className="text-base md:text-lg font-bold text-gray-800">
+                  <h3 className="text-base md:text-lg font-bold text-[var(--form-text)]">
                     Passport Information
                   </h3>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5">
                   <div className="md:col-span-2">
-                    <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
-                      <i className="fas fa-user-tag text-green-500 mr-1"></i>{" "}
-                      Passport Full Name
-                    </label>
                     <Controller
                       name="passport_full_name"
                       control={control}
                       render={({ field }) => (
-                        <input
+                        <FormInput
                           {...field}
-                          type="text"
-                          className="w-full px-3 md:px-4 py-2 md:py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm md:text-base text-gray-800 focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-500/20"
+                          label="Passport Full Name"
+                          icon="fas fa-user-tag"
                           placeholder="Enter name as per passport"
                         />
                       )}
                     />
                   </div>
 
-                  <div>
-                    <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
-                      <i className="fas fa-hashtag text-green-500 mr-1"></i>{" "}
-                      Passport Number
-                    </label>
-                    <Controller
-                      name="passport_number"
-                      control={control}
-                      render={({ field }) => (
-                        <input
+                  <Controller
+                    name="passport_number"
+                    control={control}
+                    render={({ field }) => (
+                      <FormInput
+                        {...field}
+                        label="Passport Number"
+                        icon="fas fa-hashtag"
+                        placeholder="Enter passport number"
+                      />
+                    )}
+                  />
+
+                  <Controller
+                    name="passport_issued_from"
+                    control={control}
+                    render={({ field }) => (
+                      <FormInput
+                        {...field}
+                        label="Issued From"
+                        icon="fas fa-globe"
+                        placeholder="Enter issuing country/city"
+                      />
+                    )}
+                  />
+
+                  <Controller
+                    name="passport_issued_date"
+                    control={control}
+                    rules={{
+                      validate: (value) =>
+                        validateIssueDate(
+                          value,
+                          passportExpiry,
+                          "Passport issued date",
+                        ),
+                    }}
+                    render={({ field }) => (
+                      <div>
+                        <label className="block text-xs md:text-sm font-semibold text-[var(--form-label)] mb-1 md:mb-2">
+                          <i className="fas fa-calendar-plus text-green-500 mr-1"></i>{" "}
+                          Issued Date
+                        </label>
+                        <DateInput
                           {...field}
-                          type="text"
-                          className="w-full px-3 md:px-4 py-2 md:py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm md:text-base text-gray-800 focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-500/20"
-                          placeholder="Enter passport number"
+                          placeholder="dd/mm/yyyy"
+                          error={!!errors.passport_issued_date}
                         />
-                      )}
-                    />
-                  </div>
+                        {errors.passport_issued_date && (
+                          <p className="mt-1 text-xs text-[var(--form-error)]">
+                            {errors.passport_issued_date.message}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  />
 
-                  <div>
-                    <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
-                      <i className="fas fa-globe text-green-500 mr-1"></i>{" "}
-                      Issued From
-                    </label>
-                    <Controller
-                      name="passport_issued_from"
-                      control={control}
-                      render={({ field }) => (
-                        <input
+                  <Controller
+                    name="passport_expiry_date"
+                    control={control}
+                    rules={{
+                      validate: (value) =>
+                        validateExpiryDate(
+                          value,
+                          passportIssued,
+                          "Passport expiry date",
+                        ),
+                    }}
+                    render={({ field }) => (
+                      <div>
+                        <label className="block text-xs md:text-sm font-semibold text-[var(--form-label)] mb-1 md:mb-2">
+                          <i className="fas fa-calendar-times text-green-500 mr-1"></i>{" "}
+                          Expiry Date
+                        </label>
+                        <DateInput
                           {...field}
-                          type="text"
-                          className="w-full px-3 md:px-4 py-2 md:py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm md:text-base text-gray-800 focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-500/20"
-                          placeholder="Enter issuing country/city"
+                          placeholder="dd/mm/yyyy"
+                          error={!!errors.passport_expiry_date}
                         />
-                      )}
-                    />
-                  </div>
+                        {errors.passport_expiry_date && (
+                          <p className="mt-1 text-xs text-[var(--form-error)]">
+                            {errors.passport_expiry_date.message}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  />
 
-                  <div>
-                    <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
-                      <i className="fas fa-calendar-plus text-green-500 mr-1"></i>{" "}
-                      Issued Date
-                    </label>
-                    <Controller
-                      name="passport_issued_date"
-                      control={control}
-                      rules={{
-                        validate: (value) =>
-                          validateIssueDate(
-                            value,
-                            passportExpiry,
-                            "Passport issued date",
-                          ),
-                      }}
-                      render={({ field }) => (
-                        <>
-                          <DateInput
-                            {...field}
-                            placeholder="dd/mm/yyyy"
-                            error={!!errors.passport_issued_date}
-                          />
+                  <Controller
+                    name="place_of_birth"
+                    control={control}
+                    render={({ field }) => (
+                      <FormInput
+                        {...field}
+                        label="Place of Birth"
+                        icon="fas fa-map-pin"
+                        placeholder="Enter place of birth"
+                      />
+                    )}
+                  />
 
-                          {errors.passport_issued_date && (
-                            <p className="mt-1 text-xs text-red-500">
-                              {errors.passport_issued_date.message}
-                            </p>
-                          )}
-                        </>
-                      )}
-                    />
-                  </div>
+                  <Controller
+                    name="father_name"
+                    control={control}
+                    render={({ field }) => (
+                      <FormInput
+                        {...field}
+                        label="Father's Name"
+                        icon="fas fa-father"
+                        placeholder="Enter father's name"
+                      />
+                    )}
+                  />
 
-                  <div>
-                    <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
-                      <i className="fas fa-calendar-times text-green-500 mr-1"></i>{" "}
-                      Expiry Date
-                    </label>
-                    <Controller
-                      name="passport_expiry_date"
-                      control={control}
-                      rules={{
-                        validate: (value) =>
-                          validateExpiryDate(
-                            value,
-                            passportIssued,
-                            "Passport expiry date",
-                          ),
-                      }}
-                      render={({ field }) => (
-                        <>
-                          <DateInput
-                            {...field}
-                            placeholder="dd/mm/yyyy"
-                            error={!!errors.passport_expiry_date}
-                          />
-
-                          {errors.passport_expiry_date && (
-                            <p className="mt-1 text-xs text-red-500">
-                              {errors.passport_expiry_date.message}
-                            </p>
-                          )}
-                        </>
-                      )}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
-                      <i className="fas fa-map-pin text-green-500 mr-1"></i>{" "}
-                      Place of Birth
-                    </label>
-                    <Controller
-                      name="place_of_birth"
-                      control={control}
-                      render={({ field }) => (
-                        <input
-                          {...field}
-                          type="text"
-                          className="w-full px-3 md:px-4 py-2 md:py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm md:text-base text-gray-800 focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-500/20"
-                          placeholder="Enter place of birth"
-                        />
-                      )}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
-                      <i className="fas fa-father text-green-500 mr-1"></i>{" "}
-                      Father's Name
-                    </label>
-                    <Controller
-                      name="father_name"
-                      control={control}
-                      render={({ field }) => (
-                        <input
-                          {...field}
-                          type="text"
-                          className="w-full px-3 md:px-4 py-2 md:py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm md:text-base text-gray-800 focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-500/20"
-                          placeholder="Enter father's name"
-                        />
-                      )}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
-                      <i className="fas fa-mother text-green-500 mr-1"></i>{" "}
-                      Mother's Name
-                    </label>
-                    <Controller
-                      name="mother_name"
-                      control={control}
-                      render={({ field }) => (
-                        <input
-                          {...field}
-                          type="text"
-                          className="w-full px-3 md:px-4 py-2 md:py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm md:text-base text-gray-800 focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-500/20"
-                          placeholder="Enter mother's name"
-                        />
-                      )}
-                    />
-                  </div>
+                  <Controller
+                    name="mother_name"
+                    control={control}
+                    render={({ field }) => (
+                      <FormInput
+                        {...field}
+                        label="Mother's Name"
+                        icon="fas fa-mother"
+                        placeholder="Enter mother's name"
+                      />
+                    )}
+                  />
 
                   <div className="md:col-span-2">
-                    <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
-                      <i className="fas fa-map-marker-alt text-green-500 mr-1"></i>{" "}
-                      Address
-                    </label>
                     <Controller
                       name="address"
                       control={control}
                       render={({ field }) => (
-                        <textarea
-                          {...field}
-                          rows="2"
-                          className="w-full px-3 md:px-4 py-2 md:py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm md:text-base text-gray-800 focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-500/20"
-                          placeholder="Enter full address"
-                        ></textarea>
+                        <div>
+                          <label className="block text-xs md:text-sm font-semibold text-[var(--form-label)] mb-1 md:mb-2">
+                            <i className="fas fa-map-marker-alt text-green-500 mr-1"></i>{" "}
+                            Address
+                          </label>
+                          <textarea
+                            {...field}
+                            rows="2"
+                            className="w-full px-3 md:px-4 py-2 md:py-3 bg-[var(--form-surface)] border border-[var(--form-border)] rounded-lg text-sm md:text-base text-[var(--form-text)] focus:outline-none focus:border-[var(--form-border-focus)] focus:ring-2 focus:ring-[var(--form-border-focus)]/20 placeholder:text-[var(--form-placeholder)]"
+                            placeholder="Enter full address"
+                          ></textarea>
+                        </div>
                       )}
                     />
                   </div>
 
                   {/* Passport Documents */}
                   <div className="md:col-span-2">
-                    <div className="border-t border-gray-200 pt-4 mt-2">
-                      <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center">
+                    <div className="border-t border-[var(--form-border)] pt-4 mt-2">
+                      <h4 className="text-sm font-semibold text-[var(--form-label)] mb-3 flex items-center">
                         <i className="fas fa-passport text-green-500 mr-2"></i>
                         Passport Documents
                       </h4>
@@ -2592,21 +2506,45 @@ const AddEmployee = () => {
                           fieldKey="passport_1st_page"
                           label="Passport 1st Page"
                           icon="fas fa-passport"
+                          documents={documents}
+                          documentPreviews={documentPreviews}
+                          uploadingFiles={uploadingFiles}
+                          handleFileChange={handleFileChange}
+                          setDocuments={setDocuments}
+                          setDocumentPreviews={setDocumentPreviews}
                         />
                         <DocumentUpload
                           fieldKey="passport_2nd_page"
                           label="Passport 2nd Page"
                           icon="fas fa-passport"
+                          documents={documents}
+                          documentPreviews={documentPreviews}
+                          uploadingFiles={uploadingFiles}
+                          handleFileChange={handleFileChange}
+                          setDocuments={setDocuments}
+                          setDocumentPreviews={setDocumentPreviews}
                         />
                         <DocumentUpload
                           fieldKey="passport_outer_page"
                           label="Passport Outer Page"
                           icon="fas fa-passport"
+                          documents={documents}
+                          documentPreviews={documentPreviews}
+                          uploadingFiles={uploadingFiles}
+                          handleFileChange={handleFileChange}
+                          setDocuments={setDocuments}
+                          setDocumentPreviews={setDocumentPreviews}
                         />
                         <DocumentUpload
                           fieldKey="passport_id_page"
                           label="Passport ID Page"
                           icon="fas fa-id-card"
+                          documents={documents}
+                          documentPreviews={documentPreviews}
+                          uploadingFiles={uploadingFiles}
+                          handleFileChange={handleFileChange}
+                          setDocuments={setDocuments}
+                          setDocumentPreviews={setDocumentPreviews}
                         />
                       </div>
                     </div>
@@ -2615,336 +2553,293 @@ const AddEmployee = () => {
               </div>
             </div>
 
-            {/* Step 2 - Visa, Labor & EID (Merged from previous steps 2 and 3) */}
-            {currentStep === 2 && (
+            {/* ─── STEP 2: VISA, LABOR & EID ───────────────────────────── */}
+            <div className={currentStep === 2 ? "block" : "hidden"}>
               <div>
                 <div className="form-section-title mb-4 md:mb-6">
                   <i className="fas fa-file-contract text-green-500 mr-2"></i>
-                  <h3 className="text-base md:text-lg font-bold text-gray-800">
+                  <h3 className="text-base md:text-lg font-bold text-[var(--form-text)]">
                     Visa, Labor & Emirates ID
                   </h3>
                 </div>
                 <div className="space-y-6">
-                  {/* Labor Section - Only show for Mainland companies */}
+                  {/* Labor Section - Mainland only */}
                   {selectedCompanyDetails?.raw?.trade_license ===
                     "mainland" && (
-                    <div className="border border-gray-200 rounded-lg p-4 md:p-5">
-                      <h4 className="text-sm font-semibold text-gray-700 mb-4 flex items-center">
+                    <div className="border border-[var(--form-border)] rounded-lg p-4 md:p-5">
+                      <h4 className="text-sm font-semibold text-[var(--form-label)] mb-4 flex items-center">
                         <i className="fas fa-briefcase text-green-500 mr-2"></i>
                         Labor Details
                       </h4>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5">
-                        <div>
-                          <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
-                            <i className="fas fa-briefcase text-green-500 mr-1"></i>{" "}
-                            Labor Number
-                          </label>
-                          <Controller
-                            name="labor_number"
-                            control={control}
-                            render={({ field }) => (
-                              <>
-                                <input
-                                  {...field}
-                                  type="text"
-                                  className={`w-full px-3 md:px-4 py-2 md:py-3 bg-gray-50 border rounded-lg text-sm md:text-base text-gray-800 focus:outline-none focus:ring-2 ${errors.labor_number ? "border-red-500" : "border-gray-200 focus:border-green-500"}`}
-                                  placeholder="Enter Labor Number"
-                                />
-                                {errors.labor_number && (
-                                  <p className="mt-1 text-xs text-red-500">
-                                    {errors.labor_number.message}
-                                  </p>
-                                )}
-                              </>
-                            )}
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
-                            <i className="fas fa-calendar-plus text-green-500 mr-1"></i>{" "}
-                            Labor Issued Date
-                          </label>
-                          <Controller
-                            name="labor_issued_date"
-                            control={control}
-                            rules={{
-                              validate: (value) =>
-                                validateIssueDate(
-                                  value,
-                                  laborExpiry,
-                                  "Labor issued date",
-                                ),
-                            }}
-                            render={({ field }) => (
-                              <>
-                                <DateInput
-                                  {...field}
-                                  placeholder="dd/mm/yyyy"
-                                  error={!!errors.labor_issued_date}
-                                />
-                                {errors.labor_issued_date && (
-                                  <p className="mt-1 text-xs text-red-500">
-                                    {errors.labor_issued_date.message}
-                                  </p>
-                                )}
-                              </>
-                            )}
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
-                            <i className="fas fa-calendar-times text-green-500 mr-1"></i>{" "}
-                            Labor Expiry Date
-                          </label>
-                          <Controller
-                            name="labor_expiry_date"
-                            control={control}
-                            rules={{
-                              validate: (value) =>
-                                validateExpiryDate(
-                                  value,
-                                  laborIssued,
-                                  "Labor expiry date",
-                                ),
-                            }}
-                            render={({ field }) => (
-                              <>
-                                <DateInput
-                                  {...field}
-                                  placeholder="dd/mm/yyyy"
-                                  error={!!errors.labor_expiry_date}
-                                />
-                                {errors.labor_expiry_date && (
-                                  <p className="mt-1 text-xs text-red-500">
-                                    {errors.labor_expiry_date.message}
-                                  </p>
-                                )}
-                              </>
-                            )}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Visa Section */}
-                  <div className="border border-gray-200 rounded-lg p-4 md:p-5">
-                    <h4 className="text-sm font-semibold text-gray-700 mb-4 flex items-center">
-                      <i className="fas fa-passport text-green-500 mr-2"></i>
-                      Visa Details
-                    </h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5">
-                      <div className="md:col-span-2">
-                        <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
-                          <i className="fas fa-list text-green-500 mr-1"></i>{" "}
-                          Type of Visa
-                        </label>
                         <Controller
-                          name="visa_type"
+                          name="labor_number"
                           control={control}
                           render={({ field }) => (
-                            <select
+                            <FormInput
                               {...field}
-                              className="w-full px-3 md:px-4 py-2 md:py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm md:text-base text-gray-800 focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-500/20"
-                            >
-                              <option value="">Select Type of Visa</option>
-                              {visaTypeOptions.map((option) => (
-                                <option key={option.value} value={option.value}>
-                                  {option.label}
-                                </option>
-                              ))}
-                            </select>
-                          )}
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
-                          <i className="fas fa-id-card text-green-500 mr-1"></i>{" "}
-                          Visa Number
-                        </label>
-                        <Controller
-                          name="visa_number"
-                          control={control}
-                          render={({ field }) => (
-                            <input
-                              {...field}
-                              type="text"
-                              className="w-full px-3 md:px-4 py-2 md:py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm md:text-base text-gray-800 focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-500/20"
-                              placeholder="Enter Visa Number"
+                              label="Labor Number"
+                              icon="fas fa-briefcase"
+                              placeholder="Enter Labor Number"
                             />
                           )}
                         />
-                      </div>
 
-                      <div>
-                        <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
-                          <i className="fas fa-calendar-plus text-green-500 mr-1"></i>{" "}
-                          Visa Issued Date
-                        </label>
                         <Controller
-                          name="visa_issued_date"
+                          name="labor_issued_date"
                           control={control}
                           rules={{
                             validate: (value) =>
                               validateIssueDate(
                                 value,
-                                visaExpiry,
-                                "Visa issued date",
+                                laborExpiry,
+                                "Labor issued date",
                               ),
                           }}
                           render={({ field }) => (
-                            <>
+                            <div>
+                              <label className="block text-xs md:text-sm font-semibold text-[var(--form-label)] mb-1 md:mb-2">
+                                <i className="fas fa-calendar-plus text-green-500 mr-1"></i>{" "}
+                                Labor Issued Date
+                              </label>
                               <DateInput
                                 {...field}
                                 placeholder="dd/mm/yyyy"
-                                error={!!errors.visa_issued_date}
+                                error={!!errors.labor_issued_date}
                               />
-                              {errors.visa_issued_date && (
-                                <p className="mt-1 text-xs text-red-500">
-                                  {errors.visa_issued_date.message}
+                              {errors.labor_issued_date && (
+                                <p className="mt-1 text-xs text-[var(--form-error)]">
+                                  {errors.labor_issued_date.message}
                                 </p>
                               )}
-                            </>
+                            </div>
                           )}
                         />
-                      </div>
 
-                      <div>
-                        <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
-                          <i className="fas fa-calendar-times text-green-500 mr-1"></i>{" "}
-                          Visa Expiry Date
-                        </label>
                         <Controller
-                          name="visa_expiry_date"
+                          name="labor_expiry_date"
                           control={control}
                           rules={{
                             validate: (value) =>
                               validateExpiryDate(
                                 value,
-                                visaIssued,
-                                "Visa expiry date",
+                                laborIssued,
+                                "Labor expiry date",
                               ),
                           }}
                           render={({ field }) => (
-                            <>
+                            <div>
+                              <label className="block text-xs md:text-sm font-semibold text-[var(--form-label)] mb-1 md:mb-2">
+                                <i className="fas fa-calendar-times text-green-500 mr-1"></i>{" "}
+                                Labor Expiry Date
+                              </label>
                               <DateInput
                                 {...field}
                                 placeholder="dd/mm/yyyy"
-                                error={!!errors.visa_expiry_date}
+                                error={!!errors.labor_expiry_date}
                               />
-                              {errors.visa_expiry_date && (
-                                <p className="mt-1 text-xs text-red-500">
-                                  {errors.visa_expiry_date.message}
+                              {errors.labor_expiry_date && (
+                                <p className="mt-1 text-xs text-[var(--form-error)]">
+                                  {errors.labor_expiry_date.message}
                                 </p>
                               )}
-                            </>
+                            </div>
                           )}
                         />
                       </div>
                     </div>
+                  )}
+
+                  {/* Visa Section */}
+                  <div className="border border-[var(--form-border)] rounded-lg p-4 md:p-5">
+                    <h4 className="text-sm font-semibold text-[var(--form-label)] mb-4 flex items-center">
+                      <i className="fas fa-passport text-green-500 mr-2"></i>
+                      Visa Details
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5">
+                      <div className="md:col-span-2">
+                        <Controller
+                          name="visa_type"
+                          control={control}
+                          render={({ field }) => (
+                            <FormSelect
+                              {...field}
+                              label="Type of Visa"
+                              icon="fas fa-list"
+                              options={visaTypeOptions}
+                              placeholder="Select Type of Visa"
+                            />
+                          )}
+                        />
+                      </div>
+
+                      <Controller
+                        name="visa_number"
+                        control={control}
+                        render={({ field }) => (
+                          <FormInput
+                            {...field}
+                            label="Visa Number"
+                            icon="fas fa-id-card"
+                            placeholder="Enter Visa Number"
+                          />
+                        )}
+                      />
+
+                      <Controller
+                        name="visa_issued_date"
+                        control={control}
+                        rules={{
+                          validate: (value) =>
+                            validateIssueDate(
+                              value,
+                              visaExpiry,
+                              "Visa issued date",
+                            ),
+                        }}
+                        render={({ field }) => (
+                          <div>
+                            <label className="block text-xs md:text-sm font-semibold text-[var(--form-label)] mb-1 md:mb-2">
+                              <i className="fas fa-calendar-plus text-green-500 mr-1"></i>{" "}
+                              Visa Issued Date
+                            </label>
+                            <DateInput
+                              {...field}
+                              placeholder="dd/mm/yyyy"
+                              error={!!errors.visa_issued_date}
+                            />
+                            {errors.visa_issued_date && (
+                              <p className="mt-1 text-xs text-[var(--form-error)]">
+                                {errors.visa_issued_date.message}
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      />
+
+                      <Controller
+                        name="visa_expiry_date"
+                        control={control}
+                        rules={{
+                          validate: (value) =>
+                            validateExpiryDate(
+                              value,
+                              visaIssued,
+                              "Visa expiry date",
+                            ),
+                        }}
+                        render={({ field }) => (
+                          <div>
+                            <label className="block text-xs md:text-sm font-semibold text-[var(--form-label)] mb-1 md:mb-2">
+                              <i className="fas fa-calendar-times text-green-500 mr-1"></i>{" "}
+                              Visa Expiry Date
+                            </label>
+                            <DateInput
+                              {...field}
+                              placeholder="dd/mm/yyyy"
+                              error={!!errors.visa_expiry_date}
+                            />
+                            {errors.visa_expiry_date && (
+                              <p className="mt-1 text-xs text-[var(--form-error)]">
+                                {errors.visa_expiry_date.message}
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      />
+                    </div>
                   </div>
 
                   {/* EID Section */}
-                  <div className="border border-gray-200 rounded-lg p-4 md:p-5">
-                    <h4 className="text-sm font-semibold text-gray-700 mb-4 flex items-center">
+                  <div className="border border-[var(--form-border)] rounded-lg p-4 md:p-5">
+                    <h4 className="text-sm font-semibold text-[var(--form-label)] mb-4 flex items-center">
                       <i className="fas fa-id-card text-green-500 mr-2"></i>
                       Emirates ID (EID)
                     </h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5">
                       <div className="md:col-span-2">
-                        <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
-                          <i className="fas fa-qrcode text-green-500 mr-1"></i>{" "}
-                          EID Number
-                        </label>
                         <Controller
                           name="eid_number"
                           control={control}
                           render={({ field }) => (
-                            <input
+                            <FormInput
                               {...field}
-                              type="text"
-                              className="w-full px-3 md:px-4 py-2 md:py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm md:text-base text-gray-800 focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-500/20"
+                              label="EID Number"
+                              icon="fas fa-qrcode"
                               placeholder="Enter EID number (e.g., 784-2024-1234567-8)"
                             />
                           )}
                         />
                       </div>
 
-                      <div>
-                        <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
-                          <i className="fas fa-calendar-plus text-green-500 mr-1"></i>{" "}
-                          EID Issued Date
-                        </label>
-                        <Controller
-                          name="eid_issued_date"
-                          control={control}
-                          rules={{
-                            validate: (value) =>
-                              validateIssueDate(
-                                value,
-                                eidExpiry,
-                                "EID issued date",
-                              ),
-                          }}
-                          render={({ field }) => (
-                            <>
-                              <DateInput
-                                {...field}
-                                placeholder="dd/mm/yyyy"
-                                error={!!errors.eid_issued_date}
-                              />
-                              {errors.eid_issued_date && (
-                                <p className="mt-1 text-xs text-red-500">
-                                  {errors.eid_issued_date.message}
-                                </p>
-                              )}
-                            </>
-                          )}
-                        />
-                      </div>
+                      <Controller
+                        name="eid_issued_date"
+                        control={control}
+                        rules={{
+                          validate: (value) =>
+                            validateIssueDate(
+                              value,
+                              eidExpiry,
+                              "EID issued date",
+                            ),
+                        }}
+                        render={({ field }) => (
+                          <div>
+                            <label className="block text-xs md:text-sm font-semibold text-[var(--form-label)] mb-1 md:mb-2">
+                              <i className="fas fa-calendar-plus text-green-500 mr-1"></i>{" "}
+                              EID Issued Date
+                            </label>
+                            <DateInput
+                              {...field}
+                              placeholder="dd/mm/yyyy"
+                              error={!!errors.eid_issued_date}
+                            />
+                            {errors.eid_issued_date && (
+                              <p className="mt-1 text-xs text-[var(--form-error)]">
+                                {errors.eid_issued_date.message}
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      />
 
-                      <div>
-                        <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
-                          <i className="fas fa-calendar-times text-green-500 mr-1"></i>{" "}
-                          EID Expiry Date
-                        </label>
-                        <Controller
-                          name="eid_expiry_date"
-                          control={control}
-                          rules={{
-                            validate: (value) =>
-                              validateExpiryDate(
-                                value,
-                                eidIssued,
-                                "EID expiry date",
-                              ),
-                          }}
-                          render={({ field }) => (
-                            <>
-                              <DateInput
-                                {...field}
-                                placeholder="dd/mm/yyyy"
-                                error={!!errors.eid_expiry_date}
-                              />
-                              {errors.eid_expiry_date && (
-                                <p className="mt-1 text-xs text-red-500">
-                                  {errors.eid_expiry_date.message}
-                                </p>
-                              )}
-                            </>
-                          )}
-                        />
-                      </div>
+                      <Controller
+                        name="eid_expiry_date"
+                        control={control}
+                        rules={{
+                          validate: (value) =>
+                            validateExpiryDate(
+                              value,
+                              eidIssued,
+                              "EID expiry date",
+                            ),
+                        }}
+                        render={({ field }) => (
+                          <div>
+                            <label className="block text-xs md:text-sm font-semibold text-[var(--form-label)] mb-1 md:mb-2">
+                              <i className="fas fa-calendar-times text-green-500 mr-1"></i>{" "}
+                              EID Expiry Date
+                            </label>
+                            <DateInput
+                              {...field}
+                              placeholder="dd/mm/yyyy"
+                              error={!!errors.eid_expiry_date}
+                            />
+                            {errors.eid_expiry_date && (
+                              <p className="mt-1 text-xs text-[var(--form-error)]">
+                                {errors.eid_expiry_date.message}
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      />
                     </div>
                   </div>
 
-                  {/* Supporting Documents Section */}
+                  {/* Supporting Documents */}
                   <div>
-                    <div className="border-t border-gray-200 pt-4 mt-2">
-                      <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center">
+                    <div className="border-t border-[var(--form-border)] pt-4 mt-2">
+                      <h4 className="text-sm font-semibold text-[var(--form-label)] mb-3 flex items-center">
                         <i className="fas fa-file-contract text-green-500 mr-2"></i>
                         Supporting Documents
                       </h4>
@@ -2953,8 +2848,13 @@ const AddEmployee = () => {
                           fieldKey="visa_page"
                           label="Visa Page Copy"
                           icon="fas fa-file-contract"
+                          documents={documents}
+                          documentPreviews={documentPreviews}
+                          uploadingFiles={uploadingFiles}
+                          handleFileChange={handleFileChange}
+                          setDocuments={setDocuments}
+                          setDocumentPreviews={setDocumentPreviews}
                         />
-                        {/* Only show labor documents for Mainland companies */}
                         {selectedCompanyDetails?.raw?.trade_license ===
                           "mainland" && (
                           <>
@@ -2962,11 +2862,23 @@ const AddEmployee = () => {
                               fieldKey="labor_card"
                               label="Labor Card Copy"
                               icon="fas fa-id-card"
+                              documents={documents}
+                              documentPreviews={documentPreviews}
+                              uploadingFiles={uploadingFiles}
+                              handleFileChange={handleFileChange}
+                              setDocuments={setDocuments}
+                              setDocumentPreviews={setDocumentPreviews}
                             />
                             <DocumentUpload
                               fieldKey="labor_contract"
                               label="Attach Labor Contract"
                               icon="fas fa-file-signature"
+                              documents={documents}
+                              documentPreviews={documentPreviews}
+                              uploadingFiles={uploadingFiles}
+                              handleFileChange={handleFileChange}
+                              setDocuments={setDocuments}
+                              setDocumentPreviews={setDocumentPreviews}
                             />
                           </>
                         )}
@@ -2974,190 +2886,156 @@ const AddEmployee = () => {
                           fieldKey="eid_1st_page"
                           label="EID Front Side"
                           icon="fas fa-id-card"
+                          documents={documents}
+                          documentPreviews={documentPreviews}
+                          uploadingFiles={uploadingFiles}
+                          handleFileChange={handleFileChange}
+                          setDocuments={setDocuments}
+                          setDocumentPreviews={setDocumentPreviews}
                         />
                         <DocumentUpload
                           fieldKey="eid_2nd_page"
                           label="EID Back Side"
                           icon="fas fa-id-card"
+                          documents={documents}
+                          documentPreviews={documentPreviews}
+                          uploadingFiles={uploadingFiles}
+                          handleFileChange={handleFileChange}
+                          setDocuments={setDocuments}
+                          setDocumentPreviews={setDocumentPreviews}
                         />
                       </div>
                     </div>
                   </div>
                 </div>
               </div>
-            )}
+            </div>
 
-            {/* Step 4 - Contact */}
+            {/* ─── STEP 3: CONTACT ──────────────────────────────────────── */}
             <div className={currentStep === 3 ? "block" : "hidden"}>
               <div>
                 <div className="form-section-title mb-4 md:mb-6">
                   <i className="fas fa-address-card text-green-500 mr-2"></i>
-                  <h3 className="text-base md:text-lg font-bold text-gray-800">
+                  <h3 className="text-base md:text-lg font-bold text-[var(--form-text)]">
                     Contact Information & Others
                   </h3>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5">
-                  <div>
-                    <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
-                      <i className="fas fa-users text-green-500 mr-1"></i>{" "}
-                      Dependents
-                    </label>
-                    <Controller
-                      name="dependents"
-                      control={control}
-                      render={({ field }) => (
-                        <input
-                          {...field}
-                          type="number"
-                          min="0"
-                          className="w-full px-3 md:px-4 py-2 md:py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm md:text-base text-gray-800 focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-500/20"
-                          placeholder="Number of dependents"
-                        />
-                      )}
-                    />
-                  </div>
+                  <Controller
+                    name="dependents"
+                    control={control}
+                    render={({ field }) => (
+                      <FormInput
+                        {...field}
+                        label="Dependents"
+                        icon="fas fa-users"
+                        type="number"
+                        min="0"
+                        placeholder="Number of dependents"
+                      />
+                    )}
+                  />
 
-                  <div>
-                    <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
-                      <i className="fas fa-phone text-green-500 mr-1"></i>{" "}
-                      Company Mobile Number
-                    </label>
-                    <Controller
-                      name="company_mobile_number"
-                      control={control}
-                      render={({ field }) => (
-                        <input
-                          {...field}
-                          type="tel"
-                          className="w-full px-3 md:px-4 py-2 md:py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm md:text-base text-gray-800 focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-500/20"
-                          placeholder="Enter company mobile number"
-                        />
-                      )}
-                    />
-                  </div>
+                  <Controller
+                    name="company_mobile_number"
+                    control={control}
+                    render={({ field }) => (
+                      <FormInput
+                        {...field}
+                        label="Company Mobile Number"
+                        icon="fas fa-phone"
+                        type="tel"
+                        placeholder="Enter company mobile number"
+                      />
+                    )}
+                  />
 
-                  <div>
-                    <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
-                      <i className="fas fa-phone text-green-500 mr-1"></i>{" "}
-                      Personal Number
-                    </label>
-                    <Controller
-                      name="personal_number"
-                      control={control}
-                      render={({ field }) => (
-                        <input
-                          {...field}
-                          type="tel"
-                          className="w-full px-3 md:px-4 py-2 md:py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm md:text-base text-gray-800 focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-500/20"
-                          placeholder="Enter personal phone number"
-                        />
-                      )}
-                    />
-                  </div>
+                  <Controller
+                    name="personal_number"
+                    control={control}
+                    render={({ field }) => (
+                      <FormInput
+                        {...field}
+                        label="Personal Number"
+                        icon="fas fa-phone"
+                        type="tel"
+                        placeholder="Enter personal phone number"
+                      />
+                    )}
+                  />
 
-                  <div>
-                    <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
-                      <i className="fas fa-phone-alt text-green-500 mr-1"></i>{" "}
-                      Other Number
-                    </label>
-                    <Controller
-                      name="other_number"
-                      control={control}
-                      render={({ field }) => (
-                        <input
-                          {...field}
-                          type="tel"
-                          className="w-full px-3 md:px-4 py-2 md:py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm md:text-base text-gray-800 focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-500/20"
-                          placeholder="Enter alternate number"
-                        />
-                      )}
-                    />
-                  </div>
+                  <Controller
+                    name="other_number"
+                    control={control}
+                    render={({ field }) => (
+                      <FormInput
+                        {...field}
+                        label="Other Number"
+                        icon="fas fa-phone-alt"
+                        type="tel"
+                        placeholder="Enter alternate number"
+                      />
+                    )}
+                  />
 
-                  <div>
-                    <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
-                      <i className="fas fa-globe text-green-500 mr-1"></i> Home
-                      Country Number
-                    </label>
-                    <Controller
-                      name="home_country_number"
-                      control={control}
-                      render={({ field }) => (
-                        <input
-                          {...field}
-                          type="tel"
-                          className="w-full px-3 md:px-4 py-2 md:py-3 bg-gray-50 border border-gray-200 rounded-lg text-sm md:text-base text-gray-800 focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-500/20"
-                          placeholder="Enter home country number"
-                        />
-                      )}
-                    />
-                  </div>
+                  <Controller
+                    name="home_country_number"
+                    control={control}
+                    render={({ field }) => (
+                      <FormInput
+                        {...field}
+                        label="Home Country Number"
+                        icon="fas fa-globe"
+                        type="tel"
+                        placeholder="Enter home country number"
+                      />
+                    )}
+                  />
 
-                  <div>
-                    <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
-                      <i className="fas fa-envelope text-green-500 mr-1"></i>{" "}
-                      Company Email
-                    </label>
-                    <Controller
-                      name="company_email"
-                      control={control}
-                      rules={validationRules.company_email}
-                      render={({ field }) => (
-                        <>
-                          <input
-                            {...field}
-                            type="email"
-                            className={`w-full px-3 md:px-4 py-2 md:py-3 bg-gray-50 border rounded-lg text-sm md:text-base text-gray-800 transition-all focus:outline-none focus:ring-2 ${errors.company_email ? "border-red-500" : "border-gray-200 focus:border-green-500"}`}
-                            placeholder="name@company.com (Optional)"
-                          />
-                          {errors.company_email && (
-                            <p className="mt-1 text-xs text-red-500">
-                              {errors.company_email.message}
-                            </p>
-                          )}
-                        </>
-                      )}
-                    />
-                  </div>
+                  <Controller
+                    name="company_email"
+                    control={control}
+                    rules={validationRules.company_email}
+                    render={({ field }) => (
+                      <FormInput
+                        {...field}
+                        label="Company Email"
+                        icon="fas fa-envelope"
+                        type="email"
+                        placeholder="name@company.com"
+                        error={errors.company_email?.message}
+                      />
+                    )}
+                  />
 
-                  <div>
-                    <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1 md:mb-2">
-                      <i className="fas fa-envelope text-green-500 mr-1"></i>{" "}
-                      Personal Email <span className="text-red-500">*</span>
-                    </label>
-                    <Controller
-                      name="personal_email"
-                      control={control}
-                      rules={validationRules.personal_email}
-                      render={({ field }) => (
-                        <>
-                          <input
-                            {...field}
-                            type="email"
-                            className={`w-full px-3 md:px-4 py-2 md:py-3 bg-gray-50 border rounded-lg text-sm md:text-base text-gray-800 transition-all focus:outline-none focus:ring-2 ${errors.personal_email ? "border-red-500" : "border-gray-200 focus:border-green-500"}`}
-                            placeholder="name@gmail.com"
-                          />
-                          {errors.personal_email && (
-                            <p className="mt-1 text-xs text-red-500">
-                              {errors.personal_email.message}
-                            </p>
-                          )}
-                        </>
-                      )}
-                    />
-                  </div>
+                  <Controller
+                    name="personal_email"
+                    control={control}
+                    rules={validationRules.personal_email}
+                    render={({ field }) => (
+                      <FormInput
+                        {...field}
+                        label="Personal Email"
+                        icon="fas fa-envelope"
+                        type="email"
+                        required
+                        placeholder="name@gmail.com"
+                        error={errors.personal_email?.message}
+                      />
+                    )}
+                  />
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Navigation Buttons */}
-          <div className="flex flex-col-reverse sm:flex-row justify-between gap-3 mt-8 pt-6 border-t border-gray-200">
+          {/* ─── NAVIGATION BUTTONS ────────────────────────────────────── */}
+          <div className="flex flex-col-reverse sm:flex-row justify-between gap-3 mt-8 pt-6 border-t border-[var(--form-border)]">
             {currentStep > 0 && (
               <button
                 type="button"
                 onClick={handlePrevious}
-                className="px-6 py-2.5 rounded-full font-semibold bg-gray-100 text-gray-700 hover:bg-gray-200 transition-all flex items-center justify-center gap-2"
+                className="px-6 py-2.5 rounded-full font-semibold bg-[var(--form-surface)] text-[var(--form-text)] border border-[var(--form-border)] hover:bg-[var(--form-surface-hover)] transition-all flex items-center justify-center gap-2"
               >
                 <i className="fas fa-arrow-left"></i>
                 <span>Previous</span>
@@ -3168,7 +3046,7 @@ const AddEmployee = () => {
               <button
                 type="button"
                 onClick={handleNext}
-                className="px-6 py-2.5 rounded-full font-semibold bg-green-500 text-white hover:bg-green-600 transition-all flex items-center justify-center gap-2"
+                className="px-6 py-2.5 rounded-full font-semibold bg-green-500 text-white hover:bg-green-600 transition-all flex items-center justify-center gap-2 shadow-md hover:shadow-lg"
               >
                 <span>Next</span>
                 <i className="fas fa-arrow-right"></i>
@@ -3177,7 +3055,7 @@ const AddEmployee = () => {
               <button
                 type="submit"
                 disabled={loading}
-                className="px-6 py-2.5 rounded-full font-semibold bg-green-500 text-white hover:bg-green-600 transition-all flex items-center justify-center gap-2 disabled:opacity-70"
+                className="px-6 py-2.5 rounded-full font-semibold bg-green-500 text-white hover:bg-green-600 transition-all flex items-center justify-center gap-2 shadow-md hover:shadow-lg disabled:opacity-70 disabled:cursor-not-allowed"
               >
                 {loading ? (
                   <>
@@ -3193,13 +3071,15 @@ const AddEmployee = () => {
           </div>
         </form>
       </div>
+
+      {/* ─── MODALS ──────────────────────────────────────────────────────── */}
       <DocumentModal
         isOpen={showDocumentModal}
         onClose={() => setShowDocumentModal(false)}
         onSave={handleAddDocument}
         uploading={uploadingDoc}
       />
-      {/* Department Modal */}
+
       <DepartmentModal
         isOpen={isDepartmentModalOpen}
         onClose={() => setIsDepartmentModalOpen(false)}
@@ -3207,7 +3087,6 @@ const AddEmployee = () => {
         isLoading={departmentModalLoading}
       />
 
-      {/* Designation Modal */}
       <DesignationModal
         isOpen={isDesignationModalOpen}
         onClose={() => setIsDesignationModalOpen(false)}

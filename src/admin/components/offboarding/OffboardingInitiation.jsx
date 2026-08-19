@@ -74,6 +74,7 @@ const OffboardingInitiation = () => {
 
   // Determine if we're in edit mode based on URL, state, or localStorage
   const isEditMode = !!offboardingId || !!location.state?.offboardingData || !!location.state?.isEdit;
+  const isViewMode = !!location.state?.isView;
 
   const dropdownRef = useRef(null);
   const managerDropdownRef = useRef(null);
@@ -375,34 +376,7 @@ const OffboardingInitiation = () => {
     }
   }, [offboardingError]);
 
-  // Fetch progress when available
-  useEffect(() => {
-    if (currentProgress && currentProgress.offboarding_id && showProgress) {
-      const timer = setTimeout(() => {
-        navigate(
-          `/admin/employees/asset-return?id=${currentProgress.offboarding_id}`,
-        );
-        setShowProgress(false);
-      }, 2000);
-      return () => clearTimeout(timer);
-    }
-  }, [currentProgress, showProgress, navigate]);
 
-  useEffect(() => {
-    let fallbackTimer;
-    if (showProgress && !currentProgress) {
-      fallbackTimer = setTimeout(() => {
-        const storedId = localStorage.getItem("offboarding_id");
-        if (storedId) {
-          navigate(`/admin/employees/asset-return?id=${storedId}`);
-          setShowProgress(false);
-        }
-      }, 3000);
-    }
-    return () => {
-      if (fallbackTimer) clearTimeout(fallbackTimer);
-    };
-  }, [showProgress, currentProgress, navigate]);
 
   // Handle click outside to close employee dropdown
   useEffect(() => {
@@ -807,15 +781,16 @@ const OffboardingInitiation = () => {
             {/* Header Title with Draft Badge */}
             <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-700 pb-4 mb-6">
               <h1 className="text-xl sm:text-2xl font-black text-gray-900 dark:text-white tracking-tight">
-                {isEditMode ? "Edit Offboarding" : "Initiate offboarding"}
+                {isViewMode ? "View Offboarding" : isEditMode ? "Edit Offboarding" : "Initiate offboarding"}
               </h1>
-              {!isEditMode && (
+              {!isEditMode && !isViewMode && (
                 <span className="px-3 py-1 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border border-amber-200/60 dark:border-amber-900/60 rounded text-xs font-bold uppercase tracking-wider">
                   Draft
                 </span>
               )}
             </div>
 
+            <fieldset disabled={isViewMode} className="w-full">
             {/* Form Fields Grid - Two columns */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-5">
               {/* Employee Name (Searchable Select Input) */}
@@ -1258,45 +1233,58 @@ const OffboardingInitiation = () => {
                 )}
               </div>
             </div>
+            </fieldset>
 
             {/* Form Actions */}
             <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
-              {!isEditMode && (
+              {isViewMode ? (
                 <button
                   type="button"
-                  onClick={handleSaveDraft}
-                  disabled={offboardingLoading}
-                  className="px-6 py-2.5 rounded-full font-semibold bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                  onClick={() => navigate(`/admin/employees/asset-return?id=${offboardingId}`, { state: { id: offboardingId, isView: true } })}
+                  className="px-6 py-2.5 rounded-full font-semibold bg-blue-500 text-white hover:bg-blue-600 transition-all flex items-center justify-center gap-2"
                 >
-                  <Save size={16} />
-                  Save draft
+                  Next Step <ArrowRight size={16} />
                 </button>
-              )}
+              ) : (
+                <>
+                  {!isEditMode && (
+                    <button
+                      type="button"
+                      onClick={handleSaveDraft}
+                      disabled={offboardingLoading}
+                      className="px-6 py-2.5 rounded-full font-semibold bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                    >
+                      <Save size={16} />
+                      Save draft
+                    </button>
+                  )}
 
-              <button
-                type="submit"
-                disabled={isSubmitting || offboardingLoading}
-                className="px-6 py-2.5 rounded-full font-semibold bg-green-500 text-white hover:bg-green-600 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isSubmitting || offboardingLoading ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    {isEditMode ? "Updating..." : "Initiating..."}
-                  </>
-                ) : (
-                  <>
-                    <ArrowRight size={16} />
-                    {isEditMode ? "Update Offboarding" : "Initiate offboarding"}
-                  </>
-                )}
-              </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmitting || offboardingLoading}
+                    className="px-6 py-2.5 rounded-full font-semibold bg-green-500 text-white hover:bg-green-600 transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isSubmitting || offboardingLoading ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        {isEditMode ? "Updating..." : "Initiating..."}
+                      </>
+                    ) : (
+                      <>
+                        <ArrowRight size={16} />
+                        {isEditMode ? "Update Offboarding" : "Initiate offboarding"}
+                      </>
+                    )}
+                  </button>
+                </>
+              )}
             </div>
           </form>
         </div>
       </div>
 
       {/* Progress Modal - only show for new offboarding */}
-      {!isEditMode && <ProgressModal />}
+      {!isEditMode && !isViewMode && <ProgressModal />}
     </div>
   );
 };
