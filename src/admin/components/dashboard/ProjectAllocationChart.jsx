@@ -1,4 +1,13 @@
-import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 
 // Blue gradient shades (slightly varied)
 const BLUE_GRADIENT = [
@@ -44,9 +53,9 @@ export const ProjectAllocationChart = ({ data }) => {
           Employees per project
         </h3>
       </div>
-      
+
       {/* Gradient definition for bars */}
-      <svg style={{ position: 'absolute', width: 0, height: 0 }}>
+      <svg style={{ position: "absolute", width: 0, height: 0 }}>
         <defs>
           <linearGradient id="blueGradient" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="#3b82f6" />
@@ -54,7 +63,7 @@ export const ProjectAllocationChart = ({ data }) => {
           </linearGradient>
         </defs>
       </svg>
-      
+
       <ResponsiveContainer width="100%" height={220}>
         <BarChart
           data={truncatedData}
@@ -82,10 +91,13 @@ export const ProjectAllocationChart = ({ data }) => {
           />
           <Tooltip
             contentStyle={{ borderRadius: 8, border: "1px solid #e5e7eb" }}
-            formatter={(value, name, props) => {
-              const fullName =
-                props?.payload?.fullName || props?.payload?.name || "";
-              return [`${value} employees`, fullName];
+            formatter={(value) => [`${value} employees`]}
+            labelFormatter={(label, props) => {
+              // Get the full name from the payload
+              if (props && props.length > 0) {
+                return props[0]?.payload?.fullName || label;
+              }
+              return label;
             }}
             cursor={{ fill: "rgba(59, 130, 246, 0.1)" }}
           />
@@ -97,10 +109,12 @@ export const ProjectAllocationChart = ({ data }) => {
           >
             {truncatedData.map((entry, index) => {
               // Calculate shade based on value
-              const maxEmployees = Math.max(...truncatedData.map(d => d.employees));
+              const maxEmployees = Math.max(
+                ...truncatedData.map((d) => d.employees),
+              );
               const ratio = entry.employees / maxEmployees;
               const shadeIndex = Math.floor(ratio * (BLUE_GRADIENT.length - 1));
-              
+
               return (
                 <Cell
                   key={`cell-${index}`}

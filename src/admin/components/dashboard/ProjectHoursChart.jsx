@@ -97,10 +97,13 @@ export const ProjectHoursChart = ({ data, onBarClick }) => {
           />
           <Tooltip
             contentStyle={{ borderRadius: 8, border: "1px solid #e5e7eb" }}
-            formatter={(value, name, props) => {
-              const fullName =
-                props?.payload?.fullName || props?.payload?.name || "";
-              return [`${value} hours`, fullName];
+            formatter={(value) => [`${value} hours`]}
+            labelFormatter={(label, props) => {
+              // Get the full name from the payload
+              if (props && props.length > 0) {
+                return props[0]?.payload?.fullName || label;
+              }
+              return label;
             }}
             cursor={{ fill: "rgba(59, 130, 246, 0.05)" }}
           />

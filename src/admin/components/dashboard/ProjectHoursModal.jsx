@@ -33,8 +33,25 @@ export const ProjectHoursModal = ({
     });
   }
 
-  // Helper to get employee avatar
-  const getEmployeeAvatar = (employeeId) => {
+  // ─── FIX: Get avatar from API data first, fallback to employees prop ───
+  const getEmployeeAvatar = (employeeId, apiEmployeeData) => {
+    // 1. Try to get avatar from the API data directly (most reliable)
+    if (apiEmployeeData?.avatar) {
+      const avatarValue = apiEmployeeData.avatar;
+      if (typeof avatarValue === "string") {
+        if (avatarValue.startsWith("http")) return avatarValue;
+        const baseUrl = import.meta.env.VITE_API_URL?.replace("/api", "") || "";
+        if (avatarValue.startsWith("/storage/")) return `${baseUrl}${avatarValue}`;
+        if (avatarValue.startsWith("avatars/")) return `${baseUrl}/storage/${avatarValue}`;
+        return `${baseUrl}/storage/${avatarValue}`;
+      }
+      if (typeof avatarValue === "object" && avatarValue.path) {
+        const baseUrl = import.meta.env.VITE_API_URL?.replace("/api", "") || "";
+        return `${baseUrl}/storage/${avatarValue.path}`;
+      }
+    }
+
+    // 2. Fallback: Try to get avatar from the employees prop
     const emp = employeeMap[employeeId] || employeeMap[String(employeeId)];
     if (!emp) return null;
     
@@ -49,13 +66,19 @@ export const ProjectHoursModal = ({
       if (avatarValue.startsWith("http")) return avatarValue;
       const baseUrl = import.meta.env.VITE_API_URL?.replace("/api", "") || "";
       if (avatarValue.startsWith("/storage/")) return `${baseUrl}${avatarValue}`;
+      if (avatarValue.startsWith("avatars/")) return `${baseUrl}/storage/${avatarValue}`;
       return `${baseUrl}/storage/${avatarValue}`;
     }
     return null;
   };
 
-  // Helper to get employee name from ID
-  const getEmployeeNameFromId = (employeeId) => {
+  // ─── FIX: Get employee name from API data first ──────────────────────
+  const getEmployeeNameFromData = (item) => {
+    // Use the name from the API response directly
+    if (item.name) return item.name;
+    
+    // Fallback to employee map
+    const employeeId = item.user_id || item.id;
     const emp = employeeMap[employeeId] || employeeMap[String(employeeId)];
     if (!emp) return `Employee #${employeeId}`;
     return emp.name || `${emp.first_name || ''} ${emp.last_name || ''}`.trim() || emp.employee_id || `Employee #${employeeId}`;
@@ -248,8 +271,12 @@ export const ProjectHoursModal = ({
                         .map((p) => p.project_name)
                         .join(", ");
                       const employeeId = item.user_id || item.id;
-                      const employeeName = item.name || getEmployeeNameFromId(employeeId);
-                      const avatarUrl = getEmployeeAvatar(employeeId);
+                      
+                      // ─── FIX: Use the API data for name and avatar ───
+                      const employeeName = item.name || getEmployeeNameFromData(item);
+                      
+                      // ─── FIX: Pass the API data to get avatar ──────────
+                      const avatarUrl = getEmployeeAvatar(employeeId, item);
                       const initials = getInitials(employeeName);
 
                       return (
@@ -269,11 +296,15 @@ export const ProjectHoursModal = ({
                                   className="w-8 h-8 rounded-full object-cover border border-gray-200 dark:border-gray-600 flex-shrink-0"
                                   onError={(e) => {
                                     e.target.style.display = "none";
-                                    e.target.parentElement.querySelector(`.avatar-fallback-${idx}`).style.display = "flex";
+                                    const fallback = e.target.parentElement.querySelector(`.avatar-fallback-${idx}`);
+                                    if (fallback) fallback.style.display = "flex";
                                   }}
                                 />
                               ) : null}
-                              <div className={`w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center text-xs font-medium text-indigo-600 dark:text-indigo-400 flex-shrink-0 avatar-fallback-${idx}`} style={{ display: avatarUrl ? 'none' : 'flex' }}>
+                              <div 
+                                className={`w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center text-xs font-medium text-indigo-600 dark:text-indigo-400 flex-shrink-0 avatar-fallback-${idx}`} 
+                                style={{ display: avatarUrl ? 'none' : 'flex' }}
+                              >
                                 {initials}
                               </div>
                               <span className="text-sm font-medium text-gray-800 dark:text-gray-200">
@@ -352,7 +383,7 @@ export const ProjectHoursModal = ({
                 const emp = employeeDetails[selectedEmployee];
                 if (!emp) {
                   return (
-                    <div className="text-center py-8 text-gray-500">
+                    <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                       <i className="fas fa-spinner fa-spin text-2xl mb-3"></i>
                       <p>Loading employee details...</p>
                     </div>
@@ -377,6 +408,7 @@ export const ProjectHoursModal = ({
                     else {
                       const baseUrl = import.meta.env.VITE_API_URL?.replace("/api", "") || "";
                       if (avatarValue.startsWith("/storage/")) avatarUrl = `${baseUrl}${avatarValue}`;
+                      else if (avatarValue.startsWith("avatars/")) avatarUrl = `${baseUrl}/storage/${avatarValue}`;
                       else avatarUrl = `${baseUrl}/storage/${avatarValue}`;
                     }
                   }
@@ -392,11 +424,15 @@ export const ProjectHoursModal = ({
                           className="w-16 h-16 rounded-full object-cover border-2 border-indigo-200 dark:border-indigo-800"
                           onError={(e) => {
                             e.target.style.display = "none";
-                            e.target.parentElement.querySelector('.avatar-fallback-detail').style.display = "flex";
+                            const fallback = e.target.parentElement.querySelector('.avatar-fallback-detail');
+                            if (fallback) fallback.style.display = "flex";
                           }}
                         />
                       ) : null}
-                      <div className={`w-16 h-16 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center text-2xl font-bold text-indigo-600 dark:text-indigo-400 avatar-fallback-detail`} style={{ display: avatarUrl ? 'none' : 'flex' }}>
+                      <div 
+                        className={`w-16 h-16 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center text-2xl font-bold text-indigo-600 dark:text-indigo-400 avatar-fallback-detail`} 
+                        style={{ display: avatarUrl ? 'none' : 'flex' }}
+                      >
                         {name.charAt(0)}
                       </div>
                       <div>
@@ -442,7 +478,11 @@ export const ProjectHoursModal = ({
                         </div>
                         <div className="text-sm font-medium">
                           <span
-                            className={`px-2 py-0.5 rounded-full text-xs ${user.status === "active" ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400" : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"}`}
+                            className={`px-2 py-0.5 rounded-full text-xs ${
+                              user.status === "active" 
+                                ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400" 
+                                : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+                            }`}
                           >
                             {user.status || "N/A"}
                           </span>
