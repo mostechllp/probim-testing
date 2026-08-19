@@ -39,14 +39,14 @@ const convertTo12Hour = (time24) => {
 };
 
 // Punch Out Modal Component
-// PunchOutModal.jsx - Updated with frontend calculation
-
 const PunchOutModal = ({
   isOpen,
   onClose,
   onSubmit,
   loading,
   punchOutDate,
+  punchData,
+  pendingPunchData,
 }) => {
   const dispatch = useDispatch();
   const [projects, setProjects] = useState([]);
@@ -65,6 +65,10 @@ const PunchOutModal = ({
   const [remarks, setRemarks] = useState("");
   const [savingTaskReport, setSavingTaskReport] = useState(false);
 
+  // Add state for fetched punch data
+  const [fetchedPunchData, setFetchedPunchData] = useState(null);
+  const [loadingPunchData, setLoadingPunchData] = useState(false);
+
   const { user } = useSelector((state) => state.auth);
   const dashboardData = useSelector(
     (state) => state.EmpAttendance?.dashboardData,
@@ -75,11 +79,119 @@ const PunchOutModal = ({
   const punchInTime = todayAttendance.punch_in_time;
   const punchInDate = todayAttendance.date;
 
+  // Combined fetch function for both projects and punch data
+  const fetchData = async () => {
+    // employeeId → for project-assignments (keyed by employee record)
+    const employeeId = dashboardData?.employee?.id || user?.employee?.id;
+
+    // userId → for punch-data (this endpoint expects the actual auth user id)
+    const userId = user?.id;
+
+    if (!employeeId) {
+      console.warn("No employee ID available");
+      setProjects([]);
+      return;
+    }
+
+    setLoadingProjects(true);
+    if (punchOutDate) {
+      setLoadingPunchData(true);
+    }
+
+    try {
+      const promises = [
+        apiClient.get(`/employee/project-assignments/${employeeId}`),
+      ];
+
+      if (punchOutDate) {
+        if (!userId) {
+          console.warn("No user ID available for punch-data fetch");
+        } else {
+          promises.push(
+            apiClient.get("/employee/attendance/punch-data", {
+              params: { user_id: userId, date: punchOutDate },
+            }),
+          );
+        }
+      }
+
+      const results = await Promise.all(promises);
+
+      // Process projects data (first result)
+      const projectsRes = results[0];
+      let projectsData = [];
+      if (
+        projectsRes.data?.data?.projects &&
+        Array.isArray(projectsRes.data.data.projects)
+      ) {
+        projectsData = projectsRes.data.data.projects;
+      } else if (
+        projectsRes.data?.projects &&
+        Array.isArray(projectsRes.data.projects)
+      ) {
+        projectsData = projectsRes.data.projects;
+      } else if (
+        projectsRes.data?.data &&
+        Array.isArray(projectsRes.data.data)
+      ) {
+        projectsData = projectsRes.data.data;
+      } else if (Array.isArray(projectsRes.data)) {
+        projectsData = projectsRes.data;
+      }
+      setProjects(projectsData);
+
+      // Process punch data if available (second result)
+      if (punchOutDate && userId && results.length > 1) {
+        const punchDataRes = results[1];
+        if (punchDataRes?.data?.data) {
+          setFetchedPunchData(punchDataRes.data.data);
+        } else if (pendingPunchData) {
+          setFetchedPunchData(pendingPunchData);
+        } else if (punchData) {
+          setFetchedPunchData(punchData);
+        }
+      } else if (pendingPunchData) {
+        setFetchedPunchData(pendingPunchData);
+      } else if (punchData) {
+        setFetchedPunchData(punchData);
+      }
+    } catch (err) {
+      console.error("Failed to fetch data:", err);
+
+      if (err.config?.url?.includes("/employee/project-assignments/")) {
+        showToast("Failed to load projects", "error");
+        setProjects([]);
+      }
+
+      if (err.config?.url?.includes("/employee/attendance/punch-data")) {
+        console.warn("Failed to fetch punch data, using fallback if available");
+        if (pendingPunchData) {
+          setFetchedPunchData(pendingPunchData);
+        } else if (punchData) {
+          setFetchedPunchData(punchData);
+        }
+      }
+    } finally {
+      setLoadingProjects(false);
+      setLoadingPunchData(false);
+    }
+  };
+  useEffect(() => {
+  if (isOpen) {
+    if (punchOutDate) {
+      setPunchOutTime("18:00");
+    } else {
+      const now = new Date();
+      setPunchOutTime(`${String(now.getHours()).padStart(2,"0")}:${String(now.getMinutes()).padStart(2,"0")}`);
+    }
+  }
+}, [isOpen, punchOutDate]);
+
   // Calculate working hours when modal opens or punch out time changes
   useEffect(() => {
     if (isOpen) {
       calculateWorkingHours();
-      fetchProjects();
+      fetchData(); // Now fetches both projects and punch data
     }
     return () => {
       setConfirmNoProjects(false);
@@ -89,6 +201,9 @@ const PunchOutModal = ({
       setPunchOutTime("");
       setTotalHours(0);
       setMaxWorkingHours(0);
+      setProjectTimes({});
+      setProjects([]);
+      setFetchedPunchData(null);
     };
   }, [isOpen]);
 
@@ -99,10 +214,23 @@ const PunchOutModal = ({
     }
   }, [punchOutTime, isOpen]);
 
-  // Calculate working hours from punch in time and punch out time
+  useEffect(() => {
+    if (isOpen && punchOutDate && fetchedPunchData) {
+      calculateWorkingHours();
+    }
+  }, [fetchedPunchData]);
+
   // Calculate working hours from punch in time and punch out time
   const calculateWorkingHours = () => {
-    if (!punchInTime) {
+    // Use the fetched punch-in time for the target date when punching out
+    // for a past date; otherwise fall back to today's live punch-in time.
+    const activePunchInTime = punchOutDate
+      ? fetchedPunchData?.punch_in ||
+        pendingPunchData?.punch_in ||
+        punchData?.punch_in
+      : punchInTime;
+
+    if (!activePunchInTime) {
       setMaxWorkingHours(0);
       return;
     }
@@ -111,60 +239,56 @@ const PunchOutModal = ({
 
     // Parse punch in time
     try {
-      if (typeof punchInTime === "string") {
-        if (punchInTime.includes("T")) {
-          punchInDateObj = new Date(punchInTime);
-        } else if (punchInTime.includes(":")) {
-          // Format: "09:00:00" or "09:00" or "01:04 PM"
-          // Check if it's in 12-hour format with AM/PM
+      if (typeof activePunchInTime === "string") {
+        if (activePunchInTime.includes("T")) {
+          punchInDateObj = new Date(activePunchInTime);
+        } else if (activePunchInTime.includes(":")) {
           if (
-            punchInTime.toLowerCase().includes("am") ||
-            punchInTime.toLowerCase().includes("pm")
+            activePunchInTime.toLowerCase().includes("am") ||
+            activePunchInTime.toLowerCase().includes("pm")
           ) {
-            // Parse 12-hour format: "01:04 PM"
-            const [time, meridian] = punchInTime.split(" ");
+            const [time, meridian] = activePunchInTime.split(" ");
             let [hours, minutes] = time.split(":").map(Number);
             if (meridian.toLowerCase() === "pm" && hours !== 12) hours += 12;
             if (meridian.toLowerCase() === "am" && hours === 12) hours = 0;
 
-            const now = new Date();
+            // Use punchOutDate as the base date if provided, else today
+            const baseDate = punchOutDate ? new Date(punchOutDate) : new Date();
             punchInDateObj = new Date(
-              now.getFullYear(),
-              now.getMonth(),
-              now.getDate(),
+              baseDate.getFullYear(),
+              baseDate.getMonth(),
+              baseDate.getDate(),
               hours,
               minutes || 0,
               0,
             );
           } else {
-            // 24-hour format: "09:00:00" or "09:00"
-            const parts = punchInTime.split(":");
+            const parts = activePunchInTime.split(":");
             const hours = parseInt(parts[0]);
             const minutes = parseInt(parts[1]) || 0;
             const seconds = parseInt(parts[2]) || 0;
 
-            const now = new Date();
+            const baseDate = punchOutDate ? new Date(punchOutDate) : new Date();
             punchInDateObj = new Date(
-              now.getFullYear(),
-              now.getMonth(),
-              now.getDate(),
+              baseDate.getFullYear(),
+              baseDate.getMonth(),
+              baseDate.getDate(),
               hours,
               minutes,
               seconds,
             );
           }
         } else {
-          punchInDateObj = new Date(punchInTime);
+          punchInDateObj = new Date(activePunchInTime);
         }
-      } else if (punchInTime instanceof Date) {
-        punchInDateObj = punchInTime;
+      } else if (activePunchInTime instanceof Date) {
+        punchInDateObj = activePunchInTime;
       } else {
-        punchInDateObj = new Date(punchInTime);
+        punchInDateObj = new Date(activePunchInTime);
       }
 
-      // If no valid date, return
       if (isNaN(punchInDateObj.getTime())) {
-        console.warn("Invalid punch in time:", punchInTime);
+        console.warn("Invalid punch in time:", activePunchInTime);
         setMaxWorkingHours(0);
         return;
       }
@@ -176,26 +300,22 @@ const PunchOutModal = ({
 
     // Determine punch out time
     let punchOutTimeStr = punchOutTime;
-    if (!punchOutTimeStr && todayAttendance.punch_out_time) {
+    if (!punchOutTimeStr && !punchOutDate && todayAttendance.punch_out_time) {
       punchOutTimeStr = todayAttendance.punch_out_time;
     }
 
     if (!punchOutTimeStr) {
-      // If no punch out time yet, use current time
       punchOutDateObj = new Date();
     } else {
-      // Parse punch out time
       try {
         if (punchOutTimeStr.includes("T")) {
           punchOutDateObj = new Date(punchOutTimeStr);
         } else if (punchOutTimeStr.includes(":")) {
-          // Format: "18:00" (24-hour)
           const parts = punchOutTimeStr.split(":");
           const hours = parseInt(parts[0]);
           const minutes = parseInt(parts[1]) || 0;
           const seconds = parseInt(parts[2]) || 0;
 
-          // Use the same date as punch in for consistency
           punchOutDateObj = new Date(
             punchInDateObj.getFullYear(),
             punchInDateObj.getMonth(),
@@ -208,66 +328,20 @@ const PunchOutModal = ({
           punchOutDateObj = new Date(punchOutTimeStr);
         }
 
-        // If punch out is before punch in (next day), add 24 hours
         if (punchOutDateObj < punchInDateObj) {
           punchOutDateObj.setDate(punchOutDateObj.getDate() + 1);
         }
       } catch (error) {
         console.error("Error parsing punch out time:", error);
-        // Use current time as fallback
         punchOutDateObj = new Date();
       }
     }
 
-    // Calculate difference in hours
     const diffMs = punchOutDateObj - punchInDateObj;
     const diffHours = diffMs / (1000 * 60 * 60);
-
-    // Round to 2 decimal places
     const roundedHours = Math.round(diffHours * 100) / 100;
-
-    // Ensure minimum 0 and maximum reasonable (e.g., 24 hours)
     const maxHours = Math.max(0, Math.min(roundedHours, 24));
     setMaxWorkingHours(maxHours);
-
-  };
-
-  // Fetch projects
-  const fetchProjects = async () => {
-    const employeeId =
-      dashboardData?.employee?.id || user?.employee?.id || user?.id;
-
-    if (!employeeId) {
-      console.warn("No employee ID available for projects");
-      setProjects([]);
-      return;
-    }
-
-    setLoadingProjects(true);
-    try {
-      const res = await apiClient.get(
-        `/admin/project-assignments/${employeeId}`,
-      );
-      let projectsData = [];
-
-      if (res.data?.data?.projects && Array.isArray(res.data.data.projects)) {
-        projectsData = res.data.data.projects;
-      } else if (res.data?.projects && Array.isArray(res.data.projects)) {
-        projectsData = res.data.projects;
-      } else if (res.data?.data && Array.isArray(res.data.data)) {
-        projectsData = res.data.data;
-      } else if (Array.isArray(res.data)) {
-        projectsData = res.data;
-      }
-
-      setProjects(projectsData);
-    } catch (err) {
-      console.error("Failed to fetch projects:", err);
-      showToast("Failed to load projects", "error");
-      setProjects([]);
-    } finally {
-      setLoadingProjects(false);
-    }
   };
 
   // Calculate total hours whenever project times change
@@ -330,6 +404,40 @@ const PunchOutModal = ({
     } finally {
       setSavingTaskReport(false);
     }
+  };
+
+  // Check if at least one project has hours entered
+  const isAtLeastOneProjectFilled = () => {
+    if (projects.length === 0) {
+      // If no projects, use the confirmNoProjects checkbox
+      return confirmNoProjects;
+    }
+    // Check if at least one project has time entered (and > 0)
+    return projects.some((project) => {
+      const time = projectTimes[project.id];
+      return time && time.trim() !== "" && parseFloat(time) > 0;
+    });
+  };
+
+  // Check if total hours is valid (not exceeding max)
+  const isTotalHoursValid = () => {
+    if (projects.length === 0) return true;
+    if (totalHours === 0) return false;
+    if (maxWorkingHours > 0 && totalHours > maxWorkingHours) return false;
+    return true;
+  };
+
+  // Check if form is valid for submission
+  const isFormValid = () => {
+    // Check punch out time for past date
+    if (punchOutDate && (!punchOutTime || punchOutTime === "00:00")) {
+      return false;
+    }
+    // Check if at least one project has hours
+    if (!isAtLeastOneProjectFilled()) return false;
+    // Check total hours validity
+    if (!isTotalHoursValid()) return false;
+    return true;
   };
 
   const handleSubmit = async (e) => {
@@ -476,27 +584,6 @@ const PunchOutModal = ({
     return `${hrs} hr ${mins} min`;
   };
 
-  // In PunchOutModal.jsx, update the useEffect that handles cleanup
-
-useEffect(() => {
-  if (isOpen) {
-    calculateWorkingHours();
-    fetchProjects();
-  }
-  return () => {
-    // Reset all state when modal is closed/cancelled
-    setConfirmNoProjects(false);
-    setTasksCompleted("");
-    setPlanTomorrow("");
-    setRemarks("");
-    setPunchOutTime("");
-    setTotalHours(0);
-    setMaxWorkingHours(0);
-    setProjectTimes({}); 
-    setProjects([]);
-  };
-}, [isOpen]);
-
   // Add a new function to format decimal hours to hours and minutes for display
   const formatHoursAndMinutes = (hours) => {
     if (!hours || hours <= 0) return "0h 0m";
@@ -510,19 +597,108 @@ useEffect(() => {
     return `${hrs}h ${mins}m`;
   };
 
-  // Update the Working Hours Summary section in the return statement
+  // Render punch data section
+  const renderPunchData = () => {
+    const data = fetchedPunchData || pendingPunchData || punchData;
+    if (!data) return null;
 
-  // Helper to convert 24-hour time to 12-hour format for display
-  const convertTo12Hour = (time24) => {
-    if (!time24) return "";
-    const [hours, minutes] = time24.split(":");
-    const h = parseInt(hours, 10);
-    const ampm = h >= 12 ? "PM" : "AM";
-    const h12 = h % 12 || 12;
-    return `${h12}:${minutes} ${ampm}`;
+    // Only show the location row if we actually have something to show
+    const hasLocation =
+      data.punch_in_location &&
+      (data.punch_in_location.address ||
+        (data.punch_in_location.latitude && data.punch_in_location.longitude));
+
+    return (
+      <div className="mb-4 p-4 bg-blue-500/10 rounded-xl border border-blue-500/20">
+        <div className="text-sm font-semibold text-[var(--text)] mb-2">
+          <FiInfo className="inline mr-2 text-blue-500" />
+          {punchOutDate
+            ? `Punch-In Data for ${formatDisplayDate(punchOutDate)}`
+            : "Previous Punch-In Data"}
+          {loadingPunchData && (
+            <span className="ml-2 text-xs text-[var(--muted)]">
+              (Loading...)
+            </span>
+          )}
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+          <div>
+            <span className="text-[var(--muted)]">Punch In Time:</span>
+            <span className="ml-2 font-medium text-[var(--text)]">
+              {data.punch_in || "—"}
+            </span>
+          </div>
+          <div>
+            <span className="text-[var(--muted)]">Status:</span>
+            <span
+              className={`ml-2 font-medium ${
+                data.log_status === "in" ? "text-green-500" : "text-red-500"
+              }`}
+            >
+              {data.log_status === "in" ? "Punched In" : "Punched Out"}
+            </span>
+          </div>
+          {hasLocation && (
+            <div className="md:col-span-2">
+              <span className="text-[var(--muted)]">Location:</span>
+              <span className="ml-2 text-xs text-[var(--text)]">
+                {data.punch_in_location.address ||
+                  `${data.punch_in_location.latitude}, ${data.punch_in_location.longitude}`}
+              </span>
+            </div>
+          )}
+          {data.work_location && (
+            <div>
+              <span className="text-[var(--muted)]">Work Location:</span>
+              <span className="ml-2 font-medium text-[var(--text)]">
+                {data.work_location}
+              </span>
+            </div>
+          )}
+          {data.attendance_status && (
+            <div>
+              <span className="text-[var(--muted)]">Attendance Status:</span>
+              <span className="ml-2 font-medium text-[var(--text)]">
+                {data.attendance_status}
+              </span>
+            </div>
+          )}
+        </div>
+      </div>
+    );
   };
 
+  // Punch-in time to *display* — mirrors the logic used in calculateWorkingHours
+  const displayPunchInTime = punchOutDate
+    ? fetchedPunchData?.punch_in ||
+      pendingPunchData?.punch_in ||
+      punchData?.punch_in
+    : punchInTime;
+
   if (!isOpen) return null;
+
+  // Check if form is valid for submit button
+  const isSubmitDisabled = () => {
+    if (loading || savingTaskReport) return true;
+    if (projects.length > 0) {
+      // Check if at least one project has hours filled
+      const atLeastOneFilled = projects.some((project) => {
+        const time = projectTimes[project.id];
+        return time && time.trim() !== "" && parseFloat(time) > 0;
+      });
+      if (!atLeastOneFilled) return true;
+      // Check total hours
+      if (totalHours === 0) return true;
+      if (maxWorkingHours > 0 && totalHours > maxWorkingHours) return true;
+    } else {
+      // No projects - need confirmation
+      if (!confirmNoProjects) return true;
+    }
+    // Check punch out time for past date
+    if (punchOutDate && (!punchOutTime || punchOutTime === "00:00"))
+      return true;
+    return false;
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in">
@@ -549,6 +725,9 @@ useEffect(() => {
         </div>
 
         <form onSubmit={handleSubmit} className="p-5 flex-1 overflow-y-auto">
+          {/* Render punch data section */}
+          {renderPunchData()}
+
           {/* Punch Out Time Field */}
           <div
             className={`mb-6 p-4 ${punchOutDate ? "bg-yellow-500/10 border-yellow-500/20" : "bg-blue-500/10 border-blue-500/20"} rounded-xl border`}
@@ -650,9 +829,12 @@ useEffect(() => {
             <label className="block text-sm font-semibold text-[var(--text)] mb-2">
               <FiClock className="inline mr-2 text-green-500" />
               Time Worked on Projects
+              <span className="text-red-500 ml-1">*</span>
+              <span className="text-xs text-[var(--muted)] ml-2 font-normal">
+                (At least one project required)
+              </span>
             </label>
 
-            {/* Working Hours Summary */}
             {/* Working Hours Summary */}
             <div className="mb-4 p-4 bg-blue-500/10 rounded-xl border border-blue-500/20">
               <div className="flex justify-between items-center">
@@ -661,7 +843,9 @@ useEffect(() => {
                     Punch In Time:
                   </span>
                   <span className="ml-2 text-sm text-[var(--text)]">
-                    {punchInTime ? formatPunchTime(punchInTime) : "—"}
+                    {displayPunchInTime
+                      ? formatPunchTime(displayPunchInTime)
+                      : "—"}
                   </span>
                 </div>
                 <div>
@@ -672,12 +856,6 @@ useEffect(() => {
                     {punchOutTime ? convertTo12Hour(punchOutTime) : "—"}
                   </span>
                 </div>
-              </div>
-
-              {/* Display the actual times used for calculation */}
-              <div className="mt-2 text-xs text-[var(--muted)] flex justify-between">
-                <span>Raw Punch In: {punchInTime || "—"}</span>
-                <span>Raw Punch Out: {punchOutTime || "—"}</span>
               </div>
 
               <div className="flex justify-between items-center mt-3 pt-3 border-t border-blue-500/20">
@@ -696,14 +874,14 @@ useEffect(() => {
                     Allocated:
                   </span>
                   <span
-                    className={`ml-2 text-lg font-bold ${totalHours > maxWorkingHours ? "text-red-500" : "text-green-500"}`}
+                    className={`ml-2 text-lg font-bold ${totalHours > maxWorkingHours ? "text-red-500" : totalHours === 0 ? "text-gray-400" : "text-green-500"}`}
                   >
                     {formatHoursAndMinutes(totalHours)}
                   </span>
                 </div>
               </div>
 
-              {maxWorkingHours > 0 && (
+              {maxWorkingHours > 0 && totalHours > 0 && (
                 <div className="mt-2">
                   <div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                     <div
@@ -726,6 +904,10 @@ useEffect(() => {
               <p className="text-xs text-[var(--muted)] mb-3">
                 Enter the time you spent working on each project (max{" "}
                 {formatWorkingHours(maxWorkingHours)} hours total)
+                <span className="text-red-500 ml-1">*</span>
+                <span className="text-[var(--muted)] ml-1">
+                  (Fill at least one project)
+                </span>
               </p>
             )}
           </div>
@@ -766,41 +948,82 @@ useEffect(() => {
               </div>
             ) : (
               <div className="space-y-3 max-h-[40vh] overflow-y-auto pr-2">
-                {projects.map((project) => (
-                  <div
-                    key={project.id}
-                    className="flex items-center justify-between bg-[var(--surface2)] p-4 rounded-xl border border-[var(--border)] hover:border-green-500/30 transition-all"
-                  >
-                    <div className="flex-1 min-w-0">
-                      <span className="text-sm font-semibold text-[var(--text)] truncate block">
-                        {project.name}
-                      </span>
-                      {project.description && (
-                        <p className="text-xs text-[var(--muted)] mt-0.5 line-clamp-1">
-                          {project.description}
-                        </p>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-3 flex-shrink-0">
-                      <div className="w-36">
-                        <TimeInputWorking
-                          value={projectTimes[project.id] || ""}
-                          onChange={(e) =>
-                            handleTimeChange(project.id, e.target.value)
-                          }
-                          maxHours={maxWorkingHours}
-                          className="text-sm"
-                        />
+                {projects.map((project) => {
+                  const timeValue = projectTimes[project.id] || "";
+                  const isFilled = timeValue && parseFloat(timeValue) > 0;
+
+                  return (
+                    <div
+                      key={project.id}
+                      className={`flex items-center justify-between bg-[var(--surface2)] p-4 rounded-xl border transition-all ${
+                        isFilled
+                          ? "border-green-500/30"
+                          : "border-gray-300/30 dark:border-gray-600/30"
+                      } hover:border-green-500/50`}
+                    >
+                      <div className="flex-1 min-w-0">
+                        <span className="text-sm font-semibold text-[var(--text)] truncate block">
+                          {project.name}
+                        </span>
+                        {project.description && (
+                          <p className="text-xs text-[var(--muted)] mt-0.5 line-clamp-1">
+                            {project.description}
+                          </p>
+                        )}
                       </div>
-                      <span className="text-xs text-[var(--muted)] w-20 text-right">
-                        {formatTimeDisplay(projectTimes[project.id])}
-                      </span>
+                      <div className="flex items-center gap-3 flex-shrink-0">
+                        <div className="w-36">
+                          <TimeInputWorking
+                            value={timeValue}
+                            onChange={(e) =>
+                              handleTimeChange(project.id, e.target.value)
+                            }
+                            maxHours={maxWorkingHours}
+                            className="text-sm"
+                          />
+                        </div>
+                        <span className="text-xs text-[var(--muted)] w-20 text-right">
+                          {formatTimeDisplay(timeValue)}
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
+
+          {/* Validation Messages */}
+          {projects.length > 0 && (
+            <div className="mb-4 space-y-2">
+              {!isAtLeastOneProjectFilled() && (
+                <div className="p-3 bg-yellow-500/10 rounded-xl border border-yellow-500/20 flex items-center gap-2">
+                  <FiAlertCircle className="text-yellow-500 flex-shrink-0" />
+                  <span className="text-sm text-yellow-600 dark:text-yellow-400">
+                    Please enter hours for at least one project before punching
+                    out.
+                  </span>
+                </div>
+              )}
+              {totalHours === 0 && isAtLeastOneProjectFilled() && (
+                <div className="p-3 bg-yellow-500/10 rounded-xl border border-yellow-500/20 flex items-center gap-2">
+                  <FiAlertCircle className="text-yellow-500 flex-shrink-0" />
+                  <span className="text-sm text-yellow-600 dark:text-yellow-400">
+                    Total hours cannot be zero. Please enter valid hours.
+                  </span>
+                </div>
+              )}
+              {totalHours > maxWorkingHours && maxWorkingHours > 0 && (
+                <div className="p-3 bg-red-500/10 rounded-xl border border-red-500/20 flex items-center gap-2">
+                  <FiAlertCircle className="text-red-500 flex-shrink-0" />
+                  <span className="text-sm text-red-600 dark:text-red-400">
+                    Total hours ({formatHoursAndMinutes(totalHours)}) exceeds
+                    working hours ({formatHoursAndMinutes(maxWorkingHours)})
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Warning for no projects */}
           {projects.length === 0 && !confirmNoProjects && (
@@ -828,12 +1051,7 @@ useEffect(() => {
             </button>
             <button
               type="submit"
-              disabled={
-                loading ||
-                savingTaskReport ||
-                (projects.length === 0 && !confirmNoProjects) ||
-                (maxWorkingHours > 0 && totalHours > maxWorkingHours)
-              }
+              disabled={isSubmitDisabled()}
               className="flex-1 bg-green-500 border-none text-white py-3 px-8 rounded-full font-semibold text-sm cursor-pointer transition-all flex items-center justify-center gap-2 hover:bg-green-600 hover:-translate-y-0.5 hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading || savingTaskReport ? (
@@ -873,7 +1091,6 @@ const TaskReportsList = () => {
   useEffect(() => {
     dispatch(fetchTaskReports());
   }, [dispatch]);
-  
 
   // Handle errors
   useEffect(() => {

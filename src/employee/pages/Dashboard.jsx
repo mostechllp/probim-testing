@@ -21,6 +21,7 @@ import MapView from "../components/common/MapView";
 import LocationModal from "../components/modals/LocationModal";
 import ErrorToast from "../../components/common/ErrorToast";
 import useErrorHandler from "../../hooks/useErrorHandler";
+import MissedPunchModal from "../components/dashboard/MissedPunchModal";
 
 // Admin Dashboard Components
 import { StatsCard } from "../../admin/components/dashboard/StatsCard";
@@ -34,6 +35,8 @@ import { PunchDistributionChart } from "../../admin/components/dashboard/PunchDi
 import { ProjectHoursModal } from "../../admin/components/dashboard/ProjectHoursModal";
 import { showToast } from "../../components/common/Toast";
 import { ProjectTimeCostChart } from "../../admin/components/dashboard/ProjectTimeCostChart";
+import apiClient from "../../utils/apiClient";
+import { submitAttendanceRequest } from "../store/slices/attendanceTypeSlice";
 
 // ─── COLOR PALETTE ──────────────────────────────────────────────────────
 export const COLORS = {
@@ -182,6 +185,7 @@ const Dashboard = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { user } = useSelector((state) => state.auth);
+
   const { loading: attendanceLoading, dashboardData } = useSelector(
     (state) => state.EmpAttendance,
   );
@@ -270,6 +274,13 @@ const Dashboard = () => {
 
   // Theme state - check if dark mode is active
   const [isDarkMode, setIsDarkMode] = useState(false);
+
+  // ─── MISSED PUNCH-INS STATE ──────────────────────────────────────────
+  const [showMissedPunchModal, setShowMissedPunchModal] = useState(false);
+  const [selectedMissedDate, setSelectedMissedDate] = useState("");
+
+  const [pendingPunchData, setPendingPunchData] = useState(null);
+  const [isLoadingPunchData, setIsLoadingPunchData] = useState(false);
 
   // Check for dark mode
   useEffect(() => {
@@ -371,6 +382,32 @@ const Dashboard = () => {
     return () => clearInterval(interval);
   }, []);
 
+  const fetchPunchDataForDate = async (date) => {
+    setIsLoadingPunchData(true);
+    try {
+      const userId = user?.id;
+      if (!userId) {
+        console.warn("No user ID available");
+        return null;
+      }
+
+      const response = await apiClient.get("/employee/attendance/punch-data", {
+        params: { user_id: userId, date },
+      });
+
+      if (response.data?.data) {
+        return response.data.data;
+      }
+      return null;
+    } catch (error) {
+      console.error("Error fetching punch data:", error);
+      showToastMessage("Failed to fetch punch data", "error");
+      return null;
+    } finally {
+      setIsLoadingPunchData(false);
+    }
+  };
+
   // Handle Punch In/Out
   const handlePunch = async () => {
     if (!isActuallyPunchedIn) {
@@ -385,6 +422,14 @@ const Dashboard = () => {
       setPunchType("punch-in");
       setShowLocationModal(true);
     } else {
+      // Check if there's a pending punch out date
+      if (pendingPunchOutDate) {
+        // Fetch punch data for the pending date
+        const punchData = await fetchPunchDataForDate(pendingPunchOutDate);
+        if (punchData) {
+          setPendingPunchData(punchData);
+        }
+      }
       setPunchType("punch-out");
       setShowPunchOutModal(true);
     }
@@ -747,8 +792,6 @@ const Dashboard = () => {
 
   // ─── GET PROJECTS FROM DASHBOARD DATA ──────────────────────────────
   // Extract projects from dashboardData.project_assignments
-  // ─── GET PROJECTS FROM DASHBOARD DATA ──────────────────────────────
-  // Extract projects from dashboardData.project_assignments
   const dashboardProjects =
     dashboardData?.project_assignments
       ?.map((item) => {
@@ -785,6 +828,48 @@ const Dashboard = () => {
 
   // No need to map again for names since we already have them
   const projectsWithNames = dashboardProjects;
+  // ─── MISSED PUNCH-INS HELPERS ──────────────────────────────────────────
+
+  // Get missed punch-ins directly from dashboard data
+  const getMissedPunchIns = () => {
+    // Check if missed_punch_ins exists in dashboard data
+    if (
+      dashboardData?.missed_punch_ins &&
+      dashboardData.missed_punch_ins.days
+    ) {
+      // Return the days array directly from the API
+      return dashboardData.missed_punch_ins.days.map((day) => ({
+        date: day.date,
+        day: day.day,
+        status: "Absent",
+        type: "missed",
+      }));
+    }
+
+    // If no data, return empty array
+    return [];
+  };
+
+  const missedPunchIns = getMissedPunchIns();
+
+  // Handle Send Missed Punch Request
+  const handleSendMissedPunchRequest = (date) => {
+    setSelectedMissedDate(date);
+    setShowMissedPunchModal(true);
+  };
+
+  const handleMissedPunchModalClose = () => {
+    setShowMissedPunchModal(false);
+    setSelectedMissedDate("");
+  };
+
+  // Submit missed punch request
+
+  // Handle Mark as Leave - redirect to /employee/leaves
+  const handleMarkAsLeave = () => {
+    navigate("/employee/leaves");
+  };
+
   // ─── LEAVE & PROJECTS STATS CARDS ──────────────────────────────────────────
 
   // Leave Stats Card
@@ -885,7 +970,6 @@ const Dashboard = () => {
     </div>
   );
 
-  // Projects Stats Card - Using projects from dashboard
   // Projects Stats Card - Using projects from dashboard
   const ProjectsStatsCard = () => (
     <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-4">
@@ -1068,6 +1152,7 @@ const Dashboard = () => {
       </div>
     );
   };
+  
 
   return (
     <div className="space-y-3 px-4 md:px-6 lg:px-8 pb-8">
@@ -1166,7 +1251,6 @@ const Dashboard = () => {
         </button>
       </div>
 
-      {/* ─── LEAVE & PROJECTS STATS CARDS ────────────────────────────────── */}
       {/* ─── LEAVE & PROJECTS STATS CARDS ────────────────────────────────── */}
       {showAdminGraphs ? (
         // Admin/HR view - 2 columns
@@ -1278,7 +1362,7 @@ const Dashboard = () => {
           </div>
           <div className="mb-4">
             <ProjectTimeCostChart
-              data={timeCostData} // Use processed timeCostData
+              data={timeCostData}
               onBarClick={handleProjectTimeCostClick}
               loading={
                 projectTimeCostLoading || adminLoading || allProjectsLoading
@@ -1397,6 +1481,116 @@ const Dashboard = () => {
         </div>
       )}
 
+      {/* ─── MISSED PUNCH-INS SECTION ────────────────────────────────────────── */}
+      {/* ─── MISSED PUNCH-INS SECTION ────────────────────────────────────────── */}
+      {missedPunchIns.length > 0 && (
+        <div className="missed-punchins mt-4 bg-[var(--surface)] border border-orange-200 dark:border-orange-800 rounded-xl p-3">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold text-[var(--text)] flex items-center gap-2">
+              <i className="fas fa-exclamation-triangle text-orange-500"></i>
+              Missed Punch-Ins
+              <span className="text-xs bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 px-2 py-0.5 rounded-full font-medium">
+                {missedPunchIns.length}
+              </span>
+            </h3>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => handleMarkAsLeave()}
+                className="text-xs px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors font-medium flex items-center gap-1.5 shadow-sm"
+              >
+                <i className="fas fa-calendar-alt text-xs"></i>
+                Mark as Leave
+              </button>
+              <span className="text-[10px] text-[var(--muted)]">
+                {new Date().toLocaleDateString("en-GB", {
+                  month: "short",
+                  year: "numeric",
+                })}
+              </span>
+            </div>
+          </div>
+
+          {/* Scrollable table container with max-height like Recent Activity */}
+          <div className="w-full overflow-auto max-h-[200px]">
+            <div className="min-w-[550px]">
+              <table className="w-full text-xs">
+                <thead className="sticky top-0 bg-[var(--surface)] z-10">
+                  <tr className="border-b border-[var(--border)]">
+                    <th className="text-left py-2 px-2 text-[var(--muted)] font-semibold">
+                      Date
+                    </th>
+                    <th className="text-left py-2 px-2 text-[var(--muted)] font-semibold">
+                      Day
+                    </th>
+                    <th className="text-left py-2 px-2 text-[var(--muted)] font-semibold">
+                      Status
+                    </th>
+                    <th className="text-right py-2 px-2 text-[var(--muted)] font-semibold">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {missedPunchIns.map((item, index) => (
+                    <tr
+                      key={index}
+                      className="border-b border-[var(--border)] hover:bg-[var(--surface2)] transition-colors"
+                    >
+                      <td className="py-3 px-2 text-[var(--text)] whitespace-nowrap">
+                        {formatDateDisplay(item.date)}
+                      </td>
+                      <td className="py-3 px-2 text-[var(--text)] whitespace-nowrap">
+                        {item.day}
+                      </td>
+                      <td className="py-3 px-2">
+                        <span className="px-2 py-1 rounded-full text-[10px] font-semibold bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border border-red-200 dark:border-red-800">
+                          {item.status}
+                        </span>
+                      </td>
+                      <td className="py-3 px-2 text-right whitespace-nowrap">
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() =>
+                              handleSendMissedPunchRequest(item.date)
+                            }
+                            className="text-xs px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-white rounded-lg transition-colors font-medium shadow-sm"
+                          >
+                            <i className="fas fa-pen mr-1"></i>
+                            Send Request
+                          </button>
+                          <button
+                            onClick={() => handleMarkAsLeave()}
+                            className="text-xs px-3 py-1.5 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors font-medium shadow-sm"
+                          >
+                            <i className="fas fa-calendar-alt mr-1"></i>
+                            Mark as Leave
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div className="mt-3 pt-2 border-t border-[var(--border)] flex items-center justify-between">
+            <p className="text-[10px] text-[var(--muted)]">
+              <i className="fas fa-info-circle mr-1"></i>
+              Send a request to HR to mark your missed punch-in or apply for
+              leave
+            </p>
+            <button
+              onClick={() => handleMarkAsLeave()}
+              className="text-xs font-medium flex items-center gap-1 text-purple-600 hover:text-purple-700 dark:text-purple-400 dark:hover:text-purple-300"
+            >
+              <i className="fas fa-arrow-right"></i>
+              Apply for Leave
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Project Details Modal */}
       {selectedProject && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
@@ -1479,6 +1673,19 @@ const Dashboard = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Missed Punch Modal */}
+      {showMissedPunchModal && (
+        <MissedPunchModal
+          isOpen={showMissedPunchModal}
+          onClose={handleMissedPunchModalClose}
+          selectedDate={selectedMissedDate}
+          onSuccess={() => {
+            // Optional callback after successful submission
+            console.log("Request submitted successfully");
+          }}
+        />
       )}
 
       {/* Recent Activity Section */}
@@ -1580,10 +1787,12 @@ const Dashboard = () => {
           setShowPunchOutModal(false);
           setPunchOutData(null);
           setPendingPunchOutDate("");
+          setPendingPunchData(null); // Clear pending data
         }}
         onSubmit={handlePunchOutSubmit}
         loading={isSubmitting}
         punchOutDate={pendingPunchOutDate}
+        pendingPunchData={pendingPunchData} // Pass the fetched data
       />
 
       {/* Pending Punch Out Error Modal */}
@@ -1675,6 +1884,23 @@ const Dashboard = () => {
             } else if (actionType === "contact") {
               window.location.href = "mailto:support@company.com";
             } else if (actionType === "punch_out") {
+              // Extract the date from the error, same way handleLocationConfirm does
+              const errorMsg =
+                typeof error === "string"
+                  ? error
+                  : error?.message || error?.payload?.message || "";
+              const match = errorMsg.match(/for (\d{4}-\d{2}-\d{2})/);
+              const date = match ? match[1] : "";
+
+              if (date) {
+                setPendingPunchOutDate(date);
+              } else {
+                console.warn(
+                  "punch_out action fired but no date could be parsed from error:",
+                  error,
+                );
+              }
+
               setShowPunchOutModal(true);
               clearError();
             } else if (actionType === "wait") {

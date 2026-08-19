@@ -57,6 +57,79 @@ export const fetchAttendanceRequests = createAsyncThunk(
   }
 );
 
+// Fetch missed punch in records (attendance records without punch in)
+export const fetchMissedPunchIns = createAsyncThunk(
+  "attendance/fetchMissedPunchIns",
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await apiClient.get("/employee/missed-punch-ins");
+      if (response.data?.status === "success") {
+        return response.data.data || [];
+      }
+      return rejectWithValue(response.data?.message || "Failed to fetch missed punch ins");
+    } catch (error) {
+      console.error("Fetch missed punch ins error:", error);
+      return rejectWithValue(
+        error.response?.data?.message || "Failed to fetch missed punch ins"
+      );
+    }
+  }
+);
+
+// Submit missed punch in request with time
+export const submitMissedPunchIn = createAsyncThunk(
+  "attendance/submitMissedPunchIn",
+  async ({ attendance_id, punch_in_time, reason }, { rejectWithValue }) => {
+    try {
+      const payload = {
+        attendance_id,
+        punch_in_time,
+        reason,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      };
+
+      const response = await apiClient.post("/employee/missed-punch-in-request", payload);
+
+      if (response.data?.status === "success") {
+        return response.data.data;
+      }
+      return rejectWithValue(response.data?.message || "Failed to submit missed punch in request");
+    } catch (error) {
+      console.error("Submit missed punch in error:", error);
+      return rejectWithValue(
+        error.response?.data?.message || "Failed to submit missed punch in request"
+      );
+    }
+  }
+);
+
+// Submit leave request for missed punch in
+export const submitLeaveForMissedPunch = createAsyncThunk(
+  "attendance/submitLeaveForMissedPunch",
+  async ({ attendance_id, reason, leave_type }, { rejectWithValue }) => {
+    try {
+      const payload = {
+        attendance_id,
+        reason,
+        leave_type: leave_type || "casual",
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      };
+
+      const response = await apiClient.post("/employee/missed-punch-leave-request", payload);
+
+      if (response.data?.status === "success") {
+        return response.data.data;
+      }
+      return rejectWithValue(response.data?.message || "Failed to submit leave request");
+    } catch (error) {
+      console.error("Submit leave for missed punch error:", error);
+      return rejectWithValue(
+        error.response?.data?.message || "Failed to submit leave request"
+      );
+    }
+  }
+);
+
 // Fetch single attendance request details
 export const fetchAttendanceRequestDetails = createAsyncThunk(
   "attendance/fetchDetails",
@@ -78,13 +151,9 @@ export const updateAttendanceRequest = createAsyncThunk(
   "attendance/updateRequest",
   async ({ id, payload }, { rejectWithValue }) => {
     try {
-      // Use FormData with POST and _method=PUT. 
-      // This is the absolute most reliable way to send updates to a Laravel backend 
-      // because it bypasses both Hostinger's 405 PUT blocks AND PHP's inability to parse JSON for PUT requests natively in some configs.
       const formData = new FormData();
       formData.append('_method', 'PUT');
       
-      // Append all fields explicitly
       Object.keys(payload).forEach(key => {
         if (payload[key] !== undefined && payload[key] !== null) {
           formData.append(key, payload[key]);
@@ -110,7 +179,6 @@ export const deleteAttendanceRequest = createAsyncThunk(
   "attendance/deleteRequest",
   async (id, { rejectWithValue }) => {
     try {
-      // Use POST with _method spoofing to bypass 405 errors on some hosting providers
       const response = await apiClient.post(`/employee/attendance-requests/${id}`, {
         _method: 'DELETE'
       });
@@ -134,7 +202,6 @@ export const updateAttendanceRequestStatus = createAsyncThunk(
     try {
       const response = await apiClient.put(`/admin/attendance-requests/${id}/status`, { status });
 
-
       if (response.data?.status === "success") {
         return { id, status };
       }
@@ -151,6 +218,7 @@ export const updateAttendanceRequestStatus = createAsyncThunk(
 const initialState = {
   requests: [],
   currentRequest: null,
+  missedPunchIns: [],
   filter: {
     type: 'all', // 'all', 'early_check_in', 'late_check_in', 'missed_punch_in', 'missed_punch_out'
     status: 'all', // 'all', 'pending', 'approved', 'rejected'
@@ -185,6 +253,9 @@ const attendanceTypeSlice = createSlice({
       state.currentRequest = null;
       state.error = null;
     },
+    clearMissedPunchIns: (state) => {
+      state.missedPunchIns = [];
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -196,7 +267,7 @@ const attendanceTypeSlice = createSlice({
       .addCase(submitAttendanceRequest.fulfilled, (state, action) => {
         state.submitting = false;
         state.currentRequest = action.payload;
-        state.requests.unshift(action.payload); // Add to beginning of list
+        state.requests.unshift(action.payload);
       })
       .addCase(submitAttendanceRequest.rejected, (state, action) => {
         state.submitting = false;
@@ -215,6 +286,54 @@ const attendanceTypeSlice = createSlice({
       })
       .addCase(fetchAttendanceRequests.rejected, (state, action) => {
         state.loading = false;
+        state.error = action.payload;
+      })
+
+      // Fetch Missed Punch Ins
+      .addCase(fetchMissedPunchIns.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchMissedPunchIns.fulfilled, (state, action) => {
+        state.loading = false;
+        state.missedPunchIns = action.payload;
+      })
+      .addCase(fetchMissedPunchIns.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+
+      // Submit Missed Punch In
+      .addCase(submitMissedPunchIn.pending, (state) => {
+        state.submitting = true;
+        state.error = null;
+      })
+      .addCase(submitMissedPunchIn.fulfilled, (state, action) => {
+        state.submitting = false;
+        // Remove the missed punch in from the list
+        state.missedPunchIns = state.missedPunchIns.filter(
+          item => item.id !== action.payload.attendance_id
+        );
+      })
+      .addCase(submitMissedPunchIn.rejected, (state, action) => {
+        state.submitting = false;
+        state.error = action.payload;
+      })
+
+      // Submit Leave for Missed Punch
+      .addCase(submitLeaveForMissedPunch.pending, (state) => {
+        state.submitting = true;
+        state.error = null;
+      })
+      .addCase(submitLeaveForMissedPunch.fulfilled, (state, action) => {
+        state.submitting = false;
+        // Remove the missed punch in from the list
+        state.missedPunchIns = state.missedPunchIns.filter(
+          item => item.id !== action.payload.attendance_id
+        );
+      })
+      .addCase(submitLeaveForMissedPunch.rejected, (state, action) => {
+        state.submitting = false;
         state.error = action.payload;
       })
 
@@ -252,7 +371,8 @@ export const {
   setAttendanceFilter,
   setAttendancePagination,
   clearAttendanceError,
-  clearAttendanceRequests
+  clearAttendanceRequests,
+  clearMissedPunchIns
 } = attendanceTypeSlice.actions;
 
 export default attendanceTypeSlice.reducer;

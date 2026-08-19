@@ -110,7 +110,7 @@ const Attendances = () => {
   // Get unique employees for filter
   const uniqueEmployeesMap = new Map();
 
-   const safeRecords = Array.isArray(records) ? records : [];
+  const safeRecords = Array.isArray(records) ? records : [];
 
   safeRecords.forEach((record) => {
     let name = record.name || record.employee_name || record.employeeName;
@@ -192,175 +192,173 @@ const Attendances = () => {
   }, [safeRecords, pendingDate, pendingDayModal]);
 
   const formatStatus = (status) => {
-  if (!status) return "";
+    if (!status) return "";
 
-  const normalized = String(status).trim().toLowerCase();
+    const normalized = String(status).trim().toLowerCase();
 
-  if (normalized === "weeklyoff" || normalized === "weekly off") {
-    return "Weekly Off";
-  }
+    if (normalized === "weeklyoff" || normalized === "weekly off") {
+      return "Weekly Off";
+    }
 
-  if (normalized === "halfday" || normalized === "half day") {
-    return "Half Day";
-  }
+    if (normalized === "halfday" || normalized === "half day") {
+      return "Half Day";
+    }
 
-  if (normalized === "fullday" || normalized === "full day") {
-    return "Full Day";
-  }
+    if (normalized === "fullday" || normalized === "full day") {
+      return "Full Day";
+    }
 
-  return normalized.charAt(0).toUpperCase() + normalized.slice(1);
-};
+    return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+  };
 
   const { getDayStatus, tileContent, tileClassName } = useMemo(() => {
     const getDayStatusFn = (date) => {
-  const dateStrDDMMYYYY = formatDateToDDMMYYYY(date);
+      const dateStrDDMMYYYY = formatDateToDDMMYYYY(date);
 
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  const dateStrApi = `${year}-${month}-${day}`;
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const day = String(date.getDate()).padStart(2, "0");
+      const dateStrApi = `${year}-${month}-${day}`;
 
-  // Find records for this date
-  const dayRecords = safeRecords.filter((r) => {
-    const recordDate = r.date || r.log_date || r.attendance_date;
+      // Find records for this date
+      const dayRecords = safeRecords.filter((r) => {
+        const recordDate = r.date || r.log_date || r.attendance_date;
 
-    if (!recordDate) return false;
+        if (!recordDate) return false;
 
-    const recordDateStr = String(recordDate);
+        const recordDateStr = String(recordDate);
 
-    return (
-      recordDateStr === dateStrDDMMYYYY ||
-      recordDateStr === dateStrApi ||
-      formatDateToDDMMYYYY(recordDateStr) === dateStrDDMMYYYY
-    );
-  });
+        return (
+          recordDateStr === dateStrDDMMYYYY ||
+          recordDateStr === dateStrApi ||
+          formatDateToDDMMYYYY(recordDateStr) === dateStrDDMMYYYY
+        );
+      });
 
-  if (dayRecords.length === 0) {
-    return {
-      status: "no-data",
-      count: 0,
-      records: [],
+      if (dayRecords.length === 0) {
+        return {
+          status: "no-data",
+          count: 0,
+          records: [],
+        };
+      }
+
+      // Get status directly from API
+      const apiStatus =
+        dayRecords[0].status || dayRecords[0].attendance_status || "";
+
+      return {
+        status: apiStatus,
+        displayStatus: formatStatus(apiStatus),
+        count: dayRecords.length,
+        records: dayRecords,
+      };
     };
-  }
-
-  // Get status directly from API
-  const apiStatus =
-    dayRecords[0].status ||
-    dayRecords[0].attendance_status ||
-    "";
-
-  return {
-    status: apiStatus,
-    displayStatus: formatStatus(apiStatus),
-    count: dayRecords.length,
-    records: dayRecords,
-  };
-};
 
     const tileContentFn = ({ date, view }) => {
-  if (view !== "month") return null;
+      if (view !== "month") return null;
 
-  const dayInfo = getDayStatusFn(date);
+      const dayInfo = getDayStatusFn(date);
 
-  if (dayInfo.status === "no-data") {
-    return null;
-  }
+      if (dayInfo.status === "no-data") {
+        return null;
+      }
 
-  const status = String(dayInfo.status).toLowerCase().trim();
-  const displayStatus = formatStatus(dayInfo.status);
+      const status = String(dayInfo.status).toLowerCase().trim();
+      const displayStatus = formatStatus(dayInfo.status);
 
-  // Weekly Off
-  if (status === "weeklyoff" || status === "weekly off") {
-    return (
-      <div className="attendance-status attendance-status-weekend">
-        <span className="attendance-status-icon">○</span>
-        <span>{displayStatus}</span>
-      </div>
-    );
-  }
+      // Weekly Off
+      if (status === "weeklyoff" || status === "weekly off") {
+        return (
+          <div className="attendance-status attendance-status-weekend">
+            <span className="attendance-status-icon">○</span>
+            <span>{displayStatus}</span>
+          </div>
+        );
+      }
 
-  // Holiday
-  if (status === "holiday") {
-    return (
-      <div className="attendance-status attendance-status-holiday">
-        <span className="attendance-status-icon">•</span>
-        <span>{displayStatus}</span>
-      </div>
-    );
-  }
+      // Holiday
+      if (status === "holiday") {
+        return (
+          <div className="attendance-status attendance-status-holiday">
+            <span className="attendance-status-icon">•</span>
+            <span>{displayStatus}</span>
+          </div>
+        );
+      }
 
-  // Present
-  if (
-    status === "present" ||
-    status === "presentt" ||
-    status === "ontime" ||
-    status === "on time"
-  ) {
-    return (
-      <div className="attendance-status attendance-status-present">
-        <span className="attendance-status-icon">✓</span>
-        <span>{displayStatus}</span>
-      </div>
-    );
-  }
+      // Present
+      if (
+        status === "present" ||
+        status === "presentt" ||
+        status === "ontime" ||
+        status === "on time"
+      ) {
+        return (
+          <div className="attendance-status attendance-status-present">
+            <span className="attendance-status-icon">✓</span>
+            <span>{displayStatus}</span>
+          </div>
+        );
+      }
 
-  // Absent
-  if (status === "absent" || status === "absentee") {
-    return (
-      <div className="attendance-status attendance-status-absent">
-        <span className="attendance-status-icon">×</span>
-        <span>{displayStatus}</span>
-      </div>
-    );
-  }
+      // Absent
+      if (status === "absent" || status === "absentee") {
+        return (
+          <div className="attendance-status attendance-status-absent">
+            <span className="attendance-status-icon">×</span>
+            <span>{displayStatus}</span>
+          </div>
+        );
+      }
 
-  // Late
-  if (status === "late") {
-    return (
-      <div className="attendance-status attendance-status-late">
-        <span className="attendance-status-icon">!</span>
-        <span>{displayStatus}</span>
-      </div>
-    );
-  }
+      // Late
+      if (status === "late") {
+        return (
+          <div className="attendance-status attendance-status-late">
+            <span className="attendance-status-icon">!</span>
+            <span>{displayStatus}</span>
+          </div>
+        );
+      }
 
-  // Half Day
-  if (status === "halfday" || status === "half day") {
-    return (
-      <div className="attendance-status attendance-status-halfday">
-        <span className="attendance-status-icon">½</span>
-        <span>{displayStatus}</span>
-      </div>
-    );
-  }
+      // Half Day
+      if (status === "halfday" || status === "half day") {
+        return (
+          <div className="attendance-status attendance-status-halfday">
+            <span className="attendance-status-icon">½</span>
+            <span>{displayStatus}</span>
+          </div>
+        );
+      }
 
-  // Full Day
-  if (status === "fullday" || status === "full day") {
-    return (
-      <div className="attendance-status attendance-status-present">
-        <span className="attendance-status-icon">✓</span>
-        <span>{displayStatus}</span>
-      </div>
-    );
-  }
+      // Full Day
+      if (status === "fullday" || status === "full day") {
+        return (
+          <div className="attendance-status attendance-status-present">
+            <span className="attendance-status-icon">✓</span>
+            <span>{displayStatus}</span>
+          </div>
+        );
+      }
 
-  // Leave
-  if (status === "leave") {
-    return (
-      <div className="attendance-status attendance-status-leave">
-        <span className="attendance-status-icon">L</span>
-        <span>{displayStatus}</span>
-      </div>
-    );
-  }
+      // Leave
+      if (status === "leave") {
+        return (
+          <div className="attendance-status attendance-status-leave">
+            <span className="attendance-status-icon">L</span>
+            <span>{displayStatus}</span>
+          </div>
+        );
+      }
 
-  // Any other status returned by API
-  return (
-    <div className="attendance-status">
-      <span>{displayStatus}</span>
-    </div>
-  );
-};
+      // Any other status returned by API
+      return (
+        <div className="attendance-status">
+          <span>{displayStatus}</span>
+        </div>
+      );
+    };
     const tileClassNameFn = ({ date, view }) => {
       if (view !== "month") return "";
 
@@ -420,7 +418,6 @@ const Attendances = () => {
       tileClassName: tileClassNameFn,
     };
   }, [safeRecords]);
-
 
   const getEmployeeAvatarUrl = (record, employees) => {
     if (!employees || !employees.length) return null;
@@ -1637,16 +1634,16 @@ const Attendances = () => {
           onClick={() => setShowDayModal(false)}
         >
           <div
-            className="bg-white dark:bg-gray-800 rounded-xl max-w-3xl w-full max-h-[90vh] overflow-hidden shadow-2xl"
+            className="bg-white dark:bg-gray-800 rounded-xl max-w-4xl w-full max-h-[90vh] overflow-hidden shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex justify-between items-center p-3 border-b border-gray-200 dark:border-gray-700">
+            <div className="flex justify-between items-center p-4 border-b border-gray-200 dark:border-gray-700">
               <h3 className="text-base font-bold text-gray-800 dark:text-gray-200">
                 <i className="fas fa-calendar-day text-green-500 mr-2"></i>
                 {selectedDate.toLocaleDateString("en-US", {
-                  weekday: "short",
+                  weekday: "long",
                   day: "numeric",
-                  month: "short",
+                  month: "long",
                   year: "numeric",
                 })}
               </h3>
@@ -1657,99 +1654,275 @@ const Attendances = () => {
                 <i className="fas fa-times text-gray-500 text-sm"></i>
               </button>
             </div>
-            <div className="p-3 overflow-y-auto max-h-[70vh]">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                {dayData.map((record, idx) => {
-                  const status = getRecordStatus(record);
-                  const statusColorClass = getStatusColorClass(status);
-                  const employeeName = getEmployeeName(record);
-                  const avatarUrl = getEmployeeAvatarUrl(record, employees);
-                  const initials = getInitials(employeeName);
 
-                  return (
-                    <div
-                      key={idx}
-                      className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-2 border border-gray-200 dark:border-gray-600"
-                    >
-                      <div className="flex justify-between items-start">
-                        <div className="flex items-center gap-2">
-                          {avatarUrl ? (
-                            <img
-                              src={avatarUrl}
-                              alt={employeeName}
-                              className="w-7 h-7 rounded-full object-cover border border-gray-200 dark:border-gray-600 flex-shrink-0"
-                              onError={(e) => {
-                                e.target.style.display = "none";
-                                const fallback =
-                                  e.target.parentElement.querySelector(
-                                    `.avatar-fallback-day-${idx}`,
-                                  );
-                                if (fallback) fallback.style.display = "flex";
-                              }}
-                            />
-                          ) : null}
-                          <div
-                            className={`w-7 h-7 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center text-[10px] font-bold text-indigo-600 dark:text-indigo-400 flex-shrink-0 avatar-fallback-day-${idx}`}
-                            style={{ display: avatarUrl ? "none" : "flex" }}
-                          >
-                            {initials}
-                          </div>
-                          <div>
-                            <p className="font-semibold text-xs text-gray-800 dark:text-gray-200">
-                              {employeeName}
-                            </p>
-                            <p className="text-[9px] text-gray-500 dark:text-gray-400">
-                              {getDepartment(record)}
-                            </p>
-                          </div>
-                        </div>
-                        <span
-                          className={`px-1.5 py-0.5 rounded-full text-[9px] font-medium ${statusColorClass}`}
-                        >
-                          {status}
+            <div className="p-4 overflow-y-auto max-h-[70vh]">
+              {/* Split records into two groups */}
+              {(() => {
+                const presentStatuses = [
+                  "Present",
+                  "Full Day",
+                  "Half Day",
+                  "present",
+                  "full day",
+                  "half day",
+                ];
+                const presentRecords = dayData.filter((r) => {
+                  const status = getRecordStatus(r);
+                  return presentStatuses.some(
+                    (s) => status?.toLowerCase() === s.toLowerCase(),
+                  );
+                });
+                const otherRecords = dayData.filter((r) => {
+                  const status = getRecordStatus(r);
+                  return !presentStatuses.some(
+                    (s) => status?.toLowerCase() === s.toLowerCase(),
+                  );
+                });
+
+                return (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Left Column - Present/Full Day/Half Day */}
+                    <div>
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="w-1 h-5 bg-green-500 rounded-full"></div>
+                        <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                          Present / Full Day / Half Day
+                        </h4>
+                        <span className="text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded-full">
+                          {presentRecords.length}
                         </span>
                       </div>
-                      <div className="grid grid-cols-3 gap-1 mt-1.5 text-[9px]">
-                        <div>
-                          <span className="text-gray-500 dark:text-gray-400">
-                            In
-                          </span>
-                          <p className="font-semibold text-gray-700 dark:text-gray-300">
-                            {record.punch_in || record.punchIn || "--"}
-                          </p>
-                        </div>
-                        <div>
-                          <span className="text-gray-500 dark:text-gray-400">
-                            Out
-                          </span>
-                          <p className="font-semibold text-gray-700 dark:text-gray-300">
-                            {record.punch_out || record.punchOut || "--"}
-                          </p>
-                        </div>
-                        <div>
-                          <span className="text-gray-500 dark:text-gray-400">
-                            Hrs
-                          </span>
-                          <p className="font-semibold text-gray-700 dark:text-gray-300">
-                            {record.worked_hours ||
-                              record.working_hours ||
-                              record.workingHours ||
-                              "--"}
-                          </p>
-                        </div>
+                      <div className="space-y-2">
+                        {presentRecords.length > 0 ? (
+                          presentRecords.map((record, idx) => {
+                            const status = getRecordStatus(record);
+                            const statusColorClass =
+                              getStatusColorClass(status);
+                            const employeeName = getEmployeeName(record);
+                            const avatarUrl = getEmployeeAvatarUrl(
+                              record,
+                              employees,
+                            );
+                            const initials = getInitials(employeeName);
+
+                            return (
+                              <div
+                                key={`present-${idx}`}
+                                className="bg-green-50 dark:bg-green-900/10 rounded-lg p-3 border border-green-200 dark:border-green-800/30 hover:shadow-md transition-shadow"
+                              >
+                                <div className="flex justify-between items-start">
+                                  <div className="flex items-center gap-2">
+                                    {avatarUrl ? (
+                                      <img
+                                        src={avatarUrl}
+                                        alt={employeeName}
+                                        className="w-8 h-8 rounded-full object-cover border border-gray-200 dark:border-gray-600 flex-shrink-0"
+                                        onError={(e) => {
+                                          e.target.style.display = "none";
+                                          const fallback =
+                                            e.target.parentElement.querySelector(
+                                              `.avatar-fallback-present-${idx}`,
+                                            );
+                                          if (fallback)
+                                            fallback.style.display = "flex";
+                                        }}
+                                      />
+                                    ) : null}
+                                    <div
+                                      className={`w-8 h-8 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center text-xs font-bold text-green-600 dark:text-green-400 flex-shrink-0 avatar-fallback-present-${idx}`}
+                                      style={{
+                                        display: avatarUrl ? "none" : "flex",
+                                      }}
+                                    >
+                                      {initials}
+                                    </div>
+                                    <div>
+                                      <p className="font-semibold text-sm text-gray-800 dark:text-gray-200">
+                                        {employeeName}
+                                      </p>
+                                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                                        {getDepartment(record)}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <span
+                                    className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusColorClass}`}
+                                  >
+                                    {status}
+                                  </span>
+                                </div>
+                                <div className="grid grid-cols-3 gap-2 mt-2 text-xs">
+                                  <div>
+                                    <span className="text-gray-500 dark:text-gray-400">
+                                      In
+                                    </span>
+                                    <p className="font-semibold text-gray-700 dark:text-gray-300">
+                                      {record.punch_in ||
+                                        record.punchIn ||
+                                        "--"}
+                                    </p>
+                                  </div>
+                                  <div>
+                                    <span className="text-gray-500 dark:text-gray-400">
+                                      Out
+                                    </span>
+                                    <p className="font-semibold text-gray-700 dark:text-gray-300">
+                                      {record.punch_out ||
+                                        record.punchOut ||
+                                        "--"}
+                                    </p>
+                                  </div>
+                                  <div>
+                                    <span className="text-gray-500 dark:text-gray-400">
+                                      Hrs
+                                    </span>
+                                    <p className="font-semibold text-gray-700 dark:text-gray-300">
+                                      {record.worked_hours ||
+                                        record.working_hours ||
+                                        record.workingHours ||
+                                        "--"}
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })
+                        ) : (
+                          <div className="text-center py-6 text-gray-400 dark:text-gray-500 text-sm">
+                            <i className="fas fa-check-circle text-green-300 dark:text-green-700 text-2xl block mb-2"></i>
+                            No present records
+                          </div>
+                        )}
                       </div>
                     </div>
-                  );
-                })}
-              </div>
-              <div className="mt-2 text-center text-[9px] text-gray-500 dark:text-gray-400">
+
+                    {/* Right Column - Absent/Other Statuses */}
+                    <div>
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="w-1 h-5 bg-red-500 rounded-full"></div>
+                        <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                          Absent / Other
+                        </h4>
+                        <span className="text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded-full">
+                          {otherRecords.length}
+                        </span>
+                      </div>
+                      <div className="space-y-2">
+                        {otherRecords.length > 0 ? (
+                          otherRecords.map((record, idx) => {
+                            const status = getRecordStatus(record);
+                            const statusColorClass =
+                              getStatusColorClass(status);
+                            const employeeName = getEmployeeName(record);
+                            const avatarUrl = getEmployeeAvatarUrl(
+                              record,
+                              employees,
+                            );
+                            const initials = getInitials(employeeName);
+
+                            return (
+                              <div
+                                key={`other-${idx}`}
+                                className="bg-red-50 dark:bg-red-900/10 rounded-lg p-3 border border-red-200 dark:border-red-800/30 hover:shadow-md transition-shadow"
+                              >
+                                <div className="flex justify-between items-start">
+                                  <div className="flex items-center gap-2">
+                                    {avatarUrl ? (
+                                      <img
+                                        src={avatarUrl}
+                                        alt={employeeName}
+                                        className="w-8 h-8 rounded-full object-cover border border-gray-200 dark:border-gray-600 flex-shrink-0"
+                                        onError={(e) => {
+                                          e.target.style.display = "none";
+                                          const fallback =
+                                            e.target.parentElement.querySelector(
+                                              `.avatar-fallback-other-${idx}`,
+                                            );
+                                          if (fallback)
+                                            fallback.style.display = "flex";
+                                        }}
+                                      />
+                                    ) : null}
+                                    <div
+                                      className={`w-8 h-8 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center text-xs font-bold text-red-600 dark:text-red-400 flex-shrink-0 avatar-fallback-other-${idx}`}
+                                      style={{
+                                        display: avatarUrl ? "none" : "flex",
+                                      }}
+                                    >
+                                      {initials}
+                                    </div>
+                                    <div>
+                                      <p className="font-semibold text-sm text-gray-800 dark:text-gray-200">
+                                        {employeeName}
+                                      </p>
+                                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                                        {getDepartment(record)}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <span
+                                    className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusColorClass}`}
+                                  >
+                                    {status}
+                                  </span>
+                                </div>
+                                <div className="grid grid-cols-3 gap-2 mt-2 text-xs">
+                                  <div>
+                                    <span className="text-gray-500 dark:text-gray-400">
+                                      In
+                                    </span>
+                                    <p className="font-semibold text-gray-700 dark:text-gray-300">
+                                      {record.punch_in ||
+                                        record.punchIn ||
+                                        "--"}
+                                    </p>
+                                  </div>
+                                  <div>
+                                    <span className="text-gray-500 dark:text-gray-400">
+                                      Out
+                                    </span>
+                                    <p className="font-semibold text-gray-700 dark:text-gray-300">
+                                      {record.punch_out ||
+                                        record.punchOut ||
+                                        "--"}
+                                    </p>
+                                  </div>
+                                  <div>
+                                    <span className="text-gray-500 dark:text-gray-400">
+                                      Hrs
+                                    </span>
+                                    <p className="font-semibold text-gray-700 dark:text-gray-300">
+                                      {record.worked_hours ||
+                                        record.working_hours ||
+                                        record.workingHours ||
+                                        "--"}
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })
+                        ) : (
+                          <div className="text-center py-6 text-gray-400 dark:text-gray-500 text-sm">
+                            <i className="fas fa-check-circle text-green-300 dark:text-green-700 text-2xl block mb-2"></i>
+                            No other records
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              <div className="mt-4 text-center text-xs text-gray-500 dark:text-gray-400 border-t border-gray-200 dark:border-gray-700 pt-3">
                 Total: {dayData.length} employees
               </div>
             </div>
-            <div className="p-3 border-t border-gray-200 dark:border-gray-700 flex justify-end">
+
+            <div className="p-4 border-t border-gray-200 dark:border-gray-700 flex justify-end">
               <button
                 onClick={() => setShowDayModal(false)}
-                className="px-3 py-1.5 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-xs hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                className="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg text-sm hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
               >
                 Close
               </button>
