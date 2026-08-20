@@ -1134,8 +1134,10 @@ const EditEmployee = () => {
           "designation_id",
           "department_id",
           "type",
+          "role",
           "dob",
           "joining_date",
+          "employee_id",
         ];
         if (selectedOrgDetails?.multi_company === "Yes") {
           fields.push("company_id");
@@ -1167,7 +1169,7 @@ const EditEmployee = () => {
         ];
       }
       case 3:
-        return ["company_email", "personal_email", "type", "role"];
+        return ["company_email", "personal_email"];
       default:
         return [];
     }
@@ -2146,25 +2148,37 @@ const EditEmployee = () => {
                       name="role"
                       control={control}
                       rules={{ required: "Role is required" }}
-                      render={({ field }) => (
-                        <>
-                          <select
-                            {...field}
-                            value={field.value || ""}
-                            onChange={(e) => {
-                              field.onChange(e.target.value);
-                            }}
-                            className="w-full px-3 md:px-4 py-2 md:py-3 bg-[var(--form-surface)] border border-[var(--form-border)] rounded-lg text-sm md:text-base text-[var(--form-text)] focus:outline-none focus:border-[var(--form-border-focus)] focus:ring-2 focus:ring-[var(--form-border-focus)]/20"
-                          >
-                            <option value="">Select Role</option>
-                            {roles.map((role) => (
-                              <option key={role.id} value={role.id.toString()}>
-                                {role.name}
-                              </option>
-                            ))}
-                          </select>
-                        </>
-                      )}
+                      render={({ field, fieldState: { error } }) => {
+                        const hasError = error || errors.role;
+                        return (
+                          <>
+                            <select
+                              {...field}
+                              value={field.value || ""}
+                              onChange={(e) => {
+                                field.onChange(e.target.value);
+                              }}
+                              className={`w-full px-3 md:px-4 py-2 md:py-3 bg-[var(--form-surface)] border rounded-lg text-sm md:text-base text-[var(--form-text)] transition-all focus:outline-none focus:ring-2 ${
+                                hasError
+                                  ? "border-[var(--form-error)] focus:border-[var(--form-error)] focus:ring-[var(--form-error)]/20"
+                                  : "border-[var(--form-border)] focus:border-[var(--form-border-focus)] focus:ring-[var(--form-border-focus)]/20"
+                              }`}
+                            >
+                              <option value="">Select Role</option>
+                              {roles.map((role) => (
+                                <option key={role.id} value={role.id.toString()}>
+                                  {role.name}
+                                </option>
+                              ))}
+                            </select>
+                            {hasError && (
+                              <p className="mt-1 text-xs text-[var(--form-error)]">
+                                {hasError.message || errors.role?.message}
+                              </p>
+                            )}
+                          </>
+                        );
+                      }}
                     />
                   </div>
 
@@ -2292,7 +2306,11 @@ const EditEmployee = () => {
                             setManualEmployeeId(e.target.value.toUpperCase())
                           }
                           placeholder="Enter Employee ID (e.g., EMP001, STAFF-001)"
-                          className="w-full px-3 md:px-4 py-2 md:py-3 bg-[var(--form-surface)] border border-[var(--form-border)] rounded-lg text-sm md:text-base text-[var(--form-text)] focus:outline-none focus:border-[var(--form-border-focus)] focus:ring-2 focus:ring-[var(--form-border-focus)]/20 placeholder:text-[var(--form-placeholder)]"
+                          className={`w-full px-3 md:px-4 py-2 md:py-3 bg-[var(--form-surface)] border rounded-lg text-sm md:text-base text-[var(--form-text)] transition-all focus:outline-none focus:ring-2 placeholder:text-[var(--form-placeholder)] ${
+                            errors.employee_id
+                              ? "border-[var(--form-error)] focus:border-[var(--form-error)] focus:ring-[var(--form-error)]/20"
+                              : "border-[var(--form-border)] focus:border-[var(--form-border-focus)] focus:ring-[var(--form-border-focus)]/20"
+                          }`}
                         />
                         <p className="text-xs text-[var(--form-text-muted)] mt-1">
                           <i className="fas fa-info-circle mr-1"></i>

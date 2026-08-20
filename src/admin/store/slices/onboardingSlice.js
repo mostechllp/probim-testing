@@ -4,6 +4,7 @@ import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import { parseResumeTextWithAI } from "../../utils/openRouterService";
 import { extractTextFromFile } from "../../utils/fileExtractor";
 import onboardingService from "../../services/onboardingService";
+import apiClient from "../../../utils/apiClient";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // RESUME PARSING (existing)
@@ -261,6 +262,132 @@ const sanitizePackages = (packages) => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
+// FETCH ALL ONBOARDING RECORDS
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const fetchAllOnboarding = createAsyncThunk(
+  "onboarding/fetchAll",
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await apiClient.get("/admin/employees/onboarding");
+      
+      if (response.data && response.data.status === "success") {
+        return response.data.data || [];
+      }
+      
+      return response.data || [];
+    } catch (error) {
+      console.error("[onboarding] fetchAllOnboarding error:", error);
+      return rejectWithValue(
+        error.response?.data?.message || "Failed to fetch onboarding records"
+      );
+    }
+  }
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DELETE ONBOARDING RECORD
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const deleteOnboardingRecord = createAsyncThunk(
+  "onboarding/delete",
+  async (id, { rejectWithValue }) => {
+    try {
+      const response = await apiClient.delete(`/admin/employees/onboarding/${id}`);
+      
+      if (response.data && response.data.status === "success") {
+        return id;
+      }
+      
+      return id;
+    } catch (error) {
+      console.error("[onboarding] deleteOnboardingRecord error:", error);
+      return rejectWithValue(
+        error.response?.data?.message || "Failed to delete onboarding record"
+      );
+    }
+  }
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FETCH ONBOARDING BY ID (VIEW)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const fetchOnboardingById = createAsyncThunk(
+  "onboarding/fetchById",
+  async (id, { rejectWithValue }) => {
+    try {
+      if (!id) {
+        return rejectWithValue("Onboarding ID is required");
+      }
+      
+      const response = await apiClient.get(`/admin/employees/onboarding/${id}`);
+      
+      if (response.data && response.data.status === "success") {
+        return response.data.data;
+      }
+      
+      return rejectWithValue(response.data?.message || "Failed to fetch onboarding details");
+    } catch (error) {
+      console.error("[onboarding] fetchOnboardingById error:", error);
+      return rejectWithValue(
+        error.response?.data?.message || "Failed to fetch onboarding details"
+      );
+    }
+  }
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// UPDATE ONBOARDING (Update existing onboarding record)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const updateOnboarding = createAsyncThunk(
+  "onboarding/update",
+  async ({ id, data }, { rejectWithValue, getState }) => {
+    try {
+      // Use the same service method as saveDetails but with employeeId
+      const state = getState();
+      const employeeId = id || state.onboarding?.savedEmployeeId || null;
+      
+      // Update the existing employee
+      const response = await onboardingService.saveDetails(data, employeeId);
+      return response;
+    } catch (error) {
+      console.error("[onboarding] updateOnboarding error:", error);
+      return rejectWithValue(
+        error.message || "Failed to update onboarding"
+      );
+    }
+  }
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// UPDATE ONBOARDING STATUS
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const updateOnboardingStatus = createAsyncThunk(
+  "onboarding/updateStatus",
+  async ({ id, status }, { rejectWithValue }) => {
+    try {
+      const response = await apiClient.put(`/admin/employees/onboarding/${id}/status`, {
+        status: status
+      });
+      
+      if (response.data && response.data.status === "success") {
+        return response.data.data;
+      }
+      
+      return rejectWithValue(response.data?.message || "Failed to update status");
+    } catch (error) {
+      console.error("[onboarding] updateOnboardingStatus error:", error);
+      return rejectWithValue(
+        error.response?.data?.message || "Failed to update onboarding status"
+      );
+    }
+  }
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
 // SLICE
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -272,6 +399,10 @@ const initialState = {
   savedEmployeeId: null,
   availablePackages: [],
   packagesLoading: false,
+  onboardingRecords: [],
+  onboardingLoading: false,
+  currentOnboarding: null,      // For view/edit
+  viewLoading: false,
   employeeDetails: {
     firstName: "",
     lastName: "",
@@ -701,7 +832,115 @@ const onboardingSlice = createSlice({
       .addCase(deleteSalaryComponent.rejected, (state, action) => {
         state.isLoading = false;
         state.error = action.payload;
-      });
+      })
+      // ── Fetch All Onboarding ──────────────────────────────────────────────────
+  .addCase(fetchAllOnboarding.pending, (state) => {
+    state.onboardingLoading = true;
+    state.error = null;
+  })
+  .addCase(fetchAllOnboarding.fulfilled, (state, action) => {
+    state.onboardingLoading = false;
+    state.onboardingRecords = action.payload || [];
+  })
+  .addCase(fetchAllOnboarding.rejected, (state, action) => {
+    state.onboardingLoading = false;
+    state.error = action.payload;
+  })
+
+  // ── Delete Onboarding Record ──────────────────────────────────────────────
+  .addCase(deleteOnboardingRecord.pending, (state) => {
+    state.isLoading = true;
+    state.error = null;
+  })
+  .addCase(deleteOnboardingRecord.fulfilled, (state, action) => {
+    state.isLoading = false;
+    // Remove the deleted record from the list
+    state.onboardingRecords = state.onboardingRecords.filter(
+      (record) => record.id !== action.payload
+    );
+  })
+  .addCase(deleteOnboardingRecord.rejected, (state, action) => {
+    state.isLoading = false;
+    state.error = action.payload;
+  })
+    // ── Fetch Onboarding by ID ────────────────────────────────────────────────
+  .addCase(fetchOnboardingById.pending, (state) => {
+    state.viewLoading = true;
+    state.error = null;
+    state.currentOnboarding = null;
+  })
+  .addCase(fetchOnboardingById.fulfilled, (state, action) => {
+    state.viewLoading = false;
+    state.currentOnboarding = action.payload;
+  })
+  .addCase(fetchOnboardingById.rejected, (state, action) => {
+    state.viewLoading = false;
+    state.error = action.payload;
+  })
+
+  // ── Update Onboarding ─────────────────────────────────────────────────────
+  .addCase(updateOnboarding.pending, (state) => {
+    state.isLoading = true;
+    state.error = null;
+  })
+  .addCase(updateOnboarding.fulfilled, (state, action) => {
+    state.isLoading = false;
+    // Update current onboarding if it exists
+    if (state.currentOnboarding) {
+      state.currentOnboarding = {
+        ...state.currentOnboarding,
+        ...action.payload?.data,
+      };
+    }
+    // Update in the list if present
+    if (state.onboardingRecords) {
+      const index = state.onboardingRecords.findIndex(
+        (item) => item.id === action.payload?.data?.id
+      );
+      if (index !== -1) {
+        state.onboardingRecords[index] = {
+          ...state.onboardingRecords[index],
+          ...action.payload?.data,
+        };
+      }
+    }
+  })
+  .addCase(updateOnboarding.rejected, (state, action) => {
+    state.isLoading = false;
+    state.error = action.payload;
+  })
+
+  // ── Update Onboarding Status ─────────────────────────────────────────────
+  .addCase(updateOnboardingStatus.pending, (state) => {
+    state.isLoading = true;
+    state.error = null;
+  })
+  .addCase(updateOnboardingStatus.fulfilled, (state, action) => {
+    state.isLoading = false;
+    // Update status in current onboarding
+    if (state.currentOnboarding) {
+      state.currentOnboarding.status = action.payload?.status;
+      if (state.currentOnboarding.user) {
+        state.currentOnboarding.user.status = action.payload?.status;
+      }
+    }
+    // Update in the list
+    if (state.onboardingRecords) {
+      const index = state.onboardingRecords.findIndex(
+        (item) => item.id === action.payload?.id
+      );
+      if (index !== -1) {
+        state.onboardingRecords[index].status = action.payload?.status;
+        if (state.onboardingRecords[index].user) {
+          state.onboardingRecords[index].user.status = action.payload?.status;
+        }
+      }
+    }
+  })
+  .addCase(updateOnboardingStatus.rejected, (state, action) => {
+    state.isLoading = false;
+    state.error = action.payload;
+  });
   },
 });
 

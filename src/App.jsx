@@ -160,6 +160,8 @@ const PayrollDetails = lazy(() => import("./admin/pages/PayrollDetails"));
 const EditPayroll = lazy(() => import("./admin/pages/EditPayroll"));
 
 const Onboarding = lazy(() => import("./admin/pages/Onboarding"));
+const InitiateOnboarding = lazy(() => import("./admin/components/onboarding/InitiateOnboarding"));
+const OnboardingView = lazy(() => import("./admin/pages/OnboardingView"));
 
 const ProjectWorkingHours = lazy(
   () => import("./admin/pages/ProjectWorkingHours"),
@@ -439,6 +441,8 @@ function AppContent() {
         <Route path="employees/add-employee" element={<AddEmployee />} />
 
         <Route path="employees/onboarding" element={<Onboarding />} />
+        <Route path="employees/onboarding/initiate" element={<InitiateOnboarding />} />
+        <Route path="employees/onboarding/view/:id" element={<OnboardingView />} />
 
         <Route path="employees/edit/:id" element={<EditEmployee />} />
 
@@ -683,6 +687,7 @@ function AppContent() {
         <Route path="my-documents" element={<EmployeeMyDocuments />} />
 
         <Route path="onboarding" element={<Onboarding />} />
+        <Route path="onboarding/view/:id" element={<OnboardingView />} />
 
         <Route
           path="ticket-raise"
@@ -707,6 +712,7 @@ function AppContent() {
         <Route path="employees/add-employee" element={<AddEmployee />} />
 
         <Route path="employees/onboarding" element={<Onboarding />} />
+        <Route path="employees/onboarding/view/:id" element={<OnboardingView />} />
 
         <Route path="employees/edit/:id" element={<EditEmployee />} />
 
@@ -883,6 +889,18 @@ function AppContent() {
               <Navigate to="/employee/employees/onboarding" replace />
             ) : (
               <Navigate to="/admin/employees/onboarding" replace />
+            )}
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/employees/onboarding/initiate"
+        element={
+          <ProtectedRoute>
+            {isEmployeeType(userType) ? (
+              <Navigate to="/employee/employees/onboarding/initiate" replace />
+            ) : (
+              <Navigate to="/admin/employees/onboarding/initiate" replace />
             )}
           </ProtectedRoute>
         }

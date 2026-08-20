@@ -56,7 +56,25 @@ const OnboardingReview = () => {
     title: "",
     errors: [],
   });
-  const [employeeId, setEmployeeId] = React.useState(null);
+
+  // ─── Get the employee ID from localStorage or state ──────────────────
+  const getEmployeeId = () => {
+    const employeeId = localStorage.getItem('employeeId');
+    if (employeeId) return employeeId;
+    if (employeeDetails?.id) return employeeDetails.id;
+    if (employeeDetails?.employee_id) return employeeDetails.employee_id;
+    return null;
+  };
+
+  // ─── Get the user ID from localStorage or state ──────────────────────
+  const getUserId = () => {
+    const userId = localStorage.getItem('employeeUserId') || 
+                   localStorage.getItem('onboardingEmployeeUserId');
+    if (userId) return userId;
+    if (employeeDetails?.user_id) return employeeDetails.user_id;
+    if (employeeDetails?.userId) return employeeDetails.userId;
+    return null;
+  };
 
   // Pre-fetch metadata
   React.useEffect(() => {
@@ -79,151 +97,10 @@ const OnboardingReview = () => {
     }
   }, [dispatch, organizations]);
 
-  const generateRandomDob = () => {
-    const currentYear = new Date().getFullYear();
-    const minYear = currentYear - 45;
-    const maxYear = currentYear - 22;
-    const randomYear =
-      Math.floor(Math.random() * (maxYear - minYear + 1)) + minYear;
-    const randomMonth = Math.floor(Math.random() * 12) + 1;
-    const randomDay = Math.floor(Math.random() * 28) + 1;
-    return `${randomYear}-${String(randomMonth).padStart(2, "0")}-${String(randomDay).padStart(2, "0")}`;
-  };
-
-  const generateEmployeeId = (dob, joiningDate) => {
-    if (!dob || !joiningDate) return "";
-
-    let dobFormatted = dob;
-    let joiningFormatted = joiningDate;
-
-    if (dob.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
-      const [day, month, year] = dob.split("/");
-      dobFormatted = `${year}-${month}-${day}`;
-    }
-
-    if (joiningDate.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
-      const [day, month, year] = joiningDate.split("/");
-      joiningFormatted = `${year}-${month}-${day}`;
-    }
-
-    const dobDate = new Date(dobFormatted);
-    const joiningDateObj = new Date(joiningFormatted);
-
-    if (isNaN(dobDate.getTime()) || isNaN(joiningDateObj.getTime())) {
-      return "";
-    }
-
-    const dobDay = String(dobDate.getDate()).padStart(2, "0");
-    const dobMonth = String(dobDate.getMonth() + 1).padStart(2, "0");
-    const dobYear = dobDate.getFullYear();
-    const joiningDay = String(joiningDateObj.getDate()).padStart(2, "0");
-    const joiningMonth = String(joiningDateObj.getMonth() + 1).padStart(2, "0");
-    const joiningYear = joiningDateObj.getFullYear();
-
-    return `EMP-${dobDay}${dobMonth}${dobYear}-${joiningDay}${joiningMonth}${joiningYear}`;
-  };
-
-  // ─── Step 1: Save employee details ──────────────────────────────────────
-  const saveEmployeeDetails = async (data) => {
-    const response = await apiClient.post(
-      "/admin/employees/onboard/details",
-      data,
-    );
-    return response.data;
-  };
-
-  // ─── Step 2: Save salary details with packages ──────────────────────────
-  const saveSalaryDetails = async (userId, salaryData) => {
-    const packages = salaryData.packages || {};
-    const packagesArray = [];
-
-    if (packages.package1 && packages.package1.isSaved) {
-      const pkg1 = packages.package1;
-      packagesArray.push({
-        name: pkg1.name || "Package 1 - Home Country / WFH",
-        is_active: true,
-        currency: pkg1.currency || "AED",
-        salary_components: (pkg1.salaryComponents || []).map((comp) => ({
-          component_name: comp.name,
-          value:
-            typeof comp.price === "number"
-              ? comp.price
-              : parseFloat(comp.price) || 0,
-        })),
-      });
-    }
-
-    if (packages.package2 && packages.package2.isSaved) {
-      const pkg2 = packages.package2;
-      packagesArray.push({
-        name: pkg2.name || "Package 2 - Dubai Onsite",
-        is_active: true,
-        currency: pkg2.currency || "AED",
-        salary_components: (pkg2.salaryComponents || []).map((comp) => ({
-          component_name: comp.name,
-          value:
-            typeof comp.price === "number"
-              ? comp.price
-              : parseFloat(comp.price) || 0,
-        })),
-      });
-    }
-
-    const payload = {
-      user_id: userId,
-      payment_cycle: salaryData.paymentCycle || "Monthly",
-      packages: packagesArray,
-    };
-
-    try {
-      const response = await apiClient.post(
-        "/admin/employees/onboard/salary",
-        payload,
-      );
-      return response.data;
-    } catch (error) {
-      console.error("[Onboarding] Error saving salary:", error);
-      throw error;
-    }
-  };
-
-  // ─── Step 3: Save bank details ──────────────────────────────────────────
-  const saveBankDetails = async (userId, bankData) => {
-    const bankAccounts = bankData.bankAccounts || [];
-
-    if (bankAccounts.length === 0) {
-      return { success: true, message: "No bank accounts provided" };
-    }
-
-    const payload = {
-      user_id: userId,
-      bank_details: bankAccounts.map((account) => ({
-        bank_country: account.bankCountry,
-        bank_name: account.bankName,
-        account_number: account.accountNumber,
-        ifsc_code: account.bankIfsc || null,
-        branch_name: account.bankBranch || null,
-        iban_number: account.bankIban || null,
-        swift_code: account.bankSwift || null,
-      })),
-    };
-
-    try {
-      const response = await apiClient.post(
-        "/admin/employees/onboard/banks",
-        payload,
-      );
-      return response.data;
-    } catch (error) {
-      console.error("[Onboarding] Failed to save bank details:", error);
-      throw error;
-    }
-  };
-
-  // ─── Step 4: Complete onboarding ────────────────────────────────────────
-  const completeOnboardingProcess = async (employeeId) => {
+  // ─── Step 5: Complete onboarding ────────────────────────────────────────
+  const completeOnboardingProcess = async (userId) => {
     const response = await apiClient.post("/admin/employees/onboard/complete", {
-      user_id: employeeId,
+      user_id: userId,
     });
     return response.data;
   };
@@ -234,374 +111,71 @@ const OnboardingReview = () => {
     setIsSubmitting(true);
 
     try {
-      const hrUser = JSON.parse(localStorage.getItem("hr-user")) || {};
-      const orgId =
-        hrUser?.employee?.organization_id ||
-        hrUser?.organization_id ||
-        organizations[0]?.id ||
-        "";
-      let companyId =
-        hrUser?.employee?.company_id ||
-        hrUser?.company_id ||
-        companies[0]?.id ||
-        "";
+      // ─── GET THE USER ID (only need userId for completion) ──────────────
+      const userId = getUserId();
 
-      if (!companyId && orgId) {
-        try {
-          const companiesRes = await apiClient.get(
-            `/admin/companies?organization_id=${orgId}`,
-          );
-          const fetchedCompanies = companiesRes.data?.data || companiesRes.data;
-          if (Array.isArray(fetchedCompanies) && fetchedCompanies.length > 0) {
-            companyId = fetchedCompanies[0]?.id || "";
-          }
-        } catch (_) {}
-      }
-
-      // ─── FETCH LATEST ROLES ──────────────────────────────────────────────
-      let activeRoles = [...roles];
-      try {
-        const rolesRes = await apiClient.get("/admin/roles");
-        const fetched = rolesRes.data?.data || rolesRes.data;
-        if (Array.isArray(fetched) && fetched.length > 0) {
-          activeRoles = fetched;
-        }
-      } catch (_) {}
-
-      // ─── FIND THE SELECTED ROLE FROM FORM ───────────────────────────────
-      // The role name is stored in employeeDetails.role
-      const selectedRoleName = employeeDetails.role || "";
-      let selectedRole = null;
-
-      // Try to find the role by name (case insensitive)
-      if (selectedRoleName) {
-        selectedRole = activeRoles.find(
-          (r) => r.name?.toLowerCase().trim() === selectedRoleName.toLowerCase().trim()
-        );
-      }
-
-      // If not found, try to find by partial match
-      if (!selectedRole && selectedRoleName) {
-        selectedRole = activeRoles.find(
-          (r) => r.name?.toLowerCase().includes(selectedRoleName.toLowerCase().trim())
-        );
-      }
-
-      // If still not found, fallback to "Employee" role
-      if (!selectedRole) {
-        selectedRole = activeRoles.find(
-          (r) => r.name?.toLowerCase().trim() === "employee"
-        ) ||
-        activeRoles.find(
-          (r) => r.name?.toLowerCase().includes("employee")
-        ) ||
-        activeRoles[0] ||
-        null;
-      }
-
-      // ─── CREATE "Employee" ROLE IF NOT EXISTS ────────────────────────────
-      if (!selectedRole) {
-        try {
-          const createRes = await apiClient.post("/admin/roles", {
-            name: "Employee",
-            description: "Default Employee Role",
-            status: "active",
-          });
-          const created = createRes.data?.data || createRes.data;
-          if (created?.id) {
-            selectedRole = created;
-            dispatch(fetchRoles());
-          }
-        } catch (createErr) {
-          console.error("Failed to auto-create Employee role:", createErr);
-        }
-      }
-
-      const role_id = selectedRole?.id || null;
-
-      if (!role_id) {
+      if (!userId) {
         setErrorModal({
           isOpen: true,
-          title: "System Configuration Required",
+          title: "User ID Not Found",
           errors: [
             {
-              field: "Employee Role Missing",
-              message:
-                "No 'Employee' role exists in the system. Please contact HR administrator.",
+              field: "Missing Information",
+              message: "Employee user ID not found. Please complete the previous steps first.",
             },
           ],
         });
-        showToast(
-          "Onboarding failed: No Employee role found in the system.",
-          "error",
-        );
+        showToast("Employee user ID not found. Please go back and save employee details.", "error");
         setIsSubmitting(false);
         return;
       }
 
-      // ─── RESOLVE DESIGNATION AND DEPARTMENT IDs ─────────────────────────
-      const matchedDesignation = designations.find(
-        (d) =>
-          d.name?.toLowerCase().trim() ===
-          (employeeDetails.designation || "").toLowerCase().trim(),
-      );
-      const matchedDepartment = departments.find(
-        (d) =>
-          d.name?.toLowerCase().trim() ===
-          (employeeDetails.department || "").toLowerCase().trim(),
-      );
+      // ─── CHECK IF SALARY AND BANK ARE CONFIGURED ──────────────────────
+      const hasPackages = employeeDetails.packages?.package1?.isSaved || 
+                          employeeDetails.packages?.package2?.isSaved;
+      const hasBankAccounts = employeeDetails.bankAccounts?.length > 0;
 
-      const designation_id =
-        matchedDesignation?.id || designations[0]?.id || null;
-      const department_id = matchedDepartment?.id || departments[0]?.id || null;
-
-      // Retrieve name directly since they are already separated
-      const first_name = employeeDetails.firstName || "Unknown";
-      const last_name = employeeDetails.lastName || "";
-
-      // Generate DOB and Employee ID
-      let dob = "";
-      if (
-        employeeDetails.specialDayEvent?.toLowerCase().trim() === "birthday" &&
-        employeeDetails.specialDayDate
-      ) {
-        dob = employeeDetails.specialDayDate;
-        if (dob.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
-          const [day, month, year] = dob.split("/");
-          dob = `${year}-${month}-${day}`;
-        }
-      } else {
-        dob = generateRandomDob();
-      }
-      const generatedEmployeeId = generateEmployeeId(
-        dob,
-        employeeDetails.joiningDate,
-      );
-
-      // Clean phone number
-      const cleanPhone = (employeeDetails.phone || "")
-        .replace(/\+/g, "")
-        .replace(/[\s\-]/g, "")
-        .trim();
-
-      // Nationality mapping
-      const nationalityMap = {
-        india: "Indian",
-        pakistan: "Pakistani",
-        philippines: "Filipino",
-        "united arab emirates": "Emirati",
-        "united kingdom": "British",
-        "united states": "American",
-      };
-      const rawNationality = (employeeDetails.nationality || "Indian").trim();
-      const candidateNationality =
-        nationalityMap[rawNationality.toLowerCase()] || rawNationality;
-
-      // Normalize joining date
-      let joiningDate = employeeDetails.joiningDate || "";
-      if (joiningDate.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
-        const [day, month, year] = joiningDate.split("/");
-        joiningDate = `${year}-${month}-${day}`;
+      if (!hasPackages) {
+        showToast("Please configure at least one salary package before completing.", "warning");
+        setIsSubmitting(false);
+        return;
       }
 
-      // ─── BUILD EMPLOYEE DETAILS PAYLOAD ─────────────────────────────────
-      const employeeFormData = new FormData();
-      employeeFormData.append("first_name", first_name);
-      employeeFormData.append("last_name", last_name);
-      employeeFormData.append("employee_id", generatedEmployeeId);
-      employeeFormData.append("gender", "female");
-      employeeFormData.append("dob", dob);
-      employeeFormData.append("marital_status", "single");
-      employeeFormData.append("personal_email", employeeDetails.email || "");
-      employeeFormData.append("phone", cleanPhone);
-      employeeFormData.append("personal_number", cleanPhone);
-      employeeFormData.append("joining_date", joiningDate);
-      employeeFormData.append("nationality", candidateNationality);
-      employeeFormData.append(
-        "organization_id",
-        orgId ? String(parseInt(orgId)) : "",
-      );
-      employeeFormData.append(
-        "company_id",
-        companyId ? String(parseInt(companyId)) : "",
-      );
-      employeeFormData.append(
-        "department_id",
-        department_id ? String(parseInt(department_id)) : "",
-      );
-      employeeFormData.append(
-        "designation_id",
-        designation_id ? String(parseInt(designation_id)) : "",
-      );
-      // ─── ROLE ID IS NOW INCLUDED ────────────────────────────────────────
-      employeeFormData.append("role_id", String(parseInt(role_id)));
-      employeeFormData.append("type", "employee");
-      employeeFormData.append("status", "onboarding");
-      employeeFormData.append("address", employeeDetails.address || "");
-      employeeFormData.append(
-        "experience_level",
-        employeeDetails.experience || "",
-      );
-      employeeFormData.append("key_skills", employeeDetails.skills || "");
-      employeeFormData.append(
-        "highest_education",
-        employeeDetails.education || "",
-      );
-
-      if (
-        employeeDetails.specialDayEvent &&
-        employeeDetails.specialDayEvent.trim() &&
-        employeeDetails.specialDayDate
-      ) {
-        let specDate = employeeDetails.specialDayDate.trim();
-        if (specDate.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
-          const [day, month, year] = specDate.split("/");
-          specDate = `${year}-${month}-${day}`;
-        }
-        employeeFormData.append(
-          "special_days_name[]",
-          employeeDetails.specialDayEvent.trim(),
-        );
-        employeeFormData.append("special_days_date[]", specDate);
+      if (!hasBankAccounts) {
+        showToast("Please add at least one bank account before completing.", "warning");
+        setIsSubmitting(false);
+        return;
       }
 
-      let createdEmployee;
+      // ─── ONLY CALL THE COMPLETE API ──────────────────────────────────
+      // Do NOT call update employee API here - the employee already exists
       try {
-        const createRes = await saveEmployeeDetails(employeeFormData);
-        createdEmployee = createRes.data || createRes;
-        const employeeId = createdEmployee.id || createdEmployee.employee_id;
-        const userId = createdEmployee.user_id;
+        await completeOnboardingProcess(userId);
 
-        setEmployeeId(employeeId);
-
-        if (!userId) {
-          throw new Error("No user_id returned from employee creation");
-        }
-
-        // ─── Save salary details with packages ──────────────────────────────
-        try {
-          await saveSalaryDetails(userId, {
-            packages: employeeDetails.packages || {},
-            paymentCycle: employeeDetails.paymentCycle || "Monthly",
-          });
-        } catch (error) {
-          console.error("[Onboarding] Failed to save salary details:", error);
-          const errorData = error?.response?.data;
-          if (errorData?.errors) {
-            const errorList = Object.entries(errorData.errors).map(
-              ([field, msgs]) => ({
-                field: field.replace(/_/g, " "),
-                message: Array.isArray(msgs) ? msgs[0] : msgs,
-              }),
-            );
-            setErrorModal({
-              isOpen: true,
-              title: "Salary Details Error",
-              errors: errorList,
-            });
-          } else {
-            showToast(
-              errorData?.message ||
-                "Salary details saved, but there was an issue. Please review.",
-              "warning",
-            );
-          }
-        }
-
-        // ─── Save bank details ──────────────────────────────────────────────
-        try {
-          await saveBankDetails(userId, {
-            bankAccounts: employeeDetails.bankAccounts || [],
-          });
-        } catch (error) {
-          console.error("[Onboarding] Failed to save bank details:", error);
-          const errorData = error?.response?.data;
-          if (errorData?.errors) {
-            const errorList = Object.entries(errorData.errors).map(
-              ([field, msgs]) => ({
-                field: field.replace(/_/g, " "),
-                message: Array.isArray(msgs) ? msgs[0] : msgs,
-              }),
-            );
-            setErrorModal({
-              isOpen: true,
-              title: "Bank Details Error",
-              errors: errorList,
-            });
-          } else {
-            showToast(
-              errorData?.message ||
-                "Bank details saved, but there was an issue. Please review.",
-              "warning",
-            );
-          }
-        }
-
-        // ─── Complete onboarding ─────────────────────────────────────────────
-        try {
-          await completeOnboardingProcess(userId);
-
-          dispatch(fetchEmployees());
-          dispatch(completeOnboarding());
-          showToast(
-            "Onboarding completed successfully! Employee has been added to the system.",
-            "success",
-          );
-        } catch (error) {
-          console.error("[Onboarding] Failed to complete onboarding:", error);
-          const errorData = error?.response?.data;
-          showToast(
-            errorData?.message ||
-              "Employee created, but onboarding completion failed. Please contact support.",
-            "error",
-          );
-          dispatch(completeOnboarding());
-        }
-      } catch (error) {
-        console.error("[Onboarding] Failed to create employee:", error);
-        const errData = error?.response?.data ?? {};
-
-        if (errData?.errors && Object.keys(errData.errors).length > 0) {
-          const fieldLabels = {
-            first_name: "First Name",
-            last_name: "Last Name",
-            employee_id: "Employee ID",
-            personal_email: "Email Address",
-            phone: "Phone Number",
-            joining_date: "Joining Date",
-            nationality: "Nationality",
-            department_id: "Department",
-            designation_id: "Designation",
-            role_id: "Role",
-          };
-          const errorList = Object.entries(errData.errors).map(
-            ([field, msgs]) => ({
-              field: fieldLabels[field] || field.replace(/_/g, " "),
-              message: Array.isArray(msgs) ? msgs[0] : msgs,
-            }),
-          );
-          setErrorModal({
-            isOpen: true,
-            title: "Unable to Create Employee",
-            errors: errorList,
-          });
-        } else {
-          setErrorModal({
-            isOpen: true,
-            title: "Unable to Create Employee",
-            errors: [
-              {
-                field: "Action Required",
-                message: errData?.message || "Failed to create employee record",
-              },
-            ],
-          });
-        }
+        dispatch(fetchEmployees());
+        dispatch(completeOnboarding());
         showToast(
-          "Employee creation failed. Please fix the issue and try again.",
+          "Onboarding completed successfully! Employee has been added to the system.",
+          "success",
+        );
+        
+        // Clear onboarding data from localStorage
+        localStorage.removeItem("onboarding-draft");
+        localStorage.removeItem("onboarding_id");
+        localStorage.removeItem("employeeId");
+        localStorage.removeItem("employeeUserId");
+        localStorage.removeItem("onboardingEmployeeUserId");
+        
+      } catch (error) {
+        console.error("[Onboarding] Failed to complete onboarding:", error);
+        const errorData = error?.response?.data;
+        showToast(
+          errorData?.message || "Onboarding completion failed. Please try again.",
           "error",
         );
+        dispatch(completeOnboarding()); // Still mark as complete in local state
       }
+      
     } catch (error) {
       console.error("[Onboarding] Unexpected error:", error);
       setErrorModal({
@@ -828,7 +402,6 @@ const OnboardingReview = () => {
                   </p>
                   <p className="text-sm text-gray-500">
                     {employeeDetails.designation} • {employeeDetails.department}
-                    {/* ─── ROLE DISPLAY ──────────────────────────────────────── */}
                     {employeeDetails.role && (
                       <span className="ml-1 text-xs text-gray-400">
                         • Role: {employeeDetails.role}
@@ -865,7 +438,6 @@ const OnboardingReview = () => {
                     {employeeDetails.joiningDate}
                   </span>
                 </div>
-                {/* ─── ROLE DISPLAY IN DETAILS ────────────────────────────── */}
                 {employeeDetails.role && (
                   <div className="flex items-center gap-3 text-sm">
                     <FiShield className="text-gray-400" />
@@ -932,7 +504,6 @@ const OnboardingReview = () => {
                     Salary Packages
                   </p>
 
-                  {/* Package 1 - Home Country / WFH */}
                   {hasPackage1 ? (
                     <div className="border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
                       <div className="bg-gray-50 dark:bg-gray-800/50 px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
@@ -945,22 +516,17 @@ const OnboardingReview = () => {
                           </span>
                         </div>
                         <span className="text-sm font-bold text-green-600 dark:text-green-400">
-                          {package1.currency || "AED"}{" "}
-                          {totalSalary(package1).toLocaleString()}
+                          {package1.currency || "AED"} {totalSalary(package1).toLocaleString()}
                         </span>
                       </div>
                       <div className="p-4 space-y-2">
                         {(package1.salaryComponents || []).map((comp, idx) => (
-                          <div
-                            key={idx}
-                            className="flex justify-between text-sm"
-                          >
+                          <div key={idx} className="flex justify-between text-sm">
                             <span className="text-gray-600 dark:text-gray-400">
                               {comp.name || comp.component_name}
                             </span>
                             <span className="font-medium text-gray-900 dark:text-white">
-                              {package1.currency || "AED"}{" "}
-                              {(comp.price || comp.value || 0).toLocaleString()}
+                              {package1.currency || "AED"} {(comp.price || comp.value || 0).toLocaleString()}
                             </span>
                           </div>
                         ))}
@@ -972,7 +538,6 @@ const OnboardingReview = () => {
                     </div>
                   )}
 
-                  {/* Package 2 - Dubai Onsite */}
                   {hasPackage2 ? (
                     <div className="border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
                       <div className="bg-gray-50 dark:bg-gray-800/50 px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
@@ -985,22 +550,17 @@ const OnboardingReview = () => {
                           </span>
                         </div>
                         <span className="text-sm font-bold text-green-600 dark:text-green-400">
-                          {package2.currency || "AED"}{" "}
-                          {totalSalary(package2).toLocaleString()}
+                          {package2.currency || "AED"} {totalSalary(package2).toLocaleString()}
                         </span>
                       </div>
                       <div className="p-4 space-y-2">
                         {(package2.salaryComponents || []).map((comp, idx) => (
-                          <div
-                            key={idx}
-                            className="flex justify-between text-sm"
-                          >
+                          <div key={idx} className="flex justify-between text-sm">
                             <span className="text-gray-600 dark:text-gray-400">
                               {comp.name || comp.component_name}
                             </span>
                             <span className="font-medium text-gray-900 dark:text-white">
-                              {package2.currency || "AED"}{" "}
-                              {(comp.price || comp.value || 0).toLocaleString()}
+                              {package2.currency || "AED"} {(comp.price || comp.value || 0).toLocaleString()}
                             </span>
                           </div>
                         ))}
@@ -1018,12 +578,9 @@ const OnboardingReview = () => {
                     </div>
                   )}
 
-                  {/* Payment Cycle */}
                   <div className="flex items-center gap-2 text-sm pt-2 border-t border-gray-100 dark:border-gray-700">
                     <FiCalendar className="text-gray-400" />
-                    <span className="text-gray-500 font-medium">
-                      Payment Cycle:
-                    </span>
+                    <span className="text-gray-500 font-medium">Payment Cycle:</span>
                     <span className="text-gray-900 dark:text-gray-300 font-semibold">
                       {employeeDetails.paymentCycle || "Monthly"}
                     </span>
@@ -1038,15 +595,10 @@ const OnboardingReview = () => {
                     </p>
                     <div className="space-y-3">
                       {bankAccounts.map((bank, idx) => (
-                        <div
-                          key={idx}
-                          className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden"
-                        >
+                        <div key={idx} className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
                           <div className="bg-gray-50 dark:bg-gray-800/50 px-4 py-2 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
                             <div className="flex items-center gap-2">
-                              <span className="text-xs font-bold text-gray-500 uppercase">
-                                Account {idx + 1}
-                              </span>
+                              <span className="text-xs font-bold text-gray-500 uppercase">Account {idx + 1}</span>
                               <span className="text-xs px-2 py-0.5 bg-green-100 text-green-700 rounded-full">
                                 {bank.bankCountry}
                               </span>
@@ -1056,67 +608,39 @@ const OnboardingReview = () => {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                               <div className="space-y-2">
                                 <div>
-                                  <p className="text-xs text-gray-500 uppercase tracking-wide">
-                                    Bank Name
-                                  </p>
-                                  <p className="text-sm font-semibold text-gray-900 dark:text-white">
-                                    {bank.bankName}
-                                  </p>
+                                  <p className="text-xs text-gray-500 uppercase tracking-wide">Bank Name</p>
+                                  <p className="text-sm font-semibold text-gray-900 dark:text-white">{bank.bankName}</p>
                                 </div>
                                 <div>
-                                  <p className="text-xs text-gray-500 uppercase tracking-wide">
-                                    Account Number
-                                  </p>
-                                  <p className="text-sm font-mono font-medium text-gray-900 dark:text-white">
-                                    {bank.accountNumber}
-                                  </p>
+                                  <p className="text-xs text-gray-500 uppercase tracking-wide">Account Number</p>
+                                  <p className="text-sm font-mono font-medium text-gray-900 dark:text-white">{bank.accountNumber}</p>
                                 </div>
-                                {bank.bankCountry === "India" &&
-                                  bank.bankBranch && (
-                                    <div>
-                                      <p className="text-xs text-gray-500 uppercase tracking-wide">
-                                        Branch Name
-                                      </p>
-                                      <p className="text-sm font-medium text-gray-900 dark:text-white">
-                                        {bank.bankBranch}
-                                      </p>
-                                    </div>
-                                  )}
+                                {bank.bankCountry === "India" && bank.bankBranch && (
+                                  <div>
+                                    <p className="text-xs text-gray-500 uppercase tracking-wide">Branch Name</p>
+                                    <p className="text-sm font-medium text-gray-900 dark:text-white">{bank.bankBranch}</p>
+                                  </div>
+                                )}
                               </div>
                               <div className="space-y-2">
-                                {bank.bankCountry === "India" &&
-                                  bank.bankIfsc && (
-                                    <div>
-                                      <p className="text-xs text-gray-500 uppercase tracking-wide">
-                                        IFSC Code
-                                      </p>
-                                      <p className="text-sm font-mono font-medium text-gray-900 dark:text-white">
-                                        {bank.bankIfsc}
-                                      </p>
-                                    </div>
-                                  )}
-                                {bank.bankCountry === "UAE" &&
-                                  bank.bankIban && (
-                                    <div>
-                                      <p className="text-xs text-gray-500 uppercase tracking-wide">
-                                        IBAN Number
-                                      </p>
-                                      <p className="text-sm font-mono font-medium text-gray-900 dark:text-white break-all">
-                                        {bank.bankIban}
-                                      </p>
-                                    </div>
-                                  )}
-                                {bank.bankCountry === "UAE" &&
-                                  bank.bankSwift && (
-                                    <div>
-                                      <p className="text-xs text-gray-500 uppercase tracking-wide">
-                                        SWIFT/BIC Code
-                                      </p>
-                                      <p className="text-sm font-mono font-medium text-gray-900 dark:text-white">
-                                        {bank.bankSwift}
-                                      </p>
-                                    </div>
-                                  )}
+                                {bank.bankCountry === "India" && bank.bankIfsc && (
+                                  <div>
+                                    <p className="text-xs text-gray-500 uppercase tracking-wide">IFSC Code</p>
+                                    <p className="text-sm font-mono font-medium text-gray-900 dark:text-white">{bank.bankIfsc}</p>
+                                  </div>
+                                )}
+                                {bank.bankCountry === "UAE" && bank.bankIban && (
+                                  <div>
+                                    <p className="text-xs text-gray-500 uppercase tracking-wide">IBAN Number</p>
+                                    <p className="text-sm font-mono font-medium text-gray-900 dark:text-white break-all">{bank.bankIban}</p>
+                                  </div>
+                                )}
+                                {bank.bankCountry === "UAE" && bank.bankSwift && (
+                                  <div>
+                                    <p className="text-xs text-gray-500 uppercase tracking-wide">SWIFT/BIC Code</p>
+                                    <p className="text-sm font-mono font-medium text-gray-900 dark:text-white">{bank.bankSwift}</p>
+                                  </div>
+                                )}
                               </div>
                             </div>
                           </div>
@@ -1128,9 +652,7 @@ const OnboardingReview = () => {
 
                 {(!bankAccounts || bankAccounts.length === 0) && (
                   <div className="border-t border-gray-100 pt-4">
-                    <p className="text-xs text-amber-600">
-                      No bank accounts added yet
-                    </p>
+                    <p className="text-xs text-amber-600">No bank accounts added yet</p>
                   </div>
                 )}
               </div>
@@ -1160,24 +682,9 @@ const OnboardingReview = () => {
             >
               {isSubmitting ? (
                 <>
-                  <svg
-                    className="animate-spin h-4 w-4 text-white"
-                    viewBox="0 0 24 24"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                      fill="none"
-                    />
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                    />
+                  <svg className="animate-spin h-4 w-4 text-white" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                   </svg>
                   Processing...
                 </>

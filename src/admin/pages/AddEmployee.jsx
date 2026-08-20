@@ -283,6 +283,7 @@ const AddEmployee = () => {
       designation_id: "",
       department_id: "",
       type: "employee",
+      role: "",
       joining_date: "",
       dob: "",
       probation_start_date: "",
@@ -634,8 +635,10 @@ const AddEmployee = () => {
           "designation_id",
           "department_id",
           "type",
+          "role",
           "dob",
           "joining_date",
+          "employee_id",
         ];
         if (selectedOrgDetails?.multi_company === "Yes") {
           fields.push("company_id");
@@ -656,7 +659,7 @@ const AddEmployee = () => {
         ];
       }
       case 3:
-        return ["company_email", "personal_email", "type", "role"];
+        return ["company_email", "personal_email"];
       default:
         return [];
     }
@@ -1578,13 +1581,13 @@ const AddEmployee = () => {
                     name="role"
                     control={control}
                     rules={validationRules.role}
-                    render={({ field }) => (
+                    render={({ field, fieldState: { error } }) => (
                       <FormSelect
                         {...field}
                         label="Role"
                         icon="fas fa-user-tag"
                         required
-                        error={errors.role?.message}
+                        error={error?.message || errors.role?.message}
                         options={roles.map((role) => ({
                           value: role.id,
                           label: role.name,
@@ -1715,7 +1718,11 @@ const AddEmployee = () => {
                             setManualEmployeeId(e.target.value.toUpperCase())
                           }
                           placeholder="Enter Employee ID (e.g., EMP001, STAFF-001)"
-                          className="w-full px-3 md:px-4 py-2 md:py-3 bg-[var(--form-surface)] border border-[var(--form-border)] rounded-lg text-sm md:text-base text-[var(--form-text)] focus:outline-none focus:border-[var(--form-border-focus)] focus:ring-2 focus:ring-[var(--form-border-focus)]/20"
+                          className={`w-full px-3 md:px-4 py-2 md:py-3 bg-[var(--form-surface)] border rounded-lg text-sm md:text-base text-[var(--form-text)] transition-all focus:outline-none focus:ring-2 placeholder:text-[var(--form-placeholder)] ${
+                            errors.employee_id
+                              ? "border-[var(--form-error)] focus:border-[var(--form-error)] focus:ring-[var(--form-error)]/20"
+                              : "border-[var(--form-border)] focus:border-[var(--form-border-focus)] focus:ring-[var(--form-border-focus)]/20"
+                          }`}
                         />
                         <p className="text-xs text-[var(--form-text-muted)] mt-1">
                           <i className="fas fa-info-circle mr-1"></i>
