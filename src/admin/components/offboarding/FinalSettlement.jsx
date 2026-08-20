@@ -25,6 +25,7 @@ const FinalSettlement = () => {
   // Custom interactive state
   const [customDeductions, setCustomDeductions] = useState([]);
   const [remarks, setRemarks] = useState("");
+  const [formData, setFormData] = useState(null);
   
   // Redux state
   const { currentOffboarding, loading: offboardingLoading } = useSelector((state) => state.offboarding);
@@ -58,6 +59,42 @@ const FinalSettlement = () => {
           setSettlementInfo(settlement);
           setCalculatedData(calculated_settlement);
           setRemarks(settlement?.remarks || "");
+          
+          const formatDateLocal = (dateString) => {
+            if (!dateString) return "";
+            return new Date(dateString).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+          };
+
+          setFormData({
+            empName: calculated_settlement.employee?.name || "",
+            empId: calculated_settlement.employee?.employee_id || "",
+            department: calculated_settlement.employee?.department || "",
+            designation: calculated_settlement.employee?.designation || "",
+            joiningDate: calculated_settlement.employee?.joining_date?.split('T')[0] || "",
+            lastWorkingDay: calculated_settlement.employee?.last_working_day?.split('T')[0] || "",
+            
+            serviceCompleted: `${calculated_settlement.service_period?.years || 0} yr ${calculated_settlement.service_period?.months || 0} mo ${calculated_settlement.service_period?.days || 0} d`,
+            noticePeriodDays: calculated_settlement.notice_period?.notice_period_days || 0,
+            noticeWindow: `${formatDateLocal(calculated_settlement.notice_period?.notice_start_date)} to ${formatDateLocal(calculated_settlement.notice_period?.notice_end_date)}`,
+            shortfallDaysServed: `${calculated_settlement.notice_period?.shortfall_days || 0} shortfall / ${calculated_settlement.notice_period?.days_served || 0} served`,
+            
+            daysWorked: `${calculated_settlement.attendance?.days_worked || 0} / ${calculated_settlement.attendance?.working_days || 0}`,
+            leaveTakenAllocated: `${calculated_settlement.leave?.leave_taken || 0} / ${calculated_settlement.leave?.leave_allocated || 0}`,
+            unpaidLeaveDays: calculated_settlement.leave?.unpaid_leave_days || 0,
+            leaveBalance: `${calculated_settlement.leave?.leave_balance_days || 0} days`,
+            perDaySalary: calculated_settlement.salary?.per_day_salary || 0,
+            
+            leaveEncashmentTitle: `Leave Encashment (${calculated_settlement.leave_encashment?.leave_balance_days || 0} days)`,
+            leaveEncashmentAmount: calculated_settlement.leave_encashment?.amount || 0,
+            
+            gratuityTitle: `Gratuity (${(calculated_settlement.gratuity?.gratuity_days || 0).toFixed(2)} days)`,
+            gratuityAmount: calculated_settlement.gratuity?.amount || 0,
+            
+            overtimeAmount: calculated_settlement.overtime?.amount || 0,
+            
+            grossFinalPayable: calculated_settlement.total_payable || 0,
+            standardDeductions: calculated_settlement.total_deductions || 0,
+          });
         }
       } catch (error) {
         console.error("Error fetching settlement data:", error);
@@ -94,10 +131,10 @@ const FinalSettlement = () => {
     
     try {
       const totalCustomDeductions = customDeductions.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
-      const baseDeductions = calculatedData?.total_deductions || 0;
+      const baseDeductions = parseFloat(formData?.standardDeductions) || 0;
       const totalDeductions = baseDeductions + totalCustomDeductions;
       
-      const totalPayable = calculatedData?.total_payable || 0;
+      const totalPayable = parseFloat(formData?.grossFinalPayable) || 0;
       const netPayable = totalPayable - totalDeductions;
 
       const payload = {
@@ -167,7 +204,11 @@ const FinalSettlement = () => {
     return new Date(dateString).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
   };
 
-  if (loading || offboardingLoading || !calculatedData) {
+  const handleFormChange = (field, value) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  if (loading || offboardingLoading || !calculatedData || !formData) {
     return (
       <div className="min-h-screen bg-gray-50/30 dark:bg-gray-900/40 p-4 sm:p-6 lg:p-8">
         <div className="max-w-5xl mx-auto space-y-6">
@@ -184,24 +225,30 @@ const FinalSettlement = () => {
   }
 
   const totalCustomDeductions = customDeductions.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
-  const finalTotalPayable = calculatedData.total_payable;
-  const finalTotalDeductions = calculatedData.total_deductions + totalCustomDeductions;
+  const finalTotalPayable = parseFloat(formData.grossFinalPayable) || 0;
+  const finalTotalDeductions = (parseFloat(formData.standardDeductions) || 0) + totalCustomDeductions;
   const finalNetPayable = finalTotalPayable - finalTotalDeductions;
-  const emp = calculatedData.employee;
   const currency = calculatedData?.salary_packages?.[0]?.currency || "AED";
 
-  // Reusable ReadOnly Input Component
-  const ReadOnlyInput = ({ label, value }) => (
+  // Reusable Form Input Component
+  const FormInput = ({ label, value, onChange, type = "text", prefix = "" }) => (
     <div className="space-y-1.5">
       <label className="block text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
         {label}
       </label>
-      <input
-        type="text"
-        value={value}
-        className="w-full px-4 py-2.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-800 dark:text-gray-200 font-semibold focus:outline-none"
-        readOnly
-      />
+      <div className="relative">
+        {prefix && (
+          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 font-semibold text-sm">
+            {prefix}
+          </span>
+        )}
+        <input
+          type={type}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className={`w-full ${prefix ? 'pl-12 pr-4' : 'px-4'} py-2.5 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-sm text-gray-800 dark:text-gray-200 font-semibold focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-500`}
+        />
+      </div>
     </div>
   );
 
@@ -223,12 +270,12 @@ const FinalSettlement = () => {
             <fieldset disabled={isViewMode} className="w-full space-y-8">
             {/* 1. Employee Details */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <ReadOnlyInput label="Employee Name" value={emp.name} />
-              <ReadOnlyInput label="Employee ID" value={emp.employee_id} />
-              <ReadOnlyInput label="Department" value={emp.department} />
-              <ReadOnlyInput label="Designation" value={emp.designation} />
-              <ReadOnlyInput label="Joining Date" value={formatDate(emp.joining_date)} />
-              <ReadOnlyInput label="Last Working Day" value={formatDate(emp.last_working_day)} />
+              <FormInput label="Employee Name" value={formData.empName} onChange={(v) => handleFormChange('empName', v)} />
+              <FormInput label="Employee ID" value={formData.empId} onChange={(v) => handleFormChange('empId', v)} />
+              <FormInput label="Department" value={formData.department} onChange={(v) => handleFormChange('department', v)} />
+              <FormInput label="Designation" value={formData.designation} onChange={(v) => handleFormChange('designation', v)} />
+              <FormInput label="Joining Date" type="date" value={formData.joiningDate} onChange={(v) => handleFormChange('joiningDate', v)} />
+              <FormInput label="Last Working Day" type="date" value={formData.lastWorkingDay} onChange={(v) => handleFormChange('lastWorkingDay', v)} />
             </div>
 
             <div className="h-px bg-gray-100 dark:bg-gray-700 w-full my-8"></div>
@@ -236,10 +283,10 @@ const FinalSettlement = () => {
             {/* 2. Service & Notice Period */}
             <h2 className="text-sm font-bold text-gray-800 dark:text-gray-200 uppercase tracking-wider mb-4">Service & Notice Period</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <ReadOnlyInput label="Service Completed" value={`${calculatedData.service_period.years} yr ${calculatedData.service_period.months} mo ${calculatedData.service_period.days} d`} />
-              <ReadOnlyInput label="Notice Period (Days)" value={calculatedData.notice_period.notice_period_days} />
-              <ReadOnlyInput label="Notice Window" value={`${formatDate(calculatedData.notice_period.notice_start_date)} to ${formatDate(calculatedData.notice_period.notice_end_date)}`} />
-              <ReadOnlyInput label="Shortfall / Days Served" value={`${calculatedData.notice_period.shortfall_days} shortfall / ${calculatedData.notice_period.days_served} served`} />
+              <FormInput label="Service Completed" value={formData.serviceCompleted} onChange={(v) => handleFormChange('serviceCompleted', v)} />
+              <FormInput label="Notice Period (Days)" type="number" value={formData.noticePeriodDays} onChange={(v) => handleFormChange('noticePeriodDays', v)} />
+              <FormInput label="Notice Window" value={formData.noticeWindow} onChange={(v) => handleFormChange('noticeWindow', v)} />
+              <FormInput label="Shortfall / Days Served" value={formData.shortfallDaysServed} onChange={(v) => handleFormChange('shortfallDaysServed', v)} />
             </div>
 
             <div className="h-px bg-gray-100 dark:bg-gray-700 w-full my-8"></div>
@@ -247,11 +294,11 @@ const FinalSettlement = () => {
             {/* 3. Attendance & Leave */}
             <h2 className="text-sm font-bold text-gray-800 dark:text-gray-200 uppercase tracking-wider mb-4">Attendance & Leave</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <ReadOnlyInput label="Days Worked / Working Days" value={`${calculatedData.attendance.days_worked} / ${calculatedData.attendance.working_days}`} />
-              <ReadOnlyInput label="Leave Taken / Allocated" value={`${calculatedData.leave.leave_taken} / ${calculatedData.leave.leave_allocated}`} />
-              <ReadOnlyInput label="Unpaid Leave Days" value={calculatedData.leave.unpaid_leave_days} />
-              <ReadOnlyInput label="Leave Balance" value={`${calculatedData.leave.leave_balance_days} days`} />
-              <ReadOnlyInput label="Per Day Salary" value={`${currency} ${calculatedData.salary.per_day_salary.toLocaleString(undefined, {minimumFractionDigits:2})}`} />
+              <FormInput label="Days Worked / Working Days" value={formData.daysWorked} onChange={(v) => handleFormChange('daysWorked', v)} />
+              <FormInput label="Leave Taken / Allocated" value={formData.leaveTakenAllocated} onChange={(v) => handleFormChange('leaveTakenAllocated', v)} />
+              <FormInput label="Unpaid Leave Days" type="number" value={formData.unpaidLeaveDays} onChange={(v) => handleFormChange('unpaidLeaveDays', v)} />
+              <FormInput label="Leave Balance" value={formData.leaveBalance} onChange={(v) => handleFormChange('leaveBalance', v)} />
+              <FormInput label="Per Day Salary" type="number" prefix={currency} value={formData.perDaySalary} onChange={(v) => handleFormChange('perDaySalary', v)} />
             </div>
 
             <div className="h-px bg-gray-100 dark:bg-gray-700 w-full my-8"></div>
@@ -259,10 +306,10 @@ const FinalSettlement = () => {
             {/* 4. Earnings */}
             <h2 className="text-sm font-bold text-gray-800 dark:text-gray-200 uppercase tracking-wider mb-4">Earnings</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <ReadOnlyInput label={`Leave Encashment (${calculatedData.leave_encashment.leave_balance_days} days)`} value={`${currency} ${calculatedData.leave_encashment.amount.toLocaleString(undefined, {minimumFractionDigits:2})}`} />
-              <ReadOnlyInput label={`Gratuity (${calculatedData.gratuity.gratuity_days.toFixed(2)} days)`} value={`${currency} ${calculatedData.gratuity.amount.toLocaleString(undefined, {minimumFractionDigits:2})}`} />
-              <ReadOnlyInput label="Overtime" value={`${currency} ${calculatedData.overtime.amount.toLocaleString(undefined, {minimumFractionDigits:2})}`} />
-              <ReadOnlyInput label="Gross Final Payable" value={`${currency} ${finalTotalPayable.toLocaleString(undefined, {minimumFractionDigits:2})}`} />
+              <FormInput label={formData.leaveEncashmentTitle} type="number" prefix={currency} value={formData.leaveEncashmentAmount} onChange={(v) => handleFormChange('leaveEncashmentAmount', v)} />
+              <FormInput label={formData.gratuityTitle} type="number" prefix={currency} value={formData.gratuityAmount} onChange={(v) => handleFormChange('gratuityAmount', v)} />
+              <FormInput label="Overtime" type="number" prefix={currency} value={formData.overtimeAmount} onChange={(v) => handleFormChange('overtimeAmount', v)} />
+              <FormInput label="Gross Final Payable" type="number" prefix={currency} value={formData.grossFinalPayable} onChange={(v) => handleFormChange('grossFinalPayable', v)} />
             </div>
 
             <div className="h-px bg-gray-100 dark:bg-gray-700 w-full my-8"></div>
@@ -279,9 +326,9 @@ const FinalSettlement = () => {
             </div>
             
             <div className="space-y-4">
-              {calculatedData.total_deductions > 0 && (
+              {formData.standardDeductions !== undefined && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <ReadOnlyInput label="Standard Deductions" value={`${currency} ${calculatedData.total_deductions.toLocaleString(undefined, {minimumFractionDigits:2})}`} />
+                  <FormInput label="Standard Deductions" type="number" prefix={currency} value={formData.standardDeductions} onChange={(v) => handleFormChange('standardDeductions', v)} />
                 </div>
               )}
               

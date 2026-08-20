@@ -28,6 +28,9 @@ const ADMIN_ROUTE_MAP = {
   "my-wfh-requests": "/admin/my-wfh-requests",
   "my-payroll": "/employee/payroll",
   "my-documents": "/employee/my-documents",
+  "ticket-raise": "/admin/ticket-raise",
+  "developer-tickets": "/admin/developer-tickets",
+  "admin-tickets": "/admin/admin-tickets",
 };
 
 const EMPLOYEE_ROUTE_MAP = {
@@ -54,6 +57,9 @@ const EMPLOYEE_ROUTE_MAP = {
   "project-assignments": "/employee/project-assignments",
   wfh: "/employee/wfh",
   "my-payroll": "/employee/payroll",
+  "ticket-raise": "/employee/ticket-raise",
+  "developer-tickets": "/employee/developer-tickets",
+  "admin-tickets": "/employee/admin-tickets",
 };
 
 const ICON_MAP = {
@@ -84,6 +90,9 @@ const ICON_MAP = {
   "role-management": "fas fa-user-shield",
   wfh: "fas fa-house-user",
   "my-payroll": "fas fa-file-invoice-dollar",
+  "ticket-raise": "fas fa-ticket-alt",
+  "developer-tickets": "fas fa-ticket-alt",
+  "admin-tickets": "fas fa-tags",
 };
 
 // Configuration for parent menus and their children
@@ -187,6 +196,9 @@ const MODULE_ORDER = {
   "role-management": 23,
   "my-profile": 24,
   "my-documents": 25,
+  "ticket-raise": 26,
+  "developer-tickets": 27, 
+  "admin-tickets": 28,
 };
 
 const Sidebar = ({ isOpen, setIsOpen }) => {
@@ -274,17 +286,31 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
       "task-reports",
       "my-wfh-requests",
       "my-profile",
-      "my-attendance-requests", // Added this
+      "my-attendance-requests", 
+      "ticket-raise",
     ];
     if (publicModules.includes(slug)) return true;
 
     return false;
   };
 
+  const isDeveloper = 
+  userRole === "Developer" || 
+  userRole === "developer" ||
+  userRole?.toLowerCase().includes("developer");
+
   // Check if module should be shown
   const shouldShowModule = (slug) => {
     // Always show dashboard
     if (slug === "dashboard") return true;
+
+    if (slug === "developer-tickets") {
+    return isDeveloper || hasAllPermissions || userType === "admin";
+  }
+
+  if (slug === "admin-tickets") {
+    return isAdmin || hasAllPermissions || userType === "admin";
+  }
 
     // Hide hidden modules (duplicates, sensitive)
     if (HIDDEN_MODULES.includes(slug)) return false;
@@ -403,7 +429,8 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
         "my-tasks",
         "my-wfh-requests",
         "my-documents",
-        "my-attendance-requests", // Added this
+        "my-attendance-requests", 
+         "ticket-raise",  
       ];
       employeeStandalone.forEach((slug) => {
         if (allModules.includes(slug) && hasReadPermission(slug)) {

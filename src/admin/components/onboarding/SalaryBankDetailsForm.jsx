@@ -214,19 +214,15 @@ const SalaryBankDetailsForm = () => {
   };
 
   // ─── Validation Functions ──────────────────────────────────────────────
-  const validatePackage = (pkg) => {
-    return pkg.salaryComponents.length > 0 && pkg.isSaved === true;
-  };
-
-  const validateAllPackages = () => {
+  // ─── UPDATED: At least one package must be configured and saved ──────
+  const validatePackages = () => {
     const errors = {};
+    const pkg1Saved = packages.package1.isSaved && packages.package1.salaryComponents.length > 0;
+    const pkg2Saved = packages.package2.isSaved && packages.package2.salaryComponents.length > 0;
 
-    if (!validatePackage(packages.package1)) {
-      errors.package1 = "Package 1 must be configured and saved";
-    }
-
-    if (!validatePackage(packages.package2)) {
-      errors.package2 = "Package 2 must be configured and saved";
+    // At least one package must be saved
+    if (!pkg1Saved && !pkg2Saved) {
+      errors.packages = "At least one salary package must be configured and saved";
     }
 
     return errors;
@@ -638,14 +634,14 @@ const SalaryBankDetailsForm = () => {
     setIsSubmitting(true);
 
     try {
-      // ─── Validate both packages are saved ──────────────────────────────────
-      const packageErrors = validateAllPackages();
+      // ─── UPDATED: Validate at least one package is saved ──────────────
+      const packageErrors = validatePackages();
       setValidationErrors(packageErrors);
 
       if (Object.keys(packageErrors).length > 0) {
         const errorMessages = Object.values(packageErrors);
         showToast(
-          `Please configure both salary packages: ${errorMessages.join(", ")}`,
+          `Please configure at least one salary package: ${errorMessages.join(", ")}`,
           "error",
         );
         setIsSubmitting(false);
@@ -668,7 +664,6 @@ const SalaryBankDetailsForm = () => {
         setIsSubmitting(false);
         return;
       }
-
 
       // ─── Prepare Salary Data ────────────────────────────────────────────────
       const salaryPayload = {
@@ -716,7 +711,6 @@ const SalaryBankDetailsForm = () => {
       }
 
       // ─── Update packages with API response data ─────────────────────────────
-      // The API returns the saved packages with their IDs and components
       if (salaryResult?.data?.packages) {
         const apiPackages = salaryResult.data.packages;
         
@@ -740,7 +734,6 @@ const SalaryBankDetailsForm = () => {
             package1: updatedPkg1,
           }));
           
-          // Update Redux and localStorage with the API response
           saveToStorageAndRedux({
             packages: {
               ...packages,
@@ -769,7 +762,6 @@ const SalaryBankDetailsForm = () => {
             package2: updatedPkg2,
           }));
           
-          // Update Redux and localStorage with the API response
           saveToStorageAndRedux({
             packages: {
               ...packages,
@@ -821,7 +813,6 @@ const SalaryBankDetailsForm = () => {
         
         setBankAccounts(updatedBankAccounts);
         
-        // Update Redux and localStorage with the API response
         saveToStorageAndRedux({
           bankAccounts: updatedBankAccounts,
         });
@@ -861,7 +852,7 @@ const SalaryBankDetailsForm = () => {
 
     return (
       <div
-        className={`border rounded-2xl overflow-hidden transition-all ${
+        className={`border rounded-2xl overflow-hidden transition-all ${ 
           isActive
             ? "border-green-500 ring-2 ring-green-500/20"
             : hasError && !pkg.isSaved
@@ -901,7 +892,7 @@ const SalaryBankDetailsForm = () => {
               <p className="text-xs text-gray-500 dark:text-gray-400">
                 {pkg.isSaved
                   ? `✅ Saved • ${typeof pkg.currency === "string" ? pkg.currency : "AED"} ${total.toLocaleString()}`
-                  : "⚠️ Not configured - Required"}
+                  : "⚠️ Not configured"}
               </p>
             </div>
           </div>
@@ -912,8 +903,8 @@ const SalaryBankDetailsForm = () => {
               </span>
             )}
             {!pkg.isSaved && (
-              <span className="text-xs font-bold text-red-500 bg-red-50 dark:bg-red-950/30 px-2.5 py-1 rounded-full">
-                Required
+              <span className="text-xs font-bold text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 px-2.5 py-1 rounded-full">
+                Optional
               </span>
             )}
             <span className="text-gray-400">
@@ -1108,6 +1099,30 @@ const SalaryBankDetailsForm = () => {
     );
   };
 
+  // ─── Check if at least one package is saved ──────────────────────────────
+  const isAtLeastOnePackageSaved = () => {
+    return (
+      (packages.package1.isSaved && packages.package1.salaryComponents.length > 0) ||
+      (packages.package2.isSaved && packages.package2.salaryComponents.length > 0)
+    );
+  };
+
+  // ─── Get package status for UI display ──────────────────────────────────
+  const getPackageStatus = () => {
+    const pkg1Saved = packages.package1.isSaved && packages.package1.salaryComponents.length > 0;
+    const pkg2Saved = packages.package2.isSaved && packages.package2.salaryComponents.length > 0;
+
+    if (pkg1Saved && pkg2Saved) {
+      return { text: "✓ Both Ready", color: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400" };
+    } else if (pkg1Saved || pkg2Saved) {
+      return { text: "✓ One Package Ready", color: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400" };
+    } else {
+      return { text: "⚠️ At least one required", color: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400" };
+    }
+  };
+
+  const packageStatus = getPackageStatus();
+
   return (
     <div className="max-w-5xl mx-auto animate-fadeIn space-y-8 pb-10">
       {/* Page Header */}
@@ -1133,22 +1148,14 @@ const SalaryBankDetailsForm = () => {
                   Salary Packages
                 </h3>
                 <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">
-                  Both packages must be configured and saved
+                  At least one package must be configured and saved
                 </p>
               </div>
             </div>
 
             <div className="flex items-center gap-3">
-              <span
-                className={`text-xs font-semibold px-3 py-1 rounded-full ${
-                  packages.package1.isSaved && packages.package2.isSaved
-                    ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
-                    : "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"
-                }`}
-              >
-                {packages.package1.isSaved && packages.package2.isSaved
-                  ? "✓ Both Ready"
-                  : "⚠️ Both Required"}
+              <span className={`text-xs font-semibold px-3 py-1 rounded-full ${packageStatus.color}`}>
+                {packageStatus.text}
               </span>
               <button
                 type="button"
@@ -1171,7 +1178,7 @@ const SalaryBankDetailsForm = () => {
           </div>
         </div>
 
-        {/* Bank Details Section */}
+        {/* Bank Details Section - Unchanged */}
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-soft border border-gray-100 dark:border-gray-700/80 overflow-hidden">
           <div className="px-6 md:px-8 py-5 border-b border-gray-100 dark:border-gray-700/80 bg-gray-50/50 dark:bg-gray-800/50 flex items-center gap-3">
             <div className="w-10 h-10 bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400 rounded-xl flex items-center justify-center">
@@ -1188,7 +1195,7 @@ const SalaryBankDetailsForm = () => {
           </div>
 
           <div className="p-6 md:p-8 space-y-6">
-            {/* Bank Details Form */}
+            {/* Bank Details Form - Unchanged */}
             <div className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
@@ -1373,7 +1380,7 @@ const SalaryBankDetailsForm = () => {
               </div>
             </div>
 
-            {/* Bank Accounts List */}
+            {/* Bank Accounts List - Unchanged */}
             {bankAccounts.length > 0 && (
               <div className="overflow-x-auto border border-gray-150 dark:border-gray-700/80 rounded-2xl shadow-inner mt-6">
                 <table className="min-w-full divide-y divide-gray-100 dark:divide-gray-700/80 text-left">
@@ -1465,7 +1472,7 @@ const SalaryBankDetailsForm = () => {
           </div>
         </div>
 
-        {/* Footer Actions */}
+        {/* ─── UPDATED: Footer Actions ────────────────────────────────────── */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-6 bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-soft">
           <button
             type="button"
@@ -1479,11 +1486,9 @@ const SalaryBankDetailsForm = () => {
 
           <button
             type="submit"
-            disabled={isSubmitting || !packages.package1.isSaved || !packages.package2.isSaved || bankAccounts.length === 0}
+            disabled={isSubmitting || !isAtLeastOnePackageSaved() || bankAccounts.length === 0}
             className={`w-full sm:w-auto px-8 py-3 rounded-full text-sm font-bold flex items-center justify-center gap-2 transition-all shadow-md hover:shadow-lg whitespace-nowrap ${
-              packages.package1.isSaved &&
-              packages.package2.isSaved &&
-              bankAccounts.length > 0
+              isAtLeastOnePackageSaved() && bankAccounts.length > 0
                 ? "bg-green-500 hover:bg-green-600 text-white hover:scale-[1.02]"
                 : "bg-gray-300 dark:bg-gray-700 cursor-not-allowed text-gray-500 dark:text-gray-400 opacity-60"
             }`}

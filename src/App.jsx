@@ -243,6 +243,10 @@ const EmployeeMyPayroll = lazy(() => import("./employee/pages/MyPayroll"));
 
 const EmployeeMyDocuments = lazy(() => import("./employee/pages/MyDocuments"));
 
+const TicketRaise = lazy(() => import("./pages/TicketRaise"))
+const DeveloperTickets = lazy(() => import("./pages/DeveloperTickets"))
+const AdminTickets = lazy(() => import("./admin/pages/TicketsView"))
+
 // ============================================================
 // USER TYPE HELPERS
 // ============================================================
@@ -628,6 +632,18 @@ function AppContent() {
           path="request-leave-for-employee"
           element={<RequestLeaveForEmployee />}
         />
+        <Route
+          path="ticket-raise"
+          element={<TicketRaise />}
+        />
+        <Route
+          path="developer-tickets"
+          element={<DeveloperTickets />}
+        />
+        <Route
+          path="admin-tickets"
+          element={<AdminTickets />}
+        />
       </Route>
 
       {/* ======================================================
@@ -667,6 +683,20 @@ function AppContent() {
         <Route path="my-documents" element={<EmployeeMyDocuments />} />
 
         <Route path="onboarding" element={<Onboarding />} />
+
+        <Route
+          path="ticket-raise"
+          element={<TicketRaise />}
+        />
+        <Route
+          path="developer-tickets"
+          element={<DeveloperTickets />}
+        />
+
+        <Route
+          path="admin-tickets"
+          element={<AdminTickets />}
+        />
 
         {/* ----------------------------------------------------
             EMPLOYEE SIDE ADMIN/COMMON MODULES

@@ -74,10 +74,8 @@ export const ProjectHoursModal = ({
 
   // ─── FIX: Get employee name from API data first ──────────────────────
   const getEmployeeNameFromData = (item) => {
-    // Use the name from the API response directly
     if (item.name) return item.name;
     
-    // Fallback to employee map
     const employeeId = item.user_id || item.id;
     const emp = employeeMap[employeeId] || employeeMap[String(employeeId)];
     if (!emp) return `Employee #${employeeId}`;
@@ -110,10 +108,15 @@ export const ProjectHoursModal = ({
             String(item.id) === String(employeeFilter),
         );
 
+  // ─── FIX: Calculate total hours with full precision ──────────────────
   const totalHours = filteredData.reduce(
     (sum, item) => sum + (parseFloat(item.total_hours) || 0),
     0,
   );
+  
+  // Format total hours to show full precision
+  const formattedTotalHours = totalHours.toFixed(2);
+
   const totalEmployees = filteredData.length;
 
   const handleEmployeeClick = async (employeeId) => {
@@ -186,10 +189,12 @@ export const ProjectHoursModal = ({
             </div>
           ) : (
             <>
+              {/* ─── STATS CARDS ────────────────────────────────────────────── */}
               <div className="grid grid-cols-3 gap-4 mb-4">
                 <div className="bg-indigo-50 dark:bg-indigo-900/20 rounded-lg p-3 text-center">
+                  {/* ─── FIX: Show full precision total hours ──────────────── */}
                   <div className="text-xl font-bold text-indigo-600 dark:text-indigo-400">
-                    {totalHours.toFixed(1)}h
+                    {formattedTotalHours}h
                   </div>
                   <div className="text-xs text-gray-500 dark:text-gray-400">
                     Total Hours
@@ -213,6 +218,7 @@ export const ProjectHoursModal = ({
                 </div>
               </div>
 
+              {/* Filter */}
               <div className="mb-4 flex flex-wrap items-center gap-3">
                 <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
                   <i className="fas fa-filter text-indigo-500 mr-1"></i> Filter:
@@ -242,6 +248,7 @@ export const ProjectHoursModal = ({
                 )}
               </div>
 
+              {/* Table */}
               <div className="overflow-x-auto border border-gray-200 dark:border-gray-700 rounded-lg">
                 <table className="w-full border-collapse">
                   <thead>
@@ -272,10 +279,7 @@ export const ProjectHoursModal = ({
                         .join(", ");
                       const employeeId = item.user_id || item.id;
                       
-                      // ─── FIX: Use the API data for name and avatar ───
                       const employeeName = item.name || getEmployeeNameFromData(item);
-                      
-                      // ─── FIX: Pass the API data to get avatar ──────────
                       const avatarUrl = getEmployeeAvatar(employeeId, item);
                       const initials = getInitials(employeeName);
 
@@ -312,8 +316,9 @@ export const ProjectHoursModal = ({
                               </span>
                             </div>
                           </td>
+                          {/* ─── FIX: Show total_hours with full precision ─── */}
                           <td className="px-4 py-2 text-sm font-bold text-indigo-600 dark:text-indigo-400">
-                            {item.total_formatted || `${hours}h`}
+                            {hours.toFixed(2)}h
                           </td>
                           <td
                             className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 max-w-[200px] truncate"
@@ -396,7 +401,6 @@ export const ProjectHoursModal = ({
                   `Employee #${emp.id}`;
                 const user = emp.user || {};
 
-                // Get avatar for employee details
                 const avatarValue = emp.avatar || emp.avatar_path;
                 let avatarUrl = null;
                 if (avatarValue) {

@@ -13,6 +13,7 @@ import { showToast } from "../../components/common/Toast";
 import DateInput from "../common/DateInput";
 import { fetchDepartments } from "../../store/slices/departmentSlice";
 import { fetchDesignations } from "../../store/slices/designationSlice";
+import { fetchRoles, addRole } from "../../store/slices/roleSlice";
 
 const EmployeeDetailsForm = () => {
   const dispatch = useDispatch();
@@ -22,13 +23,17 @@ const EmployeeDetailsForm = () => {
   // Get departments and designations from Redux store
   const { departments = [], loading: departmentsLoading } = useSelector((state) => state.departments || {});
   const { designations = [], loading: designationsLoading } = useSelector((state) => state.designations || {});
+  const { roles = [], loading: rolesLoading } = useSelector((state) => state.roles || {});
   
   const [showAddDepartment, setShowAddDepartment] = useState(false);
   const [showAddDesignation, setShowAddDesignation] = useState(false);
+  const [showAddRole, setShowAddRole] = useState(false);
   const [newDepartmentName, setNewDepartmentName] = useState("");
   const [newDesignationName, setNewDesignationName] = useState("");
+  const [newRoleName, setNewRoleName] = useState("");
   const [isAddingDepartment, setIsAddingDepartment] = useState(false);
   const [isAddingDesignation, setIsAddingDesignation] = useState(false);
+  const [isAddingRole, setIsAddingRole] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const {
@@ -45,11 +50,11 @@ const EmployeeDetailsForm = () => {
     defaultValues: employeeDetails,
   });
 
-
-  // Fetch departments and designations on component mount
+  // Fetch departments, designations, and roles on component mount
   useEffect(() => {
     dispatch(fetchDepartments());
     dispatch(fetchDesignations());
+    dispatch(fetchRoles());
   }, [dispatch]);
 
   // Re-initialize form whenever Redux parsed data changes (e.g. after AI resume parsing)
@@ -65,10 +70,10 @@ const EmployeeDetailsForm = () => {
     
     try {
       // ─── PREPARE PAYLOAD ──────────────────────────────────────────────────
-      // Format the payload to match API expectations
-      // Find corresponding IDs for department and designation
+      // Find corresponding IDs for department, designation, and role
       const selectedDepartment = departments.find(d => d.name === data.department);
       const selectedDesignation = designations.find(d => d.name === data.designation);
+      const selectedRole = roles.find(r => r.name === data.role);
 
       const payload = {
         first_name: data.firstName || "",
@@ -79,6 +84,7 @@ const EmployeeDetailsForm = () => {
         address: data.address || "",
         designation_id: selectedDesignation ? selectedDesignation.id : null,
         department_id: selectedDepartment ? selectedDepartment.id : null,
+        role_id: selectedRole ? selectedRole.id : null,
         key_skills: data.skills || "",
         experience_level: data.experience || "",
         highest_education: data.education || "",
@@ -129,7 +135,6 @@ const EmployeeDetailsForm = () => {
       }
       
       if (userId) {
-        // This is the employee's user ID - this is what we need for fetching salary packages
         updates.userId = userId;
         updates.user_id = userId;
         localStorage.setItem('employeeUserId', userId);
@@ -181,10 +186,8 @@ const EmployeeDetailsForm = () => {
     // Check if we have saved data, if so, just go back to step 1
     const hasSavedData = localStorage.getItem('employeeId') || localStorage.getItem('employeeUserId');
     if (hasSavedData) {
-      // If we have saved data, just go back to step 1
       dispatch(setStep(1));
     } else {
-      // Otherwise reset the entire onboarding
       dispatch(resetOnboarding());
     }
   };
@@ -265,6 +268,30 @@ const EmployeeDetailsForm = () => {
     }
   };
 
+  // ─── Add Role ─────────────────────────────────────────────────────────────
+  const handleAddRole = async () => {
+    if (!newRoleName.trim()) {
+      showToast("Please enter role name", "error");
+      return;
+    }
+    
+    setIsAddingRole(true);
+    try {
+      const result = await dispatch(addRole({ name: newRoleName.trim() })).unwrap();
+      if (result) {
+        showToast("Role added successfully!", "success");
+        setNewRoleName("");
+        setShowAddRole(false);
+        // Auto-select the newly added role
+        setValue("role", result.name);
+      }
+    } catch (error) {
+      showToast(error || "Failed to add role", "error");
+    } finally {
+      setIsAddingRole(false);
+    }
+  };
+
   // ─── Input Field Component ──────────────────────────────────────────────
   const InputField = ({ label, name, type = "text", placeholder, options = null, loading = false }) => (
     <div className="space-y-1.5">
@@ -291,11 +318,15 @@ const EmployeeDetailsForm = () => {
               ))}
             </select>
             
-            {/* Add button for department/designation */}
-            {(name === "department" || name === "designation") && (
+            {/* Add button for department, designation, and role */}
+            {(name === "department" || name === "designation" || name === "role") && (
               <button
                 type="button"
-                onClick={() => name === "department" ? setShowAddDepartment(true) : setShowAddDesignation(true)}
+                onClick={() => {
+                  if (name === "department") setShowAddDepartment(true);
+                  else if (name === "designation") setShowAddDesignation(true);
+                  else if (name === "role") setShowAddRole(true);
+                }}
                 className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors"
                 title={`Add new ${label}`}
               >
@@ -402,6 +433,42 @@ const EmployeeDetailsForm = () => {
         </div>
       )}
 
+      {/* Add Role Modal */}
+      {showAddRole && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full p-6 shadow-xl">
+            <h3 className="text-lg font-bold mb-4 text-gray-900 dark:text-white">Add New Role</h3>
+            <input
+              type="text"
+              value={newRoleName}
+              onChange={(e) => setNewRoleName(e.target.value)}
+              placeholder="Enter role name"
+              className="w-full px-4 py-2 border border-gray-200 dark:border-gray-700 rounded-xl mb-4 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+              onKeyPress={(e) => e.key === 'Enter' && handleAddRole()}
+            />
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => {
+                  setShowAddRole(false);
+                  setNewRoleName("");
+                }}
+                className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleAddRole}
+                disabled={isAddingRole}
+                className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2"
+              >
+                {isAddingRole ? <FiLoader className="animate-spin" size={16} /> : <FiPlus size={16} />}
+                {isAddingRole ? "Adding..." : "Add Role"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-soft border border-gray-100 dark:border-gray-700 overflow-hidden">
           {/* Form Header */}
@@ -426,7 +493,7 @@ const EmployeeDetailsForm = () => {
             <InputField label="Last Name" name="lastName" placeholder="Enter last name" />
             <InputField label="Email Address" name="email" type="email" placeholder="email@example.com" />
             
-            {/* Phone Number - This will be sent as personal_number to the API */}
+            {/* Phone Number */}
             <InputField 
               label="Personal Number / Phone" 
               name="phone" 
@@ -442,7 +509,7 @@ const EmployeeDetailsForm = () => {
               <InputField label="Current Address" name="address" placeholder="Residential address" />
             </div>
             
-            {/* Designation Field with API data */}
+            {/* Designation Field */}
             <InputField 
               label="Designation" 
               name="designation" 
@@ -450,12 +517,20 @@ const EmployeeDetailsForm = () => {
               loading={designationsLoading}
             />
             
-            {/* Department Field with API data */}
+            {/* Department Field */}
             <InputField 
               label="Department" 
               name="department" 
               options={departments.map(d => d.name)}
               loading={departmentsLoading}
+            />
+
+            {/* ─── ROLE FIELD ────────────────────────────────────────────────── */}
+            <InputField 
+              label="Role" 
+              name="role" 
+              options={roles.map(r => r.name)}
+              loading={rolesLoading}
             />
             
             <div className="space-y-1.5">

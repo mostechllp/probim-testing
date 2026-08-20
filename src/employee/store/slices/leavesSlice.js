@@ -335,6 +335,102 @@ export const addLeaveRequest = createAsyncThunk(
     }
   },
 );
+export const addLeaveRequestForMissedPunchin = createAsyncThunk(
+  "leaves/storeLeaveRequestForMissedPunchin",
+  async (formData, { rejectWithValue, dispatch, getState }) => {
+    try {
+      const state = getState();
+
+      // Get employee ID from auth state
+      let employeeId =
+        state.auth?.user?.employee?.id ||
+        state.auth?.user?.employee_id ||
+        state.employee?.currentEmployee?.employee_id;
+
+      if (!employeeId) {
+        return rejectWithValue("Employee ID not found");
+      }
+
+      // Extract data from FormData
+      const leaveTypeId = formData.get("leave_type_id");
+      const startDate = formData.get("start_date");
+      const endDate = formData.get("end_date");
+      const reason = formData.get("reason");
+      const claimSalary = formData.get("claim_salary") === "1";
+      const session1 = formData.get("session1") || "morning"; // morning or afternoon
+      const session2 = formData.get("session2") || "afternoon"; // morning or afternoon
+      const year = formData.get("year") || new Date().getFullYear();
+
+      // Check if we have a document
+      const document = formData.get("document");
+
+      // Prepare the payload
+      let payload;
+      let headers = {};
+
+      // Only add document if it exists
+      if (document && document.size > 0) {
+        // If there's a document, we need to use FormData
+        const formDataWithDoc = new FormData();
+        formDataWithDoc.append("employee_id", employeeId);
+        formDataWithDoc.append("leave_type_id", leaveTypeId);
+        formDataWithDoc.append("start_date", startDate);
+        formDataWithDoc.append("end_date", endDate);
+        formDataWithDoc.append("reason", reason);
+        formDataWithDoc.append("claim_salary", claimSalary ? "1" : "0");
+        formDataWithDoc.append("session1", session1);
+        formDataWithDoc.append("session2", session2);
+        formDataWithDoc.append("year", year);
+        formDataWithDoc.append("document", document);
+
+        payload = formDataWithDoc;
+        headers = { "Content-Type": "multipart/form-data" };
+      } else {
+        // If no document, send as JSON with ALL fields
+        payload = {
+          employee_id: parseInt(employeeId),
+          leave_type_id: parseInt(leaveTypeId),
+          start_date: startDate,
+          end_date: endDate,
+          reason: reason,
+          claim_salary: claimSalary,
+          session1: session1, // morning or afternoon
+          session2: session2, // morning or afternoon
+          year: parseInt(year),
+        };
+        headers = { "Content-Type": "application/json" };
+      }
+
+
+      const response = await apiClient.post("/employee/missed-punch-in-leave", payload, {
+        headers,
+      });
+
+      if (response.data && response.data.status === "success") {
+        // Refresh balance after successful submission
+        await dispatch(fetchLeaveBalance());
+        await dispatch(fetchEmployeeLeaves());
+        return response.data.data;
+      } else {
+        return rejectWithValue(
+          response.data?.message || "Failed to submit leave request",
+        );
+      }
+    } catch (error) {
+      console.error("Store leave error:", error);
+      // Handle validation errors
+      if (error.response?.data?.errors) {
+        const errorMessages = Object.values(error.response.data.errors)
+          .flat()
+          .join(", ");
+        return rejectWithValue(errorMessages);
+      }
+      return rejectWithValue(
+        error.response?.data?.message || "Failed to submit leave request",
+      );
+    }
+  },
+);
 
 // Calculate leave balances
 export const calculateLeaveBalances = createAsyncThunk(
@@ -523,6 +619,19 @@ const leavesSlice = createSlice({
         state.error = null;
       })
       .addCase(addLeaveRequest.rejected, (state, action) => {
+        state.submitting = false;
+        state.error = action.payload;
+      })
+      .addCase(addLeaveRequestForMissedPunchin.pending, (state) => {
+        state.submitting = true;
+        state.error = null;
+      })
+      .addCase(addLeaveRequestForMissedPunchin.fulfilled, (state, action) => {
+        state.submitting = false;
+        state.leaves.unshift(action.payload);
+        state.error = null;
+      })
+      .addCase(addLeaveRequestForMissedPunchin.rejected, (state, action) => {
         state.submitting = false;
         state.error = action.payload;
       })

@@ -22,6 +22,7 @@ import LocationModal from "../components/modals/LocationModal";
 import ErrorToast from "../../components/common/ErrorToast";
 import useErrorHandler from "../../hooks/useErrorHandler";
 import MissedPunchModal from "../components/dashboard/MissedPunchModal";
+import MissedPunchLeaveModal from "../components/dashboard/MissedPunchLeaveModal";
 
 // Admin Dashboard Components
 import { StatsCard } from "../../admin/components/dashboard/StatsCard";
@@ -278,6 +279,10 @@ const Dashboard = () => {
   // ─── MISSED PUNCH-INS STATE ──────────────────────────────────────────
   const [showMissedPunchModal, setShowMissedPunchModal] = useState(false);
   const [selectedMissedDate, setSelectedMissedDate] = useState("");
+
+  const [showMissedPunchLeaveModal, setShowMissedPunchLeaveModal] =
+    useState(false);
+  const [selectedMissedLeaveDate, setSelectedMissedLeaveDate] = useState("");
 
   const [pendingPunchData, setPendingPunchData] = useState(null);
   const [isLoadingPunchData, setIsLoadingPunchData] = useState(false);
@@ -866,9 +871,14 @@ const Dashboard = () => {
   // Submit missed punch request
 
   // Handle Mark as Leave - redirect to /employee/leaves
-  const handleMarkAsLeave = () => {
-    navigate("/employee/leaves");
-  };
+  const handleMarkAsLeave = (date) => {
+  console.log("Mark as Leave called with date:", date);
+  if (date) {
+    setSelectedMissedLeaveDate(date);
+    setShowMissedPunchLeaveModal(true);
+    console.log("Modal should open with date:", date);
+  }
+};
 
   // ─── LEAVE & PROJECTS STATS CARDS ──────────────────────────────────────────
 
@@ -1152,7 +1162,6 @@ const Dashboard = () => {
       </div>
     );
   };
-  
 
   return (
     <div className="space-y-3 px-4 md:px-6 lg:px-8 pb-8">
@@ -1481,115 +1490,109 @@ const Dashboard = () => {
         </div>
       )}
 
-      {/* ─── MISSED PUNCH-INS SECTION ────────────────────────────────────────── */}
-      {/* ─── MISSED PUNCH-INS SECTION ────────────────────────────────────────── */}
       {missedPunchIns.length > 0 && (
-        <div className="missed-punchins mt-4 bg-[var(--surface)] border border-orange-200 dark:border-orange-800 rounded-xl p-3">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold text-[var(--text)] flex items-center gap-2">
-              <i className="fas fa-exclamation-triangle text-orange-500"></i>
-              Missed Punch-Ins
-              <span className="text-xs bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 px-2 py-0.5 rounded-full font-medium">
-                {missedPunchIns.length}
-              </span>
-            </h3>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => handleMarkAsLeave()}
-                className="text-xs px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors font-medium flex items-center gap-1.5 shadow-sm"
+  <div className="missed-punchins mt-4 bg-[var(--surface)] border border-orange-200 dark:border-orange-800 rounded-xl p-3">
+    <div className="flex items-center justify-between mb-3">
+      <h3 className="text-sm font-semibold text-[var(--text)] flex items-center gap-2">
+        <i className="fas fa-exclamation-triangle text-orange-500"></i>
+        Missed Punch-Ins
+        <span className="text-xs bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 px-2 py-0.5 rounded-full font-medium">
+          {missedPunchIns.length}
+        </span>
+      </h3>
+      <div className="flex items-center gap-2">
+        <span className="text-[10px] text-[var(--muted)]">
+          {new Date().toLocaleDateString("en-GB", {
+            month: "short",
+            year: "numeric",
+          })}
+        </span>
+      </div>
+    </div>
+
+    {/* Scrollable table container */}
+    <div className="w-full overflow-auto max-h-[200px]">
+      <div className="min-w-[550px]">
+        <table className="w-full text-xs">
+          <thead className="sticky top-0 bg-[var(--surface)] z-10">
+            <tr className="border-b border-[var(--border)]">
+              <th className="text-left py-2 px-2 text-[var(--muted)] font-semibold">
+                Date
+              </th>
+              <th className="text-left py-2 px-2 text-[var(--muted)] font-semibold">
+                Day
+              </th>
+              <th className="text-left py-2 px-2 text-[var(--muted)] font-semibold">
+                Status
+              </th>
+              <th className="text-right py-2 px-2 text-[var(--muted)] font-semibold">
+                Actions
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {missedPunchIns.map((item, index) => (
+              <tr
+                key={index}
+                className="border-b border-[var(--border)] hover:bg-[var(--surface2)] transition-colors"
               >
-                <i className="fas fa-calendar-alt text-xs"></i>
-                Mark as Leave
-              </button>
-              <span className="text-[10px] text-[var(--muted)]">
-                {new Date().toLocaleDateString("en-GB", {
-                  month: "short",
-                  year: "numeric",
-                })}
-              </span>
-            </div>
-          </div>
-
-          {/* Scrollable table container with max-height like Recent Activity */}
-          <div className="w-full overflow-auto max-h-[200px]">
-            <div className="min-w-[550px]">
-              <table className="w-full text-xs">
-                <thead className="sticky top-0 bg-[var(--surface)] z-10">
-                  <tr className="border-b border-[var(--border)]">
-                    <th className="text-left py-2 px-2 text-[var(--muted)] font-semibold">
-                      Date
-                    </th>
-                    <th className="text-left py-2 px-2 text-[var(--muted)] font-semibold">
-                      Day
-                    </th>
-                    <th className="text-left py-2 px-2 text-[var(--muted)] font-semibold">
-                      Status
-                    </th>
-                    <th className="text-right py-2 px-2 text-[var(--muted)] font-semibold">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {missedPunchIns.map((item, index) => (
-                    <tr
-                      key={index}
-                      className="border-b border-[var(--border)] hover:bg-[var(--surface2)] transition-colors"
+                <td className="py-3 px-2 text-[var(--text)] whitespace-nowrap">
+                  {formatDateDisplay(item.date)}
+                </td>
+                <td className="py-3 px-2 text-[var(--text)] whitespace-nowrap">
+                  {item.day}
+                </td>
+                <td className="py-3 px-2">
+                  <span className="px-2 py-1 rounded-full text-[10px] font-semibold bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border border-red-200 dark:border-red-800">
+                    {item.status}
+                  </span>
+                </td>
+                <td className="py-3 px-2 text-right whitespace-nowrap">
+                  <div className="flex items-center justify-end gap-2">
+                    <button
+                      onClick={() => handleSendMissedPunchRequest(item.date)}
+                      className="text-xs px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-white rounded-lg transition-colors font-medium shadow-sm"
                     >
-                      <td className="py-3 px-2 text-[var(--text)] whitespace-nowrap">
-                        {formatDateDisplay(item.date)}
-                      </td>
-                      <td className="py-3 px-2 text-[var(--text)] whitespace-nowrap">
-                        {item.day}
-                      </td>
-                      <td className="py-3 px-2">
-                        <span className="px-2 py-1 rounded-full text-[10px] font-semibold bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border border-red-200 dark:border-red-800">
-                          {item.status}
-                        </span>
-                      </td>
-                      <td className="py-3 px-2 text-right whitespace-nowrap">
-                        <div className="flex items-center justify-end gap-2">
-                          <button
-                            onClick={() =>
-                              handleSendMissedPunchRequest(item.date)
-                            }
-                            className="text-xs px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-white rounded-lg transition-colors font-medium shadow-sm"
-                          >
-                            <i className="fas fa-pen mr-1"></i>
-                            Send Request
-                          </button>
-                          <button
-                            onClick={() => handleMarkAsLeave()}
-                            className="text-xs px-3 py-1.5 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors font-medium shadow-sm"
-                          >
-                            <i className="fas fa-calendar-alt mr-1"></i>
-                            Mark as Leave
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
+                      <i className="fas fa-pen mr-1"></i>
+                      Send Request
+                    </button>
+                    {/* ─── FIX: Pass item.date correctly ─── */}
+                    <button
+                      onClick={() => handleMarkAsLeave(item.date)}
+                      className="text-xs px-3 py-1.5 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors font-medium shadow-sm"
+                    >
+                      <i className="fas fa-calendar-alt mr-1"></i>
+                      Mark as Leave
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
 
-          <div className="mt-3 pt-2 border-t border-[var(--border)] flex items-center justify-between">
-            <p className="text-[10px] text-[var(--muted)]">
-              <i className="fas fa-info-circle mr-1"></i>
-              Send a request to HR to mark your missed punch-in or apply for
-              leave
-            </p>
-            <button
-              onClick={() => handleMarkAsLeave()}
-              className="text-xs font-medium flex items-center gap-1 text-purple-600 hover:text-purple-700 dark:text-purple-400 dark:hover:text-purple-300"
-            >
-              <i className="fas fa-arrow-right"></i>
-              Apply for Leave
-            </button>
-          </div>
-        </div>
-      )}
+    <div className="mt-3 pt-2 border-t border-[var(--border)] flex items-center justify-between">
+      <p className="text-[10px] text-[var(--muted)]">
+        <i className="fas fa-info-circle mr-1"></i>
+        Send a request to HR to mark your missed punch-in or apply for leave
+      </p>
+      <button
+        onClick={() => {
+          // This is the bottom "Apply for Leave" button - you might want to handle this differently
+          // For now, let's just navigate to the leaves page or open the modal with today's date
+          const today = new Date().toISOString().split('T')[0];
+          handleMarkAsLeave(today);
+        }}
+        className="text-xs font-medium flex items-center gap-1 text-purple-600 hover:text-purple-700 dark:text-purple-400 dark:hover:text-purple-300"
+      >
+        <i className="fas fa-arrow-right"></i>
+        Apply for Leave
+      </button>
+    </div>
+  </div>
+)}
 
       {/* Project Details Modal */}
       {selectedProject && (
@@ -1871,6 +1874,8 @@ const Dashboard = () => {
 
       {renderMapModal()}
 
+      
+
       {/* Error Toast */}
       {error && (
         <ErrorToast
@@ -1924,6 +1929,23 @@ const Dashboard = () => {
             message: toast.message,
           }}
           onClose={() => setToast(null)}
+        />
+      )}
+
+      {showMissedPunchLeaveModal && (
+        <MissedPunchLeaveModal
+          isOpen={showMissedPunchLeaveModal}
+          onClose={() => {
+            setShowMissedPunchLeaveModal(false);
+            setSelectedMissedLeaveDate("");
+          }}
+          selectedDate={selectedMissedLeaveDate}
+          onSuccess={() => {
+            // Refresh dashboard data after successful submission
+            dispatch(fetchDashboardData());
+            setShowMissedPunchLeaveModal(false);
+            setSelectedMissedLeaveDate("");
+          }}
         />
       )}
     </div>

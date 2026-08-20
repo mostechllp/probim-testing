@@ -134,7 +134,6 @@ const OnboardingReview = () => {
 
   // ─── Step 2: Save salary details with packages ──────────────────────────
   const saveSalaryDetails = async (userId, salaryData) => {
-
     const packages = salaryData.packages || {};
     const packagesArray = [];
 
@@ -190,7 +189,6 @@ const OnboardingReview = () => {
 
   // ─── Step 3: Save bank details ──────────────────────────────────────────
   const saveBankDetails = async (userId, bankData) => {
-
     const bankAccounts = bankData.bankAccounts || [];
 
     if (bankAccounts.length === 0) {
@@ -210,7 +208,6 @@ const OnboardingReview = () => {
       })),
     };
 
-
     try {
       const response = await apiClient.post(
         "/admin/employees/onboard/banks",
@@ -219,7 +216,6 @@ const OnboardingReview = () => {
       return response.data;
     } catch (error) {
       console.error("[Onboarding] Failed to save bank details:", error);
-      console.error("[Onboarding] Error response:", error.response?.data);
       throw error;
     }
   };
@@ -262,7 +258,7 @@ const OnboardingReview = () => {
         } catch (_) {}
       }
 
-      // Fetch latest roles
+      // ─── FETCH LATEST ROLES ──────────────────────────────────────────────
       let activeRoles = [...roles];
       try {
         const rolesRes = await apiClient.get("/admin/roles");
@@ -272,14 +268,39 @@ const OnboardingReview = () => {
         }
       } catch (_) {}
 
-      // Find or create Employee role
-      let employeeRole =
-        activeRoles.find((r) => r.name?.toLowerCase().trim() === "employee") ||
-        activeRoles.find((r) => r.name?.toLowerCase().includes("employee")) ||
+      // ─── FIND THE SELECTED ROLE FROM FORM ───────────────────────────────
+      // The role name is stored in employeeDetails.role
+      const selectedRoleName = employeeDetails.role || "";
+      let selectedRole = null;
+
+      // Try to find the role by name (case insensitive)
+      if (selectedRoleName) {
+        selectedRole = activeRoles.find(
+          (r) => r.name?.toLowerCase().trim() === selectedRoleName.toLowerCase().trim()
+        );
+      }
+
+      // If not found, try to find by partial match
+      if (!selectedRole && selectedRoleName) {
+        selectedRole = activeRoles.find(
+          (r) => r.name?.toLowerCase().includes(selectedRoleName.toLowerCase().trim())
+        );
+      }
+
+      // If still not found, fallback to "Employee" role
+      if (!selectedRole) {
+        selectedRole = activeRoles.find(
+          (r) => r.name?.toLowerCase().trim() === "employee"
+        ) ||
+        activeRoles.find(
+          (r) => r.name?.toLowerCase().includes("employee")
+        ) ||
         activeRoles[0] ||
         null;
+      }
 
-      if (!employeeRole) {
+      // ─── CREATE "Employee" ROLE IF NOT EXISTS ────────────────────────────
+      if (!selectedRole) {
         try {
           const createRes = await apiClient.post("/admin/roles", {
             name: "Employee",
@@ -288,7 +309,7 @@ const OnboardingReview = () => {
           });
           const created = createRes.data?.data || createRes.data;
           if (created?.id) {
-            employeeRole = created;
+            selectedRole = created;
             dispatch(fetchRoles());
           }
         } catch (createErr) {
@@ -296,22 +317,7 @@ const OnboardingReview = () => {
         }
       }
 
-      // Resolve IDs
-      const matchedDesignation = designations.find(
-        (d) =>
-          d.name?.toLowerCase().trim() ===
-          (employeeDetails.designation || "").toLowerCase().trim(),
-      );
-      const matchedDepartment = departments.find(
-        (d) =>
-          d.name?.toLowerCase().trim() ===
-          (employeeDetails.department || "").toLowerCase().trim(),
-      );
-
-      const designation_id =
-        matchedDesignation?.id || designations[0]?.id || null;
-      const department_id = matchedDepartment?.id || departments[0]?.id || null;
-      const role_id = employeeRole?.id || null;
+      const role_id = selectedRole?.id || null;
 
       if (!role_id) {
         setErrorModal({
@@ -332,6 +338,22 @@ const OnboardingReview = () => {
         setIsSubmitting(false);
         return;
       }
+
+      // ─── RESOLVE DESIGNATION AND DEPARTMENT IDs ─────────────────────────
+      const matchedDesignation = designations.find(
+        (d) =>
+          d.name?.toLowerCase().trim() ===
+          (employeeDetails.designation || "").toLowerCase().trim(),
+      );
+      const matchedDepartment = departments.find(
+        (d) =>
+          d.name?.toLowerCase().trim() ===
+          (employeeDetails.department || "").toLowerCase().trim(),
+      );
+
+      const designation_id =
+        matchedDesignation?.id || designations[0]?.id || null;
+      const department_id = matchedDepartment?.id || departments[0]?.id || null;
 
       // Retrieve name directly since they are already separated
       const first_name = employeeDetails.firstName || "Unknown";
@@ -382,7 +404,7 @@ const OnboardingReview = () => {
         joiningDate = `${year}-${month}-${day}`;
       }
 
-      // Build employee details payload
+      // ─── BUILD EMPLOYEE DETAILS PAYLOAD ─────────────────────────────────
       const employeeFormData = new FormData();
       employeeFormData.append("first_name", first_name);
       employeeFormData.append("last_name", last_name);
@@ -411,6 +433,7 @@ const OnboardingReview = () => {
         "designation_id",
         designation_id ? String(parseInt(designation_id)) : "",
       );
+      // ─── ROLE ID IS NOW INCLUDED ────────────────────────────────────────
       employeeFormData.append("role_id", String(parseInt(role_id)));
       employeeFormData.append("type", "employee");
       employeeFormData.append("status", "onboarding");
@@ -618,8 +641,6 @@ const OnboardingReview = () => {
   );
 
   // ─── Get packages from employeeDetails ──────────────────────────────────
-  // Try multiple sources for packages data
-
   const packages = employeeDetails.packages || {};
   const package1 = packages.package1 || {};
   const package2 = packages.package2 || {};
@@ -638,18 +659,14 @@ const OnboardingReview = () => {
     }
     return null;
   };
+
   const getPackagesData = () => {
-    // First try employeeDetails.packages
     if (employeeDetails.packages) {
       return employeeDetails.packages;
     }
-
-    // Try salaryBankDetails.packages
     if (salaryBankDetails?.packages) {
       return salaryBankDetails.packages;
     }
-
-    // Try localStorage draft
     try {
       const draftStr = localStorage.getItem("onboarding-draft");
       if (draftStr) {
@@ -661,13 +678,11 @@ const OnboardingReview = () => {
     } catch (e) {
       console.error("Failed to parse draft:", e);
     }
-
     return {};
   };
 
   const packagesData = getPackagesData();
 
-  // Get bank accounts from multiple sources
   const getBankAccounts = () => {
     if (
       employeeDetails.bankAccounts &&
@@ -705,15 +720,12 @@ const OnboardingReview = () => {
   };
 
   const localPackages = getPackagesFromLocalStorage();
-const finalPackages = (package1.packageId || package2.packageId) ? packages : (localPackages || packages);
-const finalPackage1 = finalPackages.package1 || {};
-const finalPackage2 = finalPackages.package2 || {};
+  const finalPackages = (package1.packageId || package2.packageId) ? packages : (localPackages || packages);
+  const finalPackage1 = finalPackages.package1 || {};
+  const finalPackage2 = finalPackages.package2 || {};
 
-
-  // Check if packages exist and are saved
   const hasPackage1 = (finalPackage1.packageId || finalPackage1.id) && finalPackage1.isSaved;
-const hasPackage2 = (finalPackage2.packageId || finalPackage2.id) && finalPackage2.isSaved;
-
+  const hasPackage2 = (finalPackage2.packageId || finalPackage2.id) && finalPackage2.isSaved;
 
   return (
     <>
@@ -816,6 +828,12 @@ const hasPackage2 = (finalPackage2.packageId || finalPackage2.id) && finalPackag
                   </p>
                   <p className="text-sm text-gray-500">
                     {employeeDetails.designation} • {employeeDetails.department}
+                    {/* ─── ROLE DISPLAY ──────────────────────────────────────── */}
+                    {employeeDetails.role && (
+                      <span className="ml-1 text-xs text-gray-400">
+                        • Role: {employeeDetails.role}
+                      </span>
+                    )}
                   </p>
                 </div>
               </div>
@@ -847,6 +865,18 @@ const hasPackage2 = (finalPackage2.packageId || finalPackage2.id) && finalPackag
                     {employeeDetails.joiningDate}
                   </span>
                 </div>
+                {/* ─── ROLE DISPLAY IN DETAILS ────────────────────────────── */}
+                {employeeDetails.role && (
+                  <div className="flex items-center gap-3 text-sm">
+                    <FiShield className="text-gray-400" />
+                    <span className="text-gray-500 font-medium w-24">
+                      Role:
+                    </span>
+                    <span className="text-gray-900 dark:text-gray-300 font-semibold">
+                      {employeeDetails.role}
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
           </SummaryCard>
