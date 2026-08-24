@@ -160,7 +160,9 @@ const PayrollDetails = lazy(() => import("./admin/pages/PayrollDetails"));
 const EditPayroll = lazy(() => import("./admin/pages/EditPayroll"));
 
 const Onboarding = lazy(() => import("./admin/pages/Onboarding"));
-const InitiateOnboarding = lazy(() => import("./admin/components/onboarding/InitiateOnboarding"));
+const InitiateOnboarding = lazy(
+  () => import("./admin/components/onboarding/InitiateOnboarding"),
+);
 const OnboardingView = lazy(() => import("./admin/pages/OnboardingView"));
 
 const ProjectWorkingHours = lazy(
@@ -245,9 +247,12 @@ const EmployeeMyPayroll = lazy(() => import("./employee/pages/MyPayroll"));
 
 const EmployeeMyDocuments = lazy(() => import("./employee/pages/MyDocuments"));
 
-const TicketRaise = lazy(() => import("./pages/TicketRaise"))
-const DeveloperTickets = lazy(() => import("./pages/DeveloperTickets"))
-const AdminTickets = lazy(() => import("./admin/pages/TicketsView"))
+const TicketRaise = lazy(() => import("./pages/TicketRaise"));
+const DeveloperTickets = lazy(() => import("./pages/DeveloperTickets"));
+const AdminTickets = lazy(() => import("./admin/pages/TicketsView"));
+const SupportAdminDashboard = lazy(
+  () => import("./pages/SupportAdminDashbaord"),
+);
 
 // ============================================================
 // USER TYPE HELPERS
@@ -441,8 +446,14 @@ function AppContent() {
         <Route path="employees/add-employee" element={<AddEmployee />} />
 
         <Route path="employees/onboarding" element={<Onboarding />} />
-        <Route path="employees/onboarding/initiate" element={<InitiateOnboarding />} />
-        <Route path="employees/onboarding/view/:id" element={<OnboardingView />} />
+        <Route
+          path="employees/onboarding/initiate"
+          element={<InitiateOnboarding />}
+        />
+        <Route
+          path="employees/onboarding/view/:id"
+          element={<OnboardingView />}
+        />
 
         <Route path="employees/edit/:id" element={<EditEmployee />} />
 
@@ -636,17 +647,12 @@ function AppContent() {
           path="request-leave-for-employee"
           element={<RequestLeaveForEmployee />}
         />
+        <Route path="ticket-raise" element={<TicketRaise />} />
+        <Route path="developer-tickets" element={<DeveloperTickets />} />
+        <Route path="admin-tickets" element={<AdminTickets />} />
         <Route
-          path="ticket-raise"
-          element={<TicketRaise />}
-        />
-        <Route
-          path="developer-tickets"
-          element={<DeveloperTickets />}
-        />
-        <Route
-          path="admin-tickets"
-          element={<AdminTickets />}
+          path="support-admin-dashboard"
+          element={<SupportAdminDashboard />}
         />
       </Route>
 
@@ -681,7 +687,10 @@ function AppContent() {
 
         <Route path="profile" element={<EmployeeProfile />} />
 
-        <Route path="attendance-requests" element={<AdminAttendanceRequests />} />
+        <Route
+          path="attendance-requests"
+          element={<AdminAttendanceRequests />}
+        />
         <Route path="my-attendance-requests" element={<AttendanceRequests />} />
 
         <Route path="my-documents" element={<EmployeeMyDocuments />} />
@@ -689,18 +698,13 @@ function AppContent() {
         <Route path="onboarding" element={<Onboarding />} />
         <Route path="onboarding/view/:id" element={<OnboardingView />} />
 
-        <Route
-          path="ticket-raise"
-          element={<TicketRaise />}
-        />
-        <Route
-          path="developer-tickets"
-          element={<DeveloperTickets />}
-        />
+        <Route path="ticket-raise" element={<TicketRaise />} />
+        <Route path="developer-tickets" element={<DeveloperTickets />} />
 
+        <Route path="admin-tickets" element={<AdminTickets />} />
         <Route
-          path="admin-tickets"
-          element={<AdminTickets />}
+          path="support-admin-dashboard"
+          element={<SupportAdminDashboard />}
         />
 
         {/* ----------------------------------------------------
@@ -712,7 +716,10 @@ function AppContent() {
         <Route path="employees/add-employee" element={<AddEmployee />} />
 
         <Route path="employees/onboarding" element={<Onboarding />} />
-        <Route path="employees/onboarding/view/:id" element={<OnboardingView />} />
+        <Route
+          path="employees/onboarding/view/:id"
+          element={<OnboardingView />}
+        />
 
         <Route path="employees/edit/:id" element={<EditEmployee />} />
 

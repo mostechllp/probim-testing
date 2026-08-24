@@ -1,7 +1,13 @@
 import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
-import { clearError, loginUser, setRememberMe, requestPasswordReset, resetPassword } from "../store/slices/authSlice";
+import {
+  clearError,
+  loginUser,
+  setRememberMe,
+  requestPasswordReset,
+  resetPassword,
+} from "../store/slices/authSlice";
 import { showToast } from "../components/common/Toast";
 import { useAppTheme } from "../context/ThemeContext";
 import apiClient, { clearAllTokens } from "../utils/apiClient";
@@ -24,29 +30,50 @@ const Login = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { loading, error, isAuthenticated, userType, user } = useSelector(
-    (state) => state.auth
+    (state) => state.auth,
   );
-  
+
   const { primaryColor } = useAppTheme();
+
+  const getRedirectPath = (userObj, resolvedUserType) => {
+    const roleName = userObj?.role?.name || userObj?.role || "";
+    const isSupportAdmin =
+      roleName === "Support Admin" ||
+      roleName === "support_admin" ||
+      roleName?.toLowerCase?.().includes("support admin");
+
+    if (isSupportAdmin) {
+      return "/employee/support-admin-dashboard";
+    }
+
+    return resolvedUserType === "admin"
+      ? "/admin/dashboard"
+      : "/employee/dashboard";
+  };
 
   // --- Token Cleanup on Mount ---
   // replace the token-cleanup useEffect with:
-useEffect(() => {
-  // FIX: this previously only checked admin/hr/employee
-  // tokens, missing manager and team_lead — so stale
-  // sessions for those roles were never cleaned up here.
-  const hasAnyRoleToken = ["admin", "hr", "employee", "manager", "team_lead"]
-    .some((type) => localStorage.getItem(`${type}-token`));
+  useEffect(() => {
+    // FIX: this previously only checked admin/hr/employee
+    // tokens, missing manager and team_lead — so stale
+    // sessions for those roles were never cleaned up here.
+    const hasAnyRoleToken = [
+      "admin",
+      "hr",
+      "employee",
+      "manager",
+      "team_lead",
+    ].some((type) => localStorage.getItem(`${type}-token`));
 
-  const activeType = localStorage.getItem('active-user-type');
+    const activeType = localStorage.getItem("active-user-type");
 
-  if (hasAnyRoleToken && !activeType) {
-    clearAllTokens();
-    localStorage.removeItem('remember-me');
-    localStorage.removeItem('remembered-email');
-    localStorage.removeItem('user-type');
-  }
-}, []);
+    if (hasAnyRoleToken && !activeType) {
+      clearAllTokens();
+      localStorage.removeItem("remember-me");
+      localStorage.removeItem("remembered-email");
+      localStorage.removeItem("user-type");
+    }
+  }, []);
 
   // Load remembered email if exists
   useEffect(() => {
@@ -60,23 +87,22 @@ useEffect(() => {
 
   // Redirect based on user type after successful login
   useEffect(() => {
-    
     if (isAuthenticated && userType) {
-      // Check if token exists for this user type
       const tokenKey = `${userType}-token`;
       const tokenExists = localStorage.getItem(tokenKey);
-      const activeType = localStorage.getItem('active-user-type');
-      
-      
+      const activeType = localStorage.getItem("active-user-type");
+
       if (!tokenExists || (activeType && activeType !== userType)) {
-        console.warn('⚠️ Token mismatch or missing, clearing and redirecting to login');
+        console.warn(
+          "⚠️ Token mismatch or missing, clearing and redirecting to login",
+        );
         clearAllTokens();
-        localStorage.removeItem('user-type');
-        navigate('/login', { replace: true });
+        localStorage.removeItem("user-type");
+        navigate("/login", { replace: true });
         return;
       }
-      
-      const redirectPath = userType === "admin" ? "/admin/dashboard" : "/employee/dashboard";
+
+      const redirectPath = getRedirectPath(user, userType);
       navigate(redirectPath, { replace: true });
     }
   }, [isAuthenticated, userType, user, navigate]);
@@ -89,59 +115,56 @@ useEffect(() => {
     }
   }, [error, dispatch]);
 
+  const handleSubmit = async (e) => {
+    e.preventDefault();
 
-const handleSubmit = async (e) => {
-  e.preventDefault();
-
-  if (!email || !password) {
-    showToast("Please fill in all fields", "error");
-    return;
-  }
-
-  // Clear all existing tokens before login
-  clearAllTokens();
-  localStorage.removeItem('user-type');
-  localStorage.removeItem('active-user-type');
-  
-  // Store remember me preference
-  dispatch(setRememberMe(rememberMe));
-  
-  try {
-    const result = await dispatch(loginUser({ email, password })).unwrap();
-    
-    
-    // The loginUser thunk already handles token storage
-    // No need to store tokens again here
-    
-    // Force navigation
-    const userType = result.user?.type;
-    if (userType) {
-      const redirectPath = userType === "admin" ? "/admin/dashboard" : "/employee/dashboard";
-      setTimeout(() => {
-        navigate(redirectPath, { replace: true });
-      }, 100);
+    if (!email || !password) {
+      showToast("Please fill in all fields", "error");
+      return;
     }
-    
-  } catch (error) {
-    console.log('Login failed:', error);
-  }
-};
-  
+
+    // Clear all existing tokens before login
+    clearAllTokens();
+    localStorage.removeItem("user-type");
+    localStorage.removeItem("active-user-type");
+
+    // Store remember me preference
+    dispatch(setRememberMe(rememberMe));
+
+    try {
+      const result = await dispatch(loginUser({ email, password })).unwrap();
+
+      // The loginUser thunk already handles token storage
+      // No need to store tokens again here
+
+      // Force navigation
+      const userType = result.user?.type;
+      if (userType) {
+        const redirectPath = getRedirectPath(result.user, userType);
+        setTimeout(() => {
+          navigate(redirectPath, { replace: true });
+        }, 100);
+      }
+    } catch (error) {
+      console.log("Login failed:", error);
+    }
+  };
+
   const adjustColor = (color, percent) => {
     let r, g, b;
-    if (color.startsWith('#')) {
+    if (color.startsWith("#")) {
       r = parseInt(color.slice(1, 3), 16);
       g = parseInt(color.slice(3, 5), 16);
       b = parseInt(color.slice(5, 7), 16);
     } else {
       return color;
     }
-    
+
     r = Math.max(0, Math.min(255, r + (r * percent) / 100));
     g = Math.max(0, Math.min(255, g + (g * percent) / 100));
     b = Math.max(0, Math.min(255, b + (b * percent) / 100));
-    
-    return `#${Math.round(r).toString(16).padStart(2, '0')}${Math.round(g).toString(16).padStart(2, '0')}${Math.round(b).toString(16).padStart(2, '0')}`;
+
+    return `#${Math.round(r).toString(16).padStart(2, "0")}${Math.round(g).toString(16).padStart(2, "0")}${Math.round(b).toString(16).padStart(2, "0")}`;
   };
 
   const darkerColor = adjustColor(primaryColor, -15);
@@ -169,12 +192,17 @@ const handleSubmit = async (e) => {
 
     setIsRequestingCode(true);
     try {
-      const result = await dispatch(requestPasswordReset({ email: resetEmail })).unwrap();
+      const result = await dispatch(
+        requestPasswordReset({ email: resetEmail }),
+      ).unwrap();
       showToast(result.message || "Reset code sent to your email!", "success");
       setCodeSent(true);
       setResetStep(2);
     } catch (error) {
-      showToast(error || "Failed to send reset code. Please try again.", "error");
+      showToast(
+        error || "Failed to send reset code. Please try again.",
+        "error",
+      );
     } finally {
       setIsRequestingCode(false);
     }
@@ -193,11 +221,13 @@ const handleSubmit = async (e) => {
 
     setIsResetting(true);
     try {
-      const result = await dispatch(resetPassword({ 
-        code: resetCode, 
-        password: newPassword 
-      })).unwrap();
-      
+      const result = await dispatch(
+        resetPassword({
+          code: resetCode,
+          password: newPassword,
+        }),
+      ).unwrap();
+
       showToast(result.message || "Password reset successfully!", "success");
       setShowForgotPassword(false);
       setResetEmail("");
@@ -206,7 +236,10 @@ const handleSubmit = async (e) => {
       setResetStep(1);
       setCodeSent(false);
     } catch (error) {
-      showToast(error || "Failed to reset password. Please try again.", "error");
+      showToast(
+        error || "Failed to reset password. Please try again.",
+        "error",
+      );
     } finally {
       setIsResetting(false);
     }
@@ -214,14 +247,14 @@ const handleSubmit = async (e) => {
 
   useEffect(() => {
     const handleEsc = (event) => {
-      if (event.key === 'Escape' && showForgotPassword) {
+      if (event.key === "Escape" && showForgotPassword) {
         setShowForgotPassword(false);
         setResetStep(1);
         setCodeSent(false);
       }
     };
-    document.addEventListener('keydown', handleEsc);
-    return () => document.removeEventListener('keydown', handleEsc);
+    document.addEventListener("keydown", handleEsc);
+    return () => document.removeEventListener("keydown", handleEsc);
   }, [showForgotPassword]);
 
   // ... (JSX remains the same)
@@ -229,11 +262,11 @@ const handleSubmit = async (e) => {
     // Your existing JSX here...
     <div className="min-h-screen flex">
       {/* Left Side - Branding */}
-      <div 
+      <div
         className="hidden lg:flex flex-1 relative overflow-hidden items-center justify-center p-10"
-        style={{ 
+        style={{
           background: `linear-gradient(135deg, ${primaryColor}, ${darkerColor})`,
-          transition: 'background 0.3s ease'
+          transition: "background 0.3s ease",
         }}
       >
         <div className="absolute inset-0 bg-black/20"></div>
@@ -318,7 +351,9 @@ const handleSubmit = async (e) => {
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                 >
-                  <i className={`fas ${showPassword ? "fa-eye-slash" : "fa-eye"}`}></i>
+                  <i
+                    className={`fas ${showPassword ? "fa-eye-slash" : "fa-eye"}`}
+                  ></i>
                 </button>
               </div>
             </div>
@@ -349,11 +384,18 @@ const handleSubmit = async (e) => {
               type="submit"
               disabled={loading}
               className="w-full text-white font-semibold py-3 rounded-full transition-all duration-200 flex items-center justify-center gap-2 shadow-md hover:shadow-lg disabled:opacity-70 disabled:cursor-not-allowed"
-              style={{ 
+              style={{
                 backgroundColor: primaryColor,
               }}
-              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = adjustColor(primaryColor, -10)}
-              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = primaryColor}
+              onMouseEnter={(e) =>
+                (e.currentTarget.style.backgroundColor = adjustColor(
+                  primaryColor,
+                  -10,
+                ))
+              }
+              onMouseLeave={(e) =>
+                (e.currentTarget.style.backgroundColor = primaryColor)
+              }
             >
               {loading ? (
                 <>
@@ -371,7 +413,7 @@ const handleSubmit = async (e) => {
 
       {/* Forgot Password Modal - Two Step Process */}
       {showForgotPassword && (
-        <div 
+        <div
           className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[1100] flex items-center justify-center p-4 animate-fadeIn"
           onClick={() => {
             setShowForgotPassword(false);
@@ -379,18 +421,21 @@ const handleSubmit = async (e) => {
             setCodeSent(false);
           }}
         >
-          <div 
+          <div
             className="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full p-6 shadow-2xl border border-gray-100 dark:border-gray-700 animate-slideUp max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
-                <div 
+                <div
                   className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
                   style={{ backgroundColor: `${primaryColor}20` }}
                 >
-                  <i className="fas fa-key text-sm" style={{ color: primaryColor }}></i>
+                  <i
+                    className="fas fa-key text-sm"
+                    style={{ color: primaryColor }}
+                  ></i>
                 </div>
                 <h3 className="text-lg font-bold text-gray-900 dark:text-white">
                   {resetStep === 1 ? "Reset Password" : "Enter Reset Code"}
@@ -413,9 +458,10 @@ const handleSubmit = async (e) => {
               <>
                 <div className="space-y-4">
                   <p className="text-sm text-gray-500 dark:text-gray-400">
-                    Enter your email address and we'll send you a code to reset your password.
+                    Enter your email address and we'll send you a code to reset
+                    your password.
                   </p>
-                  
+
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
                       Email Address
@@ -427,7 +473,7 @@ const handleSubmit = async (e) => {
                         value={resetEmail}
                         onChange={(e) => setResetEmail(e.target.value)}
                         onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
+                          if (e.key === "Enter") {
                             handleRequestCode();
                           }
                         }}
@@ -457,11 +503,18 @@ const handleSubmit = async (e) => {
                     onClick={handleRequestCode}
                     disabled={isRequestingCode || !resetEmail}
                     className="flex-1 px-4 py-2.5 rounded-lg text-white font-semibold transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                    style={{ 
+                    style={{
                       backgroundColor: primaryColor,
                     }}
-                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = adjustColor(primaryColor, -10)}
-                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = primaryColor}
+                    onMouseEnter={(e) =>
+                      (e.currentTarget.style.backgroundColor = adjustColor(
+                        primaryColor,
+                        -10,
+                      ))
+                    }
+                    onMouseLeave={(e) =>
+                      (e.currentTarget.style.backgroundColor = primaryColor)
+                    }
                   >
                     {isRequestingCode ? (
                       <>
@@ -487,7 +540,7 @@ const handleSubmit = async (e) => {
                       Code sent to <strong>{resetEmail}</strong>
                     </p>
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
                       Reset Code
@@ -497,9 +550,11 @@ const handleSubmit = async (e) => {
                       <input
                         type="text"
                         value={resetCode}
-                        onChange={(e) => setResetCode(e.target.value.toUpperCase())}
+                        onChange={(e) =>
+                          setResetCode(e.target.value.toUpperCase())
+                        }
                         onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
+                          if (e.key === "Enter") {
                             handleResetPassword();
                           }
                         }}
@@ -526,7 +581,7 @@ const handleSubmit = async (e) => {
                         value={newPassword}
                         onChange={(e) => setNewPassword(e.target.value)}
                         onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
+                          if (e.key === "Enter") {
                             handleResetPassword();
                           }
                         }}
@@ -539,7 +594,9 @@ const handleSubmit = async (e) => {
                         onClick={() => setShowNewPassword(!showNewPassword)}
                         className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                       >
-                        <i className={`fas ${showNewPassword ? "fa-eye-slash" : "fa-eye"}`}></i>
+                        <i
+                          className={`fas ${showNewPassword ? "fa-eye-slash" : "fa-eye"}`}
+                        ></i>
                       </button>
                     </div>
                   </div>
@@ -563,11 +620,18 @@ const handleSubmit = async (e) => {
                     onClick={handleResetPassword}
                     disabled={isResetting || !resetCode || !newPassword}
                     className="flex-1 px-4 py-2.5 rounded-lg text-white font-semibold transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                    style={{ 
+                    style={{
                       backgroundColor: primaryColor,
                     }}
-                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = adjustColor(primaryColor, -10)}
-                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = primaryColor}
+                    onMouseEnter={(e) =>
+                      (e.currentTarget.style.backgroundColor = adjustColor(
+                        primaryColor,
+                        -10,
+                      ))
+                    }
+                    onMouseLeave={(e) =>
+                      (e.currentTarget.style.backgroundColor = primaryColor)
+                    }
                   >
                     {isResetting ? (
                       <>

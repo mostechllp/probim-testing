@@ -1,4 +1,4 @@
-// MapPicker.jsx - Updated with PHP-compatible timezone mapping
+// MapPicker.jsx - Fixed with proper timezone from coordinates
 import { useState, useEffect, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
@@ -22,55 +22,72 @@ const selectedIcon = new L.Icon({
   shadowSize: [41, 41]
 });
 
-// ✅ IMPORT TIMEZONE MAPPING FROM locationService
-// Map browser timezone names to PHP-compatible timezone identifiers
-const getPHPCompatibleTimezone = (browserTimezone) => {
-  // Mapping of common browser timezone names to PHP-compatible ones
+// ─── TIMEZONE HELPERS ────────────────────────────────────────────────────
+
+// Get timezone from coordinates using GeoNames API
+const getTimezoneFromCoordinates = async (lat, lng) => {
+  try {
+    // Using GeoNames API (free, no API key required for limited usage)
+    const response = await fetch(
+      `https://api.geonames.org/timezoneJSON?lat=${lat}&lng=${lng}&username=demo`
+    );
+    const data = await response.json();
+    
+    if (data && data.timezoneId) {
+      return data.timezoneId;
+    }
+    return null;
+  } catch (error) {
+    console.warn('Error fetching timezone from coordinates:', error);
+    return null;
+  }
+};
+
+// Fallback: Get timezone from coordinates using the TimezoneDB API
+const getTimezoneFromCoordinatesFallback = async (lat, lng) => {
+  try {
+    // Using a free timezone API
+    const response = await fetch(
+      `https://api.timezonedb.com/v2.1/get-time-zone?key=YOUR_API_KEY&format=json&by=position&lat=${lat}&lng=${lng}`
+    );
+    const data = await response.json();
+    
+    if (data && data.zoneName) {
+      return data.zoneName;
+    }
+    return null;
+  } catch (error) {
+    console.warn('Error fetching timezone from fallback API:', error);
+    return null;
+  }
+};
+
+// Map country/timezone manually based on coordinates (as ultimate fallback)
+const getTimezoneFromCountry = (country) => {
   const timezoneMap = {
-    // India
-    'Asia/Calcutta': 'Asia/Kolkata',
-    'Asia/Kolkata': 'Asia/Kolkata',
-    
-    // United States
-    'America/New_York': 'America/New_York',
-    'America/Los_Angeles': 'America/Los_Angeles',
-    'America/Chicago': 'America/Chicago',
-    'America/Denver': 'America/Denver',
-    'America/Phoenix': 'America/Phoenix',
-    
-    // Europe
-    'Europe/London': 'Europe/London',
-    'Europe/Paris': 'Europe/Paris',
-    'Europe/Berlin': 'Europe/Berlin',
-    'Europe/Moscow': 'Europe/Moscow',
-    
-    // Asia
-    'Asia/Tokyo': 'Asia/Tokyo',
-    'Asia/Shanghai': 'Asia/Shanghai',
-    'Asia/Hong_Kong': 'Asia/Hong_Kong',
-    'Asia/Singapore': 'Asia/Singapore',
-    'Asia/Dubai': 'Asia/Dubai',
-    
-    // Australia
-    'Australia/Sydney': 'Australia/Sydney',
-    'Australia/Melbourne': 'Australia/Melbourne',
-    'Australia/Perth': 'Australia/Perth',
-    
-    // Add more mappings as needed
+    'Iraq': 'Asia/Baghdad',
+    'India': 'Asia/Kolkata',
+    'United Arab Emirates': 'Asia/Dubai',
+    'Dubai': 'Asia/Dubai',
+    'Saudi Arabia': 'Asia/Riyadh',
+    'Kuwait': 'Asia/Kuwait',
+    'Qatar': 'Asia/Qatar',
+    'Bahrain': 'Asia/Bahrain',
+    'Oman': 'Asia/Muscat',
+    'Yemen': 'Asia/Aden',
+    'Jordan': 'Asia/Amman',
+    'Lebanon': 'Asia/Beirut',
+    'Egypt': 'Africa/Cairo',
+    'United States': 'America/New_York',
+    'UK': 'Europe/London',
+    'United Kingdom': 'Europe/London',
+    // Add more as needed
   };
   
-  return timezoneMap[browserTimezone] || browserTimezone;
+  return timezoneMap[country] || null;
 };
 
-// ✅ Get current timezone with PHP compatibility
-const getCurrentTimezone = () => {
-  const browserTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-  const phpTimezone = getPHPCompatibleTimezone(browserTimezone);
- 
-  return phpTimezone;
-};
-
-// Map Events Component
+// ─── Map Events Component ──────────────────────────────────────────────
 const MapEvents = ({ onMapClick }) => {
   useMapEvents({
     click: (e) => {
@@ -80,7 +97,7 @@ const MapEvents = ({ onMapClick }) => {
   return null;
 };
 
-// Draggable Marker Component
+// ─── Draggable Marker Component ──────────────────────────────────────────
 const DraggableMarker = ({ position, onDragEnd }) => {
   const markerRef = useRef(null);
 
@@ -114,6 +131,7 @@ const DraggableMarker = ({ position, onDragEnd }) => {
   );
 };
 
+// ─── MAIN MAP PICKER COMPONENT ──────────────────────────────────────────
 const MapPicker = ({ isOpen, onClose, onSelect, initialLat = 0, initialLng = 0 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedLocation, setSelectedLocation] = useState({
@@ -123,12 +141,12 @@ const MapPicker = ({ isOpen, onClose, onSelect, initialLat = 0, initialLng = 0 }
     country: '',
     city: '',
     state: '',
-    postalCode: ''
+    postalCode: '',
+    timezone: '' // Store timezone here
   });
   const [loading, setLoading] = useState(false);
   const [mapCenter, setMapCenter] = useState([initialLat || 20.5937, initialLng || 78.9629]);
   const [mapZoom, setMapZoom] = useState(13);
-  const [isDragging, setIsDragging] = useState(false);
 
   // Get user's current location on mount
   useEffect(() => {
@@ -147,7 +165,7 @@ const MapPicker = ({ isOpen, onClose, onSelect, initialLat = 0, initialLng = 0 }
           },
           (error) => {
             console.warn("Could not get user location:", error);
-            setMapCenter([25.2048, 55.2708]);
+            setMapCenter([25.2048, 55.2708]); // Default to Dubai
           }
         );
       }
@@ -175,6 +193,35 @@ const MapPicker = ({ isOpen, onClose, onSelect, initialLat = 0, initialLng = 0 }
                        data.display_name?.split(',').pop()?.trim() ||
                        '';
         
+        // ─── GET TIMEZONE FROM COORDINATES ────────────────────────────
+        let timezone = await getTimezoneFromCoordinates(lat, lng);
+        
+        // If timezone not found, try fallback
+        if (!timezone) {
+          timezone = await getTimezoneFromCoordinatesFallback(lat, lng);
+        }
+        
+        // If still not found, use country-based mapping
+        if (!timezone) {
+          timezone = getTimezoneFromCountry(country);
+        }
+        
+        // If still no timezone, use a default based on region
+        if (!timezone) {
+          // Default fallback based on rough coordinates
+          if (lat > 20 && lat < 40 && lng > 40 && lng < 60) {
+            timezone = 'Asia/Baghdad'; // Iraq region
+          } else if (lat > 20 && lat < 40 && lng > 60 && lng < 80) {
+            timezone = 'Asia/Kolkata'; // India region
+          } else if (lat > 20 && lat < 40 && lng > -130 && lng < -60) {
+            timezone = 'America/New_York'; // US region
+          } else if (lat > 35 && lat < 70 && lng > -10 && lng < 40) {
+            timezone = 'Europe/London'; // Europe region
+          } else {
+            timezone = 'UTC';
+          }
+        }
+        
         setSelectedLocation({
           ...selectedLocation,
           lat,
@@ -183,7 +230,8 @@ const MapPicker = ({ isOpen, onClose, onSelect, initialLat = 0, initialLng = 0 }
           country: country,
           city: address.city || address.town || address.village || '',
           state: address.state || address.region || '',
-          postalCode: address.postcode || ''
+          postalCode: address.postcode || '',
+          timezone: timezone // ✅ Set the correct timezone
         });
       }
     } catch (error) {
@@ -235,20 +283,9 @@ const MapPicker = ({ isOpen, onClose, onSelect, initialLat = 0, initialLng = 0 }
         const result = data[0];
         const lat = parseFloat(result.lat);
         const lng = parseFloat(result.lon);
-        const address = result.address || {};
         
         setMapCenter([lat, lng]);
         setMapZoom(15);
-        setSelectedLocation({
-          lat,
-          lng,
-          address: result.display_name || '',
-          country: address.country || '',
-          city: address.city || address.town || '',
-          state: address.state || '',
-          postalCode: address.postcode || ''
-        });
-        
         await reverseGeocode(lat, lng);
       } else {
         alert('Location not found. Please try a different search term.');
@@ -261,7 +298,7 @@ const MapPicker = ({ isOpen, onClose, onSelect, initialLat = 0, initialLng = 0 }
     }
   };
 
-  // ✅ Confirm selection - NOW USES PHP-COMPATIBLE TIMEZONE
+  // ✅ Confirm selection - NOW USES CORRECT TIMEZONE FROM COORDINATES
   const handleConfirm = () => {
     if (selectedLocation.lat && selectedLocation.lng) {
       onSelect({
@@ -272,7 +309,7 @@ const MapPicker = ({ isOpen, onClose, onSelect, initialLat = 0, initialLng = 0 }
         city: selectedLocation.city,
         state: selectedLocation.state,
         postalCode: selectedLocation.postalCode,
-        timezone: getCurrentTimezone() // ✅ Uses PHP-compatible timezone
+        timezone: selectedLocation.timezone || 'UTC' // ✅ Use the timezone from coordinates
       });
     }
     onClose();
@@ -287,11 +324,6 @@ const MapPicker = ({ isOpen, onClose, onSelect, initialLat = 0, initialLng = 0 }
           const { latitude, longitude } = position.coords;
           setMapCenter([latitude, longitude]);
           setMapZoom(15);
-          setSelectedLocation(prev => ({
-            ...prev,
-            lat: latitude,
-            lng: longitude
-          }));
           await reverseGeocode(latitude, longitude);
           setLoading(false);
         },
@@ -418,6 +450,12 @@ const MapPicker = ({ isOpen, onClose, onSelect, initialLat = 0, initialLng = 0 }
                 <div className="flex items-center col-span-1">
                   <span className="text-[var(--muted)] w-20">Country:</span>
                   <span className="font-semibold text-green-500">{selectedLocation.country}</span>
+                </div>
+              )}
+              {selectedLocation.timezone && (
+                <div className="flex items-center col-span-1">
+                  <span className="text-[var(--muted)] w-20">Timezone:</span>
+                  <span className="font-semibold text-blue-500">{selectedLocation.timezone}</span>
                 </div>
               )}
               {selectedLocation.city && (

@@ -19,7 +19,10 @@ import {
   FiFlag,
   FiRefreshCw,
   FiX,
+  FiTrash2,
 } from "react-icons/fi";
+import apiClient, { getStorageUrl } from "../../utils/apiClient";
+import { showToast } from "../../components/common/Toast";
 
 // ─── Demo Data ────────────────────────────────────────────────────────────
 const DEMO_TICKETS = [
@@ -198,6 +201,12 @@ const STATUS_CONFIG = {
     icon: "fa-clock",
     iconColor: "text-amber-500"
   },
+  inprogress: { 
+    label: "In Progress", 
+    color: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border-amber-200 dark:border-amber-800",
+    icon: "fa-clock",
+    iconColor: "text-amber-500"
+  },
   resolved: { 
     label: "Resolved", 
     color: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-green-200 dark:border-green-800",
@@ -209,6 +218,12 @@ const STATUS_CONFIG = {
     color: "bg-gray-100 text-gray-700 dark:bg-gray-700/30 dark:text-gray-400 border-gray-200 dark:border-gray-700",
     icon: "fa-times-circle",
     iconColor: "text-gray-500"
+  },
+  reopen: { 
+    label: "Reopen", 
+    color: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 border-purple-200 dark:border-purple-800",
+    icon: "fa-undo",
+    iconColor: "text-purple-500"
   },
 };
 
@@ -230,6 +245,42 @@ const PRIORITY_CONFIG = {
   },
 };
 
+// ─── Helper function to normalize notes ──────────────────────────────────
+const normalizeNotes = (notes) => {
+  if (!notes) return [];
+  
+  // If notes is already an array, return it
+  if (Array.isArray(notes)) {
+    return notes;
+  }
+  
+  // If notes is a string, convert to array with single note
+  if (typeof notes === 'string') {
+    return [{
+      id: Date.now(),
+      content: notes,
+      created_at: new Date().toISOString(),
+      author: "System"
+    }];
+  }
+  
+  // If notes is an object with values, try to extract
+  if (typeof notes === 'object') {
+    const values = Object.values(notes);
+    if (values.length > 0 && values[0]?.content) {
+      return values;
+    }
+    return [{
+      id: Date.now(),
+      content: JSON.stringify(notes),
+      created_at: new Date().toISOString(),
+      author: "System"
+    }];
+  }
+  
+  return [];
+};
+
 const AdminTickets = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
@@ -246,10 +297,74 @@ const AdminTickets = () => {
   // View modal
   const [showViewModal, setShowViewModal] = useState(false);
   const [viewingTicket, setViewingTicket] = useState(null);
+  const [isLoadingTicket, setIsLoadingTicket] = useState(false);
 
-  // ─── Load Demo Data ────────────────────────────────────────────────────
+  // ─── API Integrations ────────────────────────────────────────────────────
+  const fetchTickets = async () => {
+    try {
+      setLoading(true);
+      const res = await apiClient.get('/admin/tickets');
+      
+      let rawData = [];
+      if (Array.isArray(res.data?.data?.data)) {
+        rawData = res.data.data.data;
+      } else if (Array.isArray(res.data?.data)) {
+        rawData = res.data.data;
+      } else if (Array.isArray(res.data)) {
+        rawData = res.data;
+      }
+      
+      const mappedTickets = rawData.map((t) => ({
+        ...t,
+        issue_title: t.title || t.issue_title,
+        issue_description: t.description || t.issue_description,
+        name: t.user?.name || (t.user?.first_name ? `${t.user.first_name} ${t.user.last_name || ''}` : '') || t.name,
+        email: t.user?.email || t.email,
+        module: t.module ? (t.module.slug || t.module.name || t.module.id) : (t.module_id || t.module),
+        date: t.created_at ? t.created_at.split('T')[0] : t.date,
+        screenshot_preview: getStorageUrl(t.screenshot_url || t.screenshot_preview || t.screenshot),
+        notes: normalizeNotes(t.notes),
+      }));
+      setTickets(mappedTickets);
+    } catch (error) {
+      console.error("Error fetching tickets:", error);
+      showToast("Failed to fetch tickets", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch single ticket details
+  const fetchTicketDetails = async (ticketId) => {
+    try {
+      setIsLoadingTicket(true);
+      const res = await apiClient.get(`/admin/tickets/${ticketId}`);
+      const fullTicket = res.data?.data || res.data;
+      
+      if (fullTicket) {
+        return {
+          ...fullTicket,
+          issue_title: fullTicket.title || fullTicket.issue_title,
+          issue_description: fullTicket.description || fullTicket.issue_description,
+          name: fullTicket.user?.name || (fullTicket.user?.first_name ? `${fullTicket.user.first_name} ${fullTicket.user.last_name || ''}` : '') || fullTicket.name,
+          email: fullTicket.user?.email || fullTicket.email,
+          module: fullTicket.module ? (fullTicket.module.slug || fullTicket.module.name || fullTicket.module.id) : (fullTicket.module_id || fullTicket.module),
+          screenshot_preview: getStorageUrl(fullTicket.screenshot_url || fullTicket.screenshot_preview || fullTicket.screenshot),
+          notes: normalizeNotes(fullTicket.notes),
+        };
+      }
+      return null;
+    } catch (error) {
+      console.error("Error fetching ticket details:", error);
+      showToast("Failed to fetch ticket details", "error");
+      return null;
+    } finally {
+      setIsLoadingTicket(false);
+    }
+  };
+
   useEffect(() => {
-    setTickets(DEMO_TICKETS);
+    fetchTickets();
   }, []);
 
   // ─── Get all available modules ────────────────────────────────────────
@@ -275,7 +390,7 @@ const AdminTickets = () => {
   const stats = {
     total: tickets.length,
     open: tickets.filter(t => t.status === "open").length,
-    in_progress: tickets.filter(t => t.status === "in_progress").length,
+    in_progress: tickets.filter(t => t.status === "in_progress" || t.status === "inprogress").length,
     resolved: tickets.filter(t => t.status === "resolved").length,
     closed: tickets.filter(t => t.status === "closed").length,
     high_priority: tickets.filter(t => t.priority === "high").length,
@@ -335,14 +450,64 @@ const AdminTickets = () => {
   };
 
   // ─── View Modal Handlers ──────────────────────────────────────────────
-  const openViewModal = (ticket) => {
+  const openViewModal = async (ticket) => {
     setViewingTicket(ticket);
     setShowViewModal(true);
+    
+    try {
+      const fullTicket = await fetchTicketDetails(ticket.id);
+      if (fullTicket) {
+        setViewingTicket(fullTicket);
+      }
+    } catch (error) {
+      console.error("Error fetching full ticket details:", error);
+    }
   };
 
   const closeViewModal = () => {
     setShowViewModal(false);
     setViewingTicket(null);
+    setIsLoadingTicket(false);
+  };
+
+  // ─── Status & Delete Handlers ──────────────────────────────────────────
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deletingTicketId, setDeletingTicketId] = useState(null);
+
+  const handleStatusChange = async (ticketId, newStatus) => {
+    try {
+      await apiClient.patch(`/admin/tickets/${ticketId}/status`, { status: newStatus });
+      showToast("Ticket status updated successfully", "success");
+      
+      setTickets(tickets.map(t => t.id === ticketId ? { ...t, status: newStatus } : t));
+      if (viewingTicket && viewingTicket.id === ticketId) {
+        setViewingTicket({ ...viewingTicket, status: newStatus });
+      }
+    } catch (error) {
+      console.error("Error updating status:", error);
+      showToast(error?.response?.data?.message || "Failed to update status", "error");
+    }
+  };
+
+  const openDeleteConfirm = (id) => {
+    setDeletingTicketId(id);
+    setShowDeleteConfirm(true);
+  };
+
+  const handleDelete = async () => {
+    if (deletingTicketId) {
+      try {
+        await apiClient.delete(`/admin/tickets/${deletingTicketId}`);
+        setTickets(tickets.filter((t) => t.id !== deletingTicketId));
+        showToast("Ticket deleted successfully", "success");
+      } catch (error) {
+        console.error("Error deleting ticket:", error);
+        showToast("Failed to delete ticket", "error");
+      } finally {
+        setShowDeleteConfirm(false);
+        setDeletingTicketId(null);
+      }
+    }
   };
 
   // ─── Render ────────────────────────────────────────────────────────────
@@ -359,10 +524,11 @@ const AdminTickets = () => {
           </p>
         </div>
         <button
-          onClick={() => setTickets(DEMO_TICKETS)}
-          className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors flex items-center gap-2 text-sm font-medium shadow-sm hover:shadow-md"
+          onClick={fetchTickets}
+          disabled={loading}
+          className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors flex items-center gap-2 text-sm font-medium shadow-sm hover:shadow-md disabled:opacity-50"
         >
-          <FiRefreshCw size={16} /> Refresh
+          <FiRefreshCw size={16} className={loading ? "animate-spin" : ""} /> Refresh
         </button>
       </div>
 
@@ -452,8 +618,10 @@ const AdminTickets = () => {
           <option value="all">All Status</option>
           <option value="open">Open</option>
           <option value="in_progress">In Progress</option>
+          <option value="inprogress">In Progress (API)</option>
           <option value="resolved">Resolved</option>
           <option value="closed">Closed</option>
+          <option value="reopen">Reopen</option>
         </select>
         <select
           value={priorityFilter}
@@ -495,54 +663,58 @@ const AdminTickets = () => {
             </thead>
             <tbody>
               {filteredTickets.length > 0 ? (
-                filteredTickets.map((ticket, index) => (
-                  <tr
-                    key={ticket.id}
-                    className="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors"
-                  >
-                    <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{index + 1}</td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate max-w-[200px]">
-                          {ticket.issue_title}
-                        </span>
-                        {ticket.notes && ticket.notes.length > 0 && (
-                          <span className="text-[10px] text-blue-500 bg-blue-50 dark:bg-blue-900/20 px-1.5 py-0.5 rounded-full flex items-center gap-1">
-                            <FiMessageSquare size={10} />
-                            {ticket.notes.length}
+                filteredTickets.map((ticket, index) => {
+                  const noteCount = Array.isArray(ticket.notes) ? ticket.notes.length : (ticket.notes ? 1 : 0);
+                  return (
+                    <tr
+                      key={ticket.id}
+                      className="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors"
+                    >
+                      <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">{index + 1}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate max-w-[200px]">
+                            {ticket.issue_title}
                           </span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
-                      <span className="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded text-xs">
-                        {MODULE_LABELS[ticket.module] || ticket.module}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex flex-col">
-                        <span className="text-sm font-medium text-gray-800 dark:text-gray-200">{ticket.name}</span>
-                        <span className="text-xs text-gray-500 dark:text-gray-400">{ticket.email}</span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">{getPriorityBadge(ticket.priority)}</td>
-                    <td className="px-4 py-3">{getStatusBadge(ticket.status)}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
-                      {formatDate(ticket.date)}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center justify-center">
-                        <button
-                          onClick={() => openViewModal(ticket)}
-                          className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-blue-500 transition-colors"
-                          title="View Details"
-                        >
-                          <FiEye size={18} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
+                        <span className="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded text-xs">
+                          {MODULE_LABELS[ticket.module] || ticket.module}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex flex-col">
+                          <span className="text-sm font-medium text-gray-800 dark:text-gray-200">{ticket.name}</span>
+                          <span className="text-xs text-gray-500 dark:text-gray-400">{ticket.email}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">{getPriorityBadge(ticket.priority)}</td>
+                      <td className="px-4 py-3">{getStatusBadge(ticket.status)}</td>
+                      <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
+                        {formatDate(ticket.date)}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center justify-center gap-2">
+                          <button
+                            onClick={() => openViewModal(ticket)}
+                            className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-blue-500 transition-colors"
+                            title="View Details"
+                          >
+                            <FiEye size={16} />
+                          </button>
+                          <button
+                            onClick={() => openDeleteConfirm(ticket.id)}
+                            className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-red-500 transition-colors"
+                            title="Delete Ticket"
+                          >
+                            <FiTrash2 size={16} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               ) : (
                 <tr>
                   <td colSpan="8" className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
@@ -577,132 +749,188 @@ const AdminTickets = () => {
               </button>
             </div>
 
-            <div className="space-y-4">
-              {/* Status & Priority Row */}
-              <div className="grid grid-cols-2 gap-4 bg-[var(--surface2)] p-3 rounded-lg">
-                <div className="flex items-center gap-2">
-                  <FiFlag className="text-[var(--muted)]" />
-                  <span className="text-xs text-[var(--muted)]">Status:</span>
-                  {getStatusBadge(viewingTicket.status)}
+            {isLoadingTicket ? (
+              <div className="flex justify-center items-center py-12">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {/* Status & Priority Row */}
+                <div className="grid grid-cols-2 gap-4 bg-[var(--surface2)] p-3 rounded-lg border border-[var(--border)]">
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <FiFlag className="text-[var(--muted)]" />
+                      <span className="text-xs text-[var(--muted)]">Status:</span>
+                    </div>
+                    <select
+                      value={viewingTicket.status || "open"}
+                      onChange={(e) => handleStatusChange(viewingTicket.id, e.target.value)}
+                      className="w-full px-2 py-1.5 bg-white dark:bg-gray-800 border border-[var(--border)] rounded-md text-sm font-medium focus:outline-none focus:border-blue-500"
+                    >
+                      <option value="open">Open</option>
+                      <option value="inprogress">In Progress</option>
+                      <option value="resolved">Resolved</option>
+                      <option value="closed">Closed</option>
+                      <option value="reopen">Reopen</option>
+                    </select>
+                  </div>
+                  <div className="flex flex-col justify-center">
+                    <div className="flex items-center gap-2 mb-1">
+                      <FiTag className="text-[var(--muted)]" />
+                      <span className="text-xs text-[var(--muted)]">Priority:</span>
+                    </div>
+                    <div>{getPriorityBadge(viewingTicket.priority)}</div>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <FiTag className="text-[var(--muted)]" />
-                  <span className="text-xs text-[var(--muted)]">Priority:</span>
-                  {getPriorityBadge(viewingTicket.priority)}
-                </div>
-              </div>
 
-              {/* Title */}
-              <div>
-                <label className="text-xs text-[var(--muted)] flex items-center gap-1">
-                  <FiFileText className="text-blue-500" size={14} /> Title
-                </label>
-                <p className="text-sm font-medium text-[var(--text)] mt-1">{viewingTicket.issue_title}</p>
-              </div>
-
-              {/* Description */}
-              <div>
-                <label className="text-xs text-[var(--muted)] flex items-center gap-1">
-                  <FiMessageSquare className="text-blue-500" size={14} /> Description
-                </label>
-                <p className="text-sm text-[var(--text)] mt-1 bg-[var(--surface2)] p-3 rounded-lg border border-[var(--border)]">
-                  {viewingTicket.issue_description}
-                </p>
-              </div>
-
-              {/* Screenshot */}
-              {viewingTicket.screenshot_preview && (
+                {/* Title */}
                 <div>
                   <label className="text-xs text-[var(--muted)] flex items-center gap-1">
-                    <FiImage className="text-blue-500" size={14} /> Screenshot
+                    <FiFileText className="text-blue-500" size={14} /> Title
                   </label>
-                  <img
-                    src={viewingTicket.screenshot_preview}
-                    alt="Screenshot"
-                    className="mt-2 max-h-64 rounded-lg border border-[var(--border)] object-contain"
-                  />
+                  <p className="text-sm font-medium text-[var(--text)] mt-1">{viewingTicket.issue_title}</p>
                 </div>
-              )}
 
-              {/* Employee Info */}
-              <div className="grid grid-cols-2 gap-4 bg-[var(--surface2)] p-3 rounded-lg border border-[var(--border)]">
+                {/* Description */}
                 <div>
                   <label className="text-xs text-[var(--muted)] flex items-center gap-1">
-                    <FiUser className="text-blue-500" size={14} /> Employee
+                    <FiMessageSquare className="text-blue-500" size={14} /> Description
                   </label>
-                  <p className="text-sm font-medium text-[var(--text)]">{viewingTicket.name}</p>
+                  <p className="text-sm text-[var(--text)] mt-1 bg-[var(--surface2)] p-3 rounded-lg border border-[var(--border)]">
+                    {viewingTicket.issue_description}
+                  </p>
                 </div>
-                <div>
-                  <label className="text-xs text-[var(--muted)] flex items-center gap-1">
-                    <FiMail className="text-blue-500" size={14} /> Email
-                  </label>
-                  <p className="text-sm text-[var(--text)]">{viewingTicket.email}</p>
-                </div>
-                <div>
-                  <label className="text-xs text-[var(--muted)] flex items-center gap-1">
-                    <FiGrid className="text-blue-500" size={14} /> Module
-                  </label>
-                  <p className="text-sm text-[var(--text)]">{MODULE_LABELS[viewingTicket.module] || viewingTicket.module}</p>
-                </div>
-                <div>
-                  <label className="text-xs text-[var(--muted)] flex items-center gap-1">
-                    <FiCalendar className="text-blue-500" size={14} /> Date
-                  </label>
-                  <p className="text-sm text-[var(--text)]">{formatDate(viewingTicket.date)}</p>
-                </div>
-              </div>
 
-              {/* Timestamps */}
-              <div className="grid grid-cols-2 gap-4 text-xs text-[var(--muted)]">
-                <div>
-                  <label className="text-[10px] uppercase tracking-wider">Created At</label>
-                  <p className="mt-0.5">{formatDateTime(viewingTicket.created_at)}</p>
-                </div>
-                <div>
-                  <label className="text-[10px] uppercase tracking-wider">Last Updated</label>
-                  <p className="mt-0.5">{formatDateTime(viewingTicket.updated_at)}</p>
-                </div>
-              </div>
+                {/* Screenshot */}
+                {viewingTicket.screenshot_preview && (
+                  <div>
+                    <label className="text-xs text-[var(--muted)] flex items-center gap-1">
+                      <FiImage className="text-blue-500" size={14} /> Screenshot
+                    </label>
+                    <img
+                      src={viewingTicket.screenshot_preview}
+                      alt="Screenshot"
+                      className="mt-2 max-h-64 rounded-lg border border-[var(--border)] object-contain"
+                    />
+                  </div>
+                )}
 
-              {/* ─── Notes Section ────────────────────────────────────── */}
-              <div>
-                <label className="text-xs font-semibold text-[var(--text)] flex items-center gap-2">
-                  <FiMessageSquare className="text-blue-500" /> Notes & Updates
-                  <span className="text-[10px] text-[var(--muted)]">
-                    ({viewingTicket.notes?.length || 0})
-                  </span>
-                </label>
-                <div className="mt-2 space-y-2 max-h-[200px] overflow-y-auto pr-1">
-                  {viewingTicket.notes && viewingTicket.notes.length > 0 ? (
-                    viewingTicket.notes.map((note, idx) => (
-                      <div key={note.id} className="bg-[var(--surface2)] p-3 rounded-lg border border-[var(--border)]">
-                        <div className="flex justify-between items-start">
-                          <p className="text-sm text-[var(--text)]">{note.content}</p>
-                          <span className="text-[10px] text-[var(--muted)] whitespace-nowrap ml-2">
-                            {formatDateTime(note.created_at)}
-                          </span>
+                {/* Employee Info */}
+                <div className="grid grid-cols-2 gap-4 bg-[var(--surface2)] p-3 rounded-lg border border-[var(--border)]">
+                  <div>
+                    <label className="text-xs text-[var(--muted)] flex items-center gap-1">
+                      <FiUser className="text-blue-500" size={14} /> Employee
+                    </label>
+                    <p className="text-sm font-medium text-[var(--text)]">{viewingTicket.name}</p>
+                  </div>
+                  <div>
+                    <label className="text-xs text-[var(--muted)] flex items-center gap-1">
+                      <FiMail className="text-blue-500" size={14} /> Email
+                    </label>
+                    <p className="text-sm text-[var(--text)]">{viewingTicket.email}</p>
+                  </div>
+                  <div>
+                    <label className="text-xs text-[var(--muted)] flex items-center gap-1">
+                      <FiGrid className="text-blue-500" size={14} /> Module
+                    </label>
+                    <p className="text-sm text-[var(--text)]">{MODULE_LABELS[viewingTicket.module] || viewingTicket.module}</p>
+                  </div>
+                  <div>
+                    <label className="text-xs text-[var(--muted)] flex items-center gap-1">
+                      <FiCalendar className="text-blue-500" size={14} /> Date
+                    </label>
+                    <p className="text-sm text-[var(--text)]">{formatDate(viewingTicket.date)}</p>
+                  </div>
+                </div>
+
+                {/* Timestamps */}
+                <div className="grid grid-cols-2 gap-4 text-xs text-[var(--muted)]">
+                  <div>
+                    <label className="text-[10px] uppercase tracking-wider">Created At</label>
+                    <p className="mt-0.5">{formatDateTime(viewingTicket.created_at)}</p>
+                  </div>
+                  <div>
+                    <label className="text-[10px] uppercase tracking-wider">Last Updated</label>
+                    <p className="mt-0.5">{formatDateTime(viewingTicket.updated_at)}</p>
+                  </div>
+                </div>
+
+                {/* ─── Notes Section ────────────────────────────────────── */}
+                <div>
+                  <label className="text-xs font-semibold text-[var(--text)] flex items-center gap-2">
+                    <FiMessageSquare className="text-blue-500" /> Notes & Updates
+                    <span className="text-[10px] text-[var(--muted)]">
+                      ({Array.isArray(viewingTicket.notes) ? viewingTicket.notes.length : 0})
+                    </span>
+                  </label>
+                  <div className="mt-2 space-y-2 max-h-[200px] overflow-y-auto pr-1">
+                    {viewingTicket.notes && Array.isArray(viewingTicket.notes) && viewingTicket.notes.length > 0 ? (
+                      viewingTicket.notes.map((note, idx) => (
+                        <div key={note.id || idx} className="bg-[var(--surface2)] p-3 rounded-lg border border-[var(--border)]">
+                          <div className="flex justify-between items-start">
+                            <p className="text-sm text-[var(--text)]">{note.content}</p>
+                            <span className="text-[10px] text-[var(--muted)] whitespace-nowrap ml-2">
+                              {formatDateTime(note.created_at)}
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-[var(--muted)] mt-1">
+                            <FiUser className="inline mr-1" size={10} />
+                            {note.author || "System"} • Note #{idx + 1}
+                          </p>
                         </div>
-                        <p className="text-[10px] text-[var(--muted)] mt-1">
-                          <FiUser className="inline mr-1" size={10} />
-                          {note.author || "Developer"} • Note #{idx + 1}
-                        </p>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="text-sm text-[var(--muted)] italic p-3 text-center">No notes have been added to this ticket yet</p>
-                  )}
+                      ))
+                    ) : (
+                      <p className="text-sm text-[var(--muted)] italic p-3 text-center">No notes have been added to this ticket yet</p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Footer - View Only */}
+                <div className="flex gap-3 pt-4 border-t border-[var(--border)]">
+                  <button
+                    onClick={closeViewModal}
+                    className="flex-1 py-2.5 px-4 bg-[var(--surface2)] border border-[var(--border)] rounded-lg text-[var(--text)] font-medium text-sm hover:bg-[var(--surface3)] transition-colors"
+                  >
+                    Close
+                  </button>
                 </div>
               </div>
-
-              {/* Footer - View Only */}
-              <div className="flex gap-3 pt-4 border-t border-[var(--border)]">
-                <button
-                  onClick={closeViewModal}
-                  className="flex-1 py-2.5 px-4 bg-[var(--surface2)] border border-[var(--border)] rounded-lg text-[var(--text)] font-medium text-sm hover:bg-[var(--surface3)] transition-colors"
-                >
-                  Close
-                </button>
+            )}
+          </div>
+        </div>
+      )}
+      {/* ─── DELETE CONFIRMATION ────────────────────────────────────────── */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[70] p-4 animate-fade-in">
+          <div className="bg-[var(--surface)] rounded-xl max-w-md w-full p-6 shadow-2xl animate-slide-up border border-[var(--border)]">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center">
+                <FiTrash2 className="text-red-600 dark:text-red-400 text-2xl" />
               </div>
+              <div>
+                <h3 className="text-lg font-bold text-[var(--text)]">Delete Ticket</h3>
+                <p className="text-sm text-[var(--muted)]">This action cannot be undone</p>
+              </div>
+            </div>
+            <p className="text-sm text-[var(--text-secondary)] mb-6">
+              Are you sure you want to delete this ticket? All data associated with it will be permanently removed.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowDeleteConfirm(false);
+                  setDeletingTicketId(null);
+                }}
+                className="flex-1 py-2.5 px-4 bg-[var(--surface2)] border border-[var(--border)] rounded-lg text-[var(--text)] font-medium text-sm hover:bg-[var(--surface3)] transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDelete}
+                className="flex-1 py-2.5 px-4 bg-red-500 text-white rounded-lg font-medium text-sm hover:bg-red-600 transition-colors flex items-center justify-center gap-2"
+              >
+                <FiTrash2 size={16} /> Delete
+              </button>
             </div>
           </div>
         </div>

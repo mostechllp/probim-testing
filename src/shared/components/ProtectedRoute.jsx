@@ -70,6 +70,9 @@ const ROUTE_TO_MODULE_MAP = {
   "/admin/agreements": "agreements",
   "/admin/notifications": "notifications",
   "/admin/request-leave-for-employee": "leaves",
+  "/admin/developer-tickets": "developer-tickets",
+  "/admin/admin-tickets": "admin-tickets",
+  "/admin/support-admin-dashboard": "support-admin-dashboard",
   
   // Employee routes
   "/employee/dashboard": "dashboard",
@@ -101,6 +104,9 @@ const ROUTE_TO_MODULE_MAP = {
   "/employee/my-documents": "my-documents",
   "/employee/onboarding": "onboarding",
   "/employee/request-leave-for-employee": "leaves",
+  "/employee/developer-tickets": "developer-tickets",
+  "/employee/admin-tickets": "admin-tickets",
+  "/employee/support-admin-dashboard": "support-admin-dashboard",
 };
 
 /**
@@ -301,12 +307,58 @@ const ProtectedRoute = ({
   };
 
   // ==========================================================
+  // USER TYPE HELPERS (DEFINED EARLY)
+  // ==========================================================
+  const userRole = user?.role?.name || user?.role || "";
+  const isSupportAdmin =
+    userRole === "Support Admin" ||
+    userRole === "support_admin" ||
+    userRole?.toLowerCase().includes("support admin");
+
+  const hasAllPermissions = user?.permissions?.all === true;
+  const isAdmin = user?.type === "admin" || hasAllPermissions;
+
+  const isHR =
+    !isSupportAdmin &&
+    (user?.type === "hr" ||
+      userRole === "HR Manager" ||
+      userRole === "HR" ||
+      userRole === "hr manager" ||
+      userRole?.toLowerCase() === "hr");
+
+  const isManager =
+    !isSupportAdmin &&
+    (user?.type === "manager" ||
+      userRole?.toLowerCase().includes("manager") ||
+      userRole?.toLowerCase().includes("team lead") ||
+      userRole?.toLowerCase().includes("team_lead") ||
+      userRole === "Team Lead" ||
+      userRole === "BIM Manager");
+
+  const isTeamLead =
+    !isSupportAdmin &&
+    (user?.type === "team_lead" ||
+      userRole?.toLowerCase().includes("team lead") ||
+      userRole?.toLowerCase().includes("team_lead") ||
+      userRole === "Team Lead");
+
+  const isEmployee =
+    !isSupportAdmin &&
+    (user?.type === "employee");
+
+  const isEmployeeType =
+    isEmployee ||
+    isHR ||
+    isManager ||
+    isTeamLead ||
+    isSupportAdmin;
+
+  // ==========================================================
   // CHECK PERMISSION FOR CURRENT ROUTE
   // ==========================================================
   const checkRoutePermission = () => {
     // If user is admin or has all permissions, allow all
-    const hasAllPermissions = user?.permissions?.all === true;
-    if (user?.type === "admin" || hasAllPermissions) {
+    if (isAdmin || hasAllPermissions) {
       return true;
     }
 
@@ -327,6 +379,26 @@ const ProtectedRoute = ({
     if (moduleSlug.startsWith("my-")) {
       // These are generally allowed for all authenticated users
       return true;
+    }
+
+    // Support Admin specific permissions
+    if (isSupportAdmin) {
+      // Allow access to support admin dashboard
+      if (moduleSlug === "support-admin-dashboard") {
+        return true;
+      }
+      // Allow access to developer tickets
+      if (moduleSlug === "developer-tickets") {
+        return permissions["developer-tickets"]?.read === true;
+      }
+      // Allow access to ticket-raise
+      if (moduleSlug === "ticket-raise") {
+        return true;
+      }
+      // Allow dashboard
+      if (moduleSlug === "dashboard") {
+        return true;
+      }
     }
 
     // Check specific permission
@@ -403,8 +475,15 @@ const ProtectedRoute = ({
         }
       );
 
-      // Redirect to appropriate dashboard
-      const isAdmin = activeType === "admin" || user?.type === "admin";
+      if (isSupportAdmin) {
+        return (
+          <Navigate
+            to="/employee/support-admin-dashboard"
+            replace
+          />
+        );
+      }
+
       const redirectPath = isAdmin ? "/admin/dashboard" : "/employee/dashboard";
       
       return (
@@ -442,42 +521,12 @@ const ProtectedRoute = ({
   }
 
   // ==========================================================
-  // USER TYPE HELPERS
-  // ==========================================================
-  const isAdmin =
-    activeType === "admin" ||
-    user?.type === "admin";
-
-  const isHR =
-    activeType === "hr" ||
-    user?.type === "hr" ||
-    user?.role?.name === "HR Manager" ||
-    user?.role?.name === "HR";
-
-  const isManager =
-    activeType === "manager" ||
-    user?.type === "manager" ||
-    user?.role?.name === "Manager";
-
-  const isTeamLead =
-    activeType === "team_lead" ||
-    user?.type === "team_lead" ||
-    user?.role?.name === "Team Lead";
-
-  const isEmployee =
-    activeType === "employee" ||
-    user?.type === "employee";
-
-  const isEmployeeType =
-    isEmployee ||
-    isHR ||
-    isManager ||
-    isTeamLead;
-
-  // ==========================================================
   // USER DASHBOARD
   // ==========================================================
   const getUserDashboard = () => {
+    if (isSupportAdmin) {
+      return "/employee/support-admin-dashboard";
+    }
     if (isAdmin) {
       return "/admin/dashboard";
     }
@@ -488,31 +537,35 @@ const ProtectedRoute = ({
   // REQUIRED USER TYPE
   // ==========================================================
   if (requiredType) {
-    let hasRequiredType = false;
+  let hasRequiredType = false;
 
-    switch (requiredType) {
-      case "admin":
-        hasRequiredType = isAdmin;
-        break;
-      case "employee":
-        hasRequiredType = isEmployeeType;
-        break;
-      case "hr":
-        hasRequiredType = isHR;
-        break;
-      case "manager":
-        hasRequiredType = isManager;
-        break;
-      case "team_lead":
-        hasRequiredType = isTeamLead;
-        break;
-      default:
-        hasRequiredType =
-          activeType === requiredType ||
-          user?.type === requiredType;
-        break;
-    }
-
+  switch (requiredType) {
+    case "admin":
+      hasRequiredType = isAdmin;
+      break;
+    case "employee":
+      hasRequiredType = isEmployeeType; // includes isSupportAdmin
+      break;
+    case "hr":
+      hasRequiredType = isHR; // already false for Support Admin
+      break;
+    case "manager":
+      hasRequiredType = isManager; // already false for Support Admin
+      break;
+    case "team_lead":
+      hasRequiredType = isTeamLead; // already false for Support Admin
+      break;
+    case "support-admin":
+      hasRequiredType = isSupportAdmin;
+      break;
+    default:
+      hasRequiredType =
+        activeType === requiredType ||
+        user?.type === requiredType ||
+        (requiredType === "employee" && isEmployeeType);
+      break;
+  }
+  
     if (!hasRequiredType) {
       const redirectPath = getUserDashboard();
 
@@ -542,31 +595,83 @@ const ProtectedRoute = ({
     const permissions =
       user?.permissions || {};
 
-    const hasPermission =
-      permissions?.[
-        requiredPermission
-      ]?.read === true ||
-      permissions?.[
-        requiredPermission
-      ] === true ||
-      permissions?.all === true ||
-      isAdmin;
-
-    if (!hasPermission) {
-      console.warn(
-        "ProtectedRoute: Permission denied",
-        {
-          requiredPermission,
-          userType: activeType,
+    // Special handling for Support Admin
+    if (isSupportAdmin) {
+      // Allow access to support-admin-dashboard
+      if (requiredPermission === "support-admin-dashboard") {
+        // No further permission needed
+      }
+      // Allow access to developer-tickets if they have permission
+      else if (requiredPermission === "developer-tickets") {
+        if (permissions["developer-tickets"]?.read !== true) {
+          console.warn(
+            "ProtectedRoute: Support Admin does not have developer-tickets permission",
+            { requiredPermission }
+          );
+          return (
+            <Navigate
+              to="/employee/support-admin-dashboard"
+              replace
+            />
+          );
         }
-      );
+      }
+      // For other permissions, check normally
+      else {
+        const hasPermission =
+          permissions?.[
+            requiredPermission
+          ]?.read === true ||
+          permissions?.[
+            requiredPermission
+          ] === true ||
+          permissions?.all === true ||
+          isAdmin;
 
-      return (
-        <Navigate
-          to={getUserDashboard()}
-          replace
-        />
-      );
+        if (!hasPermission) {
+          console.warn(
+            "ProtectedRoute: Permission denied",
+            {
+              requiredPermission,
+              userType: activeType,
+            }
+          );
+
+          return (
+            <Navigate
+              to={getUserDashboard()}
+              replace
+            />
+          );
+        }
+      }
+    } else {
+      const hasPermission =
+        permissions?.[
+          requiredPermission
+        ]?.read === true ||
+        permissions?.[
+          requiredPermission
+        ] === true ||
+        permissions?.all === true ||
+        isAdmin;
+
+      if (!hasPermission) {
+        console.warn(
+          "ProtectedRoute: Permission denied",
+          {
+            requiredPermission,
+            userType: activeType,
+          }
+        );
+
+        return (
+          <Navigate
+            to={getUserDashboard()}
+            replace
+          />
+        );
+      }
     }
   }
 

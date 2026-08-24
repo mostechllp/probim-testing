@@ -31,6 +31,7 @@ const ADMIN_ROUTE_MAP = {
   "ticket-raise": "/admin/ticket-raise",
   "developer-tickets": "/admin/developer-tickets",
   "admin-tickets": "/admin/admin-tickets",
+  "support-admin-dashboard": "/admin/support-admin-dashboard",
 };
 
 const EMPLOYEE_ROUTE_MAP = {
@@ -60,6 +61,7 @@ const EMPLOYEE_ROUTE_MAP = {
   "ticket-raise": "/employee/ticket-raise",
   "developer-tickets": "/employee/developer-tickets",
   "admin-tickets": "/employee/admin-tickets",
+  "support-admin-dashboard": "/employee/support-admin-dashboard",
 };
 
 const ICON_MAP = {
@@ -93,6 +95,7 @@ const ICON_MAP = {
   "ticket-raise": "fas fa-ticket-alt",
   "developer-tickets": "fas fa-ticket-alt",
   "admin-tickets": "fas fa-tags",
+  "support-admin-dashboard": "fas fa-tachometer-alt",
 };
 
 // Configuration for parent menus and their children
@@ -109,6 +112,8 @@ const PARENT_MENU_CONFIG = {
       "team_lead",
       "Team Lead",
       "BIM Manager",
+      "Support Admin",
+      "support_admin",
     ],
     order: 999,
   },
@@ -124,6 +129,8 @@ const PARENT_MENU_CONFIG = {
       "team_lead",
       "Team Lead",
       "BIM Manager",
+      "Support Admin",
+      "support_admin",
     ],
     order: 1000,
   },
@@ -139,10 +146,11 @@ const PARENT_MENU_CONFIG = {
       "team_lead",
       "Team Lead",
       "BIM Manager",
+      "Support Admin",
+      "support_admin",
     ],
     order: 998,
   },
-  // NEW: Attendance Requests parent menu
   attendance_requests: {
     label: "Attendance Requests",
     icon: "fas fa-clock",
@@ -155,6 +163,8 @@ const PARENT_MENU_CONFIG = {
       "team_lead",
       "Team Lead",
       "BIM Manager",
+      "Support Admin",
+      "support_admin",
     ],
     order: 997,
   },
@@ -166,39 +176,41 @@ const ALL_CHILDREN = Object.values(PARENT_MENU_CONFIG).flatMap(
 );
 
 // Define modules that should be hidden (aliases/duplicates)
-const HIDDEN_MODULES = ["role-management", "agreements", "wfh"]; // Added wfh back to hidden
+const HIDDEN_MODULES = ["role-management", "agreements", "wfh"];
 
 // Define order of standalone modules
 const MODULE_ORDER = {
   dashboard: 1,
-  onboarding: 2,
-  employees: 3,
-  offboarding: 4,
-  projects: 5,
-  "project-assignments": 6,
-  attendance: 7,
-  "attendance-requests": 8,
-  "my-attendance-requests": 9,
-  documents: 10,
-  leaves: 11,
-  "my-leaves": 12,
-  "task-reports": 13,
-  "my-tasks": 14,
-  "wfh-requests": 15,
-  "my-wfh-requests": 16,
-  reports: 17,
-  payroll: 18,
-  "my-payroll": 18,
-  roles: 19,
-  organizations: 20,
-  agreements: 21,
-  settings: 22,
-  "role-management": 23,
-  "my-profile": 24,
-  "my-documents": 25,
-  "ticket-raise": 26,
-  "developer-tickets": 27, 
-  "admin-tickets": 28,
+  "support-admin-dashboard": 2,
+  onboarding: 3,
+  employees: 4,
+  offboarding: 5,
+  projects: 6,
+  "project-assignments": 7,
+  attendance: 8,
+  "attendance-requests": 9,
+  "my-attendance-requests": 10,
+  documents: 11,
+  leaves: 12,
+  "my-leaves": 13,
+  "task-reports": 14,
+  "my-tasks": 15,
+  "wfh-requests": 16,
+  "my-wfh-requests": 17,
+  reports: 18,
+  payroll: 19,
+  "my-payroll": 20,
+  roles: 21,
+  organizations: 22,
+  agreements: 23,
+  settings: 24,
+  "role-management": 25,
+  "my-profile": 26,
+  "my-documents": 27,
+  "ticket-raise": 28,
+
+  "developer-tickets": 29,
+  "admin-tickets": 30,
 };
 
 const Sidebar = ({ isOpen, setIsOpen }) => {
@@ -258,8 +270,14 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
   // Check if user is admin (either type admin or has all permissions)
   const isAdmin = userType === "admin" || hasAllPermissions;
 
-  // Check if user should see parent menus (HR, Manager, Team Lead, or Admin)
-  const shouldShowParentMenus = isHR || isManager || isAdmin;
+  // Check if user is Support Admin
+  const isSupportAdmin =
+    userRole === "Support Admin" ||
+    userRole === "support_admin" ||
+    userRole?.toLowerCase().includes("support admin");
+
+  // Check if user should see parent menus (HR, Manager, Team Lead, Admin, or Support Admin)
+  const shouldShowParentMenus = isHR || isManager || isAdmin || isSupportAdmin;
 
   // Get permissions from user object
   const permissions = user?.permissions || {};
@@ -271,6 +289,26 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
 
     // If user is admin type, allow all
     if (userType === "admin") return true;
+
+    // For Support Admin, check specific permissions
+    if (isSupportAdmin) {
+      // Allow developer-tickets if permission exists
+      if (slug === "developer-tickets") {
+        return permissions["developer-tickets"]?.read === true;
+      }
+      // Allow ticket-raise
+      if (slug === "ticket-raise") {
+        return true;
+      }
+      // Allow dashboard
+      if (slug === "dashboard") {
+        return true;
+      }
+      // Allow support-admin-dashboard
+      if (slug === "support-admin-dashboard") {
+        return true;
+      }
+    }
 
     // Check specific permission for the module
     const modulePermission = permissions[slug];
@@ -286,7 +324,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
       "task-reports",
       "my-wfh-requests",
       "my-profile",
-      "my-attendance-requests", 
+      "my-attendance-requests",
       "ticket-raise",
     ];
     if (publicModules.includes(slug)) return true;
@@ -294,23 +332,24 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
     return false;
   };
 
-  const isDeveloper = 
-  userRole === "Developer" || 
-  userRole === "developer" ||
-  userRole?.toLowerCase().includes("developer");
-
   // Check if module should be shown
   const shouldShowModule = (slug) => {
     // Always show dashboard
     if (slug === "dashboard") return true;
 
-    if (slug === "developer-tickets") {
-    return isDeveloper || hasAllPermissions || userType === "admin";
-  }
+    // Show support-admin-dashboard for Support Admin
+    if (slug === "support-admin-dashboard") {
+      return isSupportAdmin;
+    }
 
-  if (slug === "admin-tickets") {
-    return isAdmin || hasAllPermissions || userType === "admin";
-  }
+    // Show developer-tickets for Support Admin
+    if (slug === "developer-tickets") {
+      return isSupportAdmin || hasAllPermissions || userType === "admin";
+    }
+
+    if (slug === "admin-tickets") {
+      return isAdmin || hasAllPermissions || userType === "admin";
+    }
 
     // Hide hidden modules (duplicates, sensitive)
     if (HIDDEN_MODULES.includes(slug)) return false;
@@ -341,7 +380,22 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
     })
     .map((mod) => mod.slug);
 
-  const allModules = [...apiModules];
+  // Start with apiModules
+  let allModules = [...apiModules];
+
+  // If user is Support Admin and has developer-tickets permission, ensure it's included
+  if (isSupportAdmin && permissions["developer-tickets"]?.read === true) {
+    if (!allModules.includes("developer-tickets")) {
+      allModules.push("developer-tickets");
+    }
+  }
+
+  // If user is Support Admin, ensure support-admin-dashboard is included
+  if (isSupportAdmin) {
+    if (!allModules.includes("support-admin-dashboard")) {
+      allModules.unshift("support-admin-dashboard");
+    }
+  }
 
   // Build navigation with submenus
   const buildNavItems = () => {
@@ -361,7 +415,9 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
               userRole?.toLowerCase() === role.toLowerCase() ||
               userRole?.toLowerCase().includes(role.toLowerCase()) ||
               userType === role,
-          ) || isAdmin;
+          ) ||
+          isAdmin ||
+          isSupportAdmin;
 
         if (!hasRoleAccess) return;
 
@@ -429,8 +485,8 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
         "my-tasks",
         "my-wfh-requests",
         "my-documents",
-        "my-attendance-requests", 
-         "ticket-raise",  
+        "my-attendance-requests",
+        "ticket-raise",
       ];
       employeeStandalone.forEach((slug) => {
         if (allModules.includes(slug) && hasReadPermission(slug)) {
@@ -455,10 +511,11 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
 
       const module = user?.sidebar_modules?.find((m) => m.slug === slug);
       let label = module?.name || slug;
-      
-      // Keep the original labels from the API
-      // Don't override labels - let the API name be the display name
-      
+
+      if (slug === "support-admin-dashboard") {
+        label = "Dashboard";
+      }
+
       standaloneItems.push({
         type: "single",
         slug: slug,
@@ -488,8 +545,6 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
     if (isMobile) return expandedMenus[slug] || false;
     return expandedMenus[slug] || false;
   };
-
-  const showChevron = !isMobile && isOpen;
 
   return (
     <>
@@ -528,106 +583,107 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
 
         {/* Navigation Section */}
         <nav className="flex-1 overflow-y-auto py-4 scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent hover:scrollbar-thumb-gray-600">
-          {navItems.map((item) => {
-            if (item.type === "parent") {
-              const expanded = isMenuExpanded(item.slug);
-              // Check if sidebar is expanded (hovered or open)
-              const isSidebarExpanded = isMobile ? isOpen : isOpen;
+          {navItems.length === 0 ? (
+            <div className="text-center text-gray-500 text-sm px-4 py-8">
+              No modules available
+            </div>
+          ) : (
+            navItems.map((item) => {
+              if (item.type === "parent") {
+                const expanded = isMenuExpanded(item.slug);
 
-              return (
-                <div key={item.slug} className="mb-1">
-                  <div
-                    onClick={() => toggleMenu(item.slug)}
-                    className={`
-            flex items-center gap-3 px-5 py-3 mx-2 rounded-xl 
-            transition-all duration-200 cursor-pointer select-none
-            ${item.isActive ? "bg-green-500/20 text-white" : "text-gray-400 hover:text-white hover:bg-white/10"}
-          `}
-                  >
-                    <i className={item.icon + " w-6 text-lg flex-shrink-0"}></i>
-                    <span
-                      className={`flex-1 transition-opacity duration-200 ${
-                        !isMobile && !isOpen
-                          ? "opacity-0 group-hover:opacity-100"
-                          : "opacity-100"
-                      }`}
+                return (
+                  <div key={item.slug} className="mb-1">
+                    <div
+                      onClick={() => toggleMenu(item.slug)}
+                      className={`
+                        flex items-center gap-3 px-5 py-3 mx-2 rounded-xl 
+                        transition-all duration-200 cursor-pointer select-none
+                        ${item.isActive ? "bg-green-500/20 text-white" : "text-gray-400 hover:text-white hover:bg-white/10"}
+                      `}
                     >
-                      {item.label}
-                    </span>
-                    {/* Show chevron only when sidebar is expanded OR on mobile */}
-                    {(isMobile || isOpen) && (
                       <i
-                        className={`fas fa-chevron-${expanded ? "up" : "down"} text-xs transition-transform duration-200 flex-shrink-0`}
+                        className={item.icon + " w-6 text-lg flex-shrink-0"}
                       ></i>
+                      <span
+                        className={`flex-1 transition-opacity duration-200 ${
+                          !isMobile && !isOpen
+                            ? "opacity-0 group-hover:opacity-100"
+                            : "opacity-100"
+                        }`}
+                      >
+                        {item.label}
+                      </span>
+                      {(isMobile || isOpen) && (
+                        <i
+                          className={`fas fa-chevron-${expanded ? "up" : "down"} text-xs transition-transform duration-200 flex-shrink-0`}
+                        ></i>
+                      )}
+                    </div>
+
+                    {((isMobile && expandedMenus[item.slug]) ||
+                      (!isMobile && isOpen && expanded)) && (
+                      <div className="ml-6 mt-1 space-y-1 border-l-2 border-gray-700/50 pl-2">
+                        {item.children.map((child) => (
+                          <NavLink
+                            key={child.slug}
+                            to={child.path}
+                            onClick={() => {
+                              if (isMobile) setIsOpen(false);
+                            }}
+                            className={({ isActive }) =>
+                              `flex items-center gap-3 px-5 py-2 mx-2 rounded-xl transition-all duration-200 cursor-pointer ${
+                                isActive
+                                  ? "bg-green-500/20 text-white"
+                                  : "text-gray-400 hover:text-white hover:bg-white/10"
+                              }`
+                            }
+                          >
+                            <i
+                              className={
+                                child.icon + " w-6 text-sm flex-shrink-0"
+                              }
+                            ></i>
+                            <span className="text-sm">{child.label}</span>
+                          </NavLink>
+                        ))}
+                      </div>
                     )}
                   </div>
-
-                  {/* Show submenu only when:
-            1. On mobile: when menu is toggled
-            2. On desktop: when sidebar is expanded (hovered/open) AND menu is toggled
-        */}
-                  {((isMobile && expandedMenus[item.slug]) ||
-                    (!isMobile && isOpen && expanded)) && (
-                    <div className="ml-6 mt-1 space-y-1 border-l-2 border-gray-700/50 pl-2">
-                      {item.children.map((child) => (
-                        <NavLink
-                          key={child.slug}
-                          to={child.path}
-                          onClick={() => {
-                            if (isMobile) setIsOpen(false);
-                          }}
-                          className={({ isActive }) =>
-                            `flex items-center gap-3 px-5 py-2 mx-2 rounded-xl transition-all duration-200 cursor-pointer ${
-                              isActive
-                                ? "bg-green-500/20 text-white"
-                                : "text-gray-400 hover:text-white hover:bg-white/10"
-                            }`
-                          }
-                        >
-                          <i
-                            className={
-                              child.icon + " w-6 text-sm flex-shrink-0"
-                            }
-                          ></i>
-                          <span className="text-sm">{child.label}</span>
-                        </NavLink>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              );
-            }
-            return (
-              <NavLink
-                key={item.slug}
-                to={item.path}
-                end={
-                  item.path === "/admin/employees" ||
-                  item.path === "/admin/dashboard" ||
-                  item.path === "/employee/dashboard"
-                }
-                onClick={() => isMobile && setIsOpen(false)}
-                className={({ isActive }) =>
-                  `flex items-center gap-3 px-5 py-3 mx-2 rounded-xl transition-all duration-200 cursor-pointer whitespace-nowrap overflow-hidden ${
-                    isActive
-                      ? "bg-green-500/20 text-white"
-                      : "text-gray-400 hover:text-white hover:bg-white/10"
-                  }`
-                }
-              >
-                <i className={item.icon + " w-6 text-lg flex-shrink-0"}></i>
-                <span
-                  className={`transition-opacity duration-200 ${
-                    !isMobile && !isOpen
-                      ? "opacity-0 group-hover:opacity-100"
-                      : "opacity-100"
-                  }`}
+                );
+              }
+              return (
+                <NavLink
+                  key={item.slug}
+                  to={item.path}
+                  end={
+                    item.path === "/admin/employees" ||
+                    item.path === "/admin/dashboard" ||
+                    item.path === "/employee/dashboard"
+                  }
+                  onClick={() => isMobile && setIsOpen(false)}
+                  className={({ isActive }) =>
+                    `flex items-center gap-3 px-5 py-3 mx-2 rounded-xl transition-all duration-200 cursor-pointer whitespace-nowrap overflow-hidden ${
+                      isActive
+                        ? "bg-green-500/20 text-white"
+                        : "text-gray-400 hover:text-white hover:bg-white/10"
+                    }`
+                  }
                 >
-                  {item.label}
-                </span>
-              </NavLink>
-            );
-          })}
+                  <i className={item.icon + " w-6 text-lg flex-shrink-0"}></i>
+                  <span
+                    className={`transition-opacity duration-200 ${
+                      !isMobile && !isOpen
+                        ? "opacity-0 group-hover:opacity-100"
+                        : "opacity-100"
+                    }`}
+                  >
+                    {item.label}
+                  </span>
+                </NavLink>
+              );
+            })
+          )}
         </nav>
       </aside>
     </>

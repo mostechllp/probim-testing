@@ -8,10 +8,8 @@ import SearchBar from "../common/SearchBar";
 import EntriesSelector from "../common/EntriesSelector";
 import { showToast } from "../../../components/common/Toast";
 import Pagination from "../common/Paginations";
-import { fetchProjectReport } from "../../store/slices/reportSlice";
-import { fetchMonthlyHoursByProject, fetchEmployeeDetails, clearMonthlyHours } from "../../store/slices/dashboardSlice";
-import { exportToCSV } from "../../../utils/reportUtils";
-import { generateProjectReportPDF } from "../../../utils/reportPDFConfigs";
+import { fetchProjectReport, exportReport } from "../../store/slices/reportSlice";
+import { clearMonthlyHours } from "../../store/slices/dashboardSlice";
 import { ProjectHoursModal } from "../../components/dashboard/ProjectHoursModal";
 import ExportModal from "../../../components/common/ExportModal";
 import DateInput from "../common/DateInput";
@@ -44,6 +42,7 @@ const ProjectReport = () => {
     projectReportLastPage: lastPage = 1,
   } = useSelector((state) => state.reports || {});
   const { employees = [] } = useSelector((state) => state.employees || {});
+  const { exportLoading } = useSelector((state) => state.reports || {});
 
   // Local state
   const [searchTerm, setSearchTerm] = useState("");
@@ -106,8 +105,9 @@ const ProjectReport = () => {
       status: project.status || "Active",
       company_name: project.company_name || "-", 
       totalHours: project.total_hours || project.totalHours || 0,
-      // FIXED: Use employee_count from the API response
       totalEmployees: project.employee_count || project.total_employees || project.totalEmployees || 0,
+      plannedTotalCost: project.planned_total_cost || project.plannedTotalCost || 0,
+      actualCost: project.actual_cost || project.actualCost || 0,
       hoursByEmployee: project.employees || project.hoursByEmployee || [],
       originalData: project,
       raw: project,
@@ -130,10 +130,10 @@ const ProjectReport = () => {
   const inactiveProjects = transformedProjects.filter(p => p.status === "Inactive" || p.status === "inactive" || (p.status !== "Active" && p.status !== "active")).length;
   const totalHoursAllProjects = transformedProjects.reduce((sum, p) => sum + (p.totalHours || 0), 0);
   const projectsWithHours = transformedProjects.filter(p => (p.totalHours || 0) > 0).length;
-  const totalEmployeesAcrossProjects = transformedProjects.reduce((sum, p) => sum + (p.totalEmployees || 0), 0);
+  // Calculate total actual cost across all projects
+  const totalActualCost = transformedProjects.reduce((sum, p) => sum + (p.actualCost || 0), 0);
 
   const getStatusBadge = (status) => {
-    // Normalize status for comparison
     const normalizedStatus = status?.toLowerCase() || '';
     
     if (normalizedStatus === 'active') {
@@ -210,35 +210,28 @@ const ProjectReport = () => {
       projectId: p.id,
     }));
 
-  // Prepare export data
-  const getExportData = () => {
-    return transformedProjects.map(p => ({
-      project_id: p.id || "",
-      project_name: p.name || "",
-      status: p.status || "",
-      total_hours: (p.totalHours || 0).toFixed(1),
-      total_employees: p.totalEmployees || 0,
-    }));
-  };
-
+  // ─── HANDLE EXPORT USING BACKEND API ──────────────────────────────────
   const handleExport = async (format) => {
-    const exportData = getExportData();
-    const headers = [
-      { key: "project_id", label: "Project ID" },
-      { key: "project_name", label: "Project Name" },
-      { key: "status", label: "Status" },
-      { key: "total_hours", label: "Total Hours" },
-      { key: "total_employees", label: "Total Employees" },
-    ];
+    try {
+      const filters = {
+        start_date: appliedStartDate,
+        end_date: appliedEndDate,
+        status: appliedStatus !== "all" ? appliedStatus : undefined,
+        search: appliedSearchTerm || undefined,
+      };
 
-    if (format === "csv") {
-      exportToCSV(exportData, headers, `project_report_${new Date().toISOString().split("T")[0]}.csv`);
-    } else if (format === "pdf") {
-      generateProjectReportPDF(transformedProjects, {
-        status: appliedStatus !== "all" ? appliedStatus : null,
-      });
+      // Dispatch the export action
+      await dispatch(exportReport({
+        reportType: 'project',
+        format: format,
+        filters: filters,
+      })).unwrap();
+
+      showToast(`Project report exported successfully as ${format.toUpperCase()}`, "success");
+    } catch (error) {
+      console.error("Export error:", error);
+      showToast(error || "Failed to export report", "error");
     }
-    setShowExportModal(false);
   };
 
   const formatHours = (hours) => {
@@ -248,6 +241,12 @@ const ProjectReport = () => {
     if (h === 0) return `${m}m`;
     if (m === 0) return `${h}h`;
     return `${h}h ${m}m`;
+  };
+
+  // Format currency
+  const formatCurrency = (amount) => {
+    if (!amount || amount === 0) return "0.00";
+    return amount.toFixed(2);
   };
 
   // SVG Gradient for chart
@@ -276,8 +275,8 @@ const ProjectReport = () => {
           </p>
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 md:gap-4 mb-6">
+        {/* Stats Cards - Updated */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4 mb-6">
           <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
             <div className="flex items-center justify-between">
               <div>
@@ -337,27 +336,13 @@ const ProjectReport = () => {
           <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs text-gray-500 dark:text-gray-400">Total Employees</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">Total Actual Cost</p>
                 <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">
-                  {totalEmployeesAcrossProjects}
+                  {formatCurrency(totalActualCost)}
                 </p>
               </div>
               <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center">
-                <i className="fas fa-users text-purple-600 dark:text-purple-400"></i>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white dark:bg-gray-800 rounded-xl p-4 border border-gray-200 dark:border-gray-700">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-gray-500 dark:text-gray-400">Inactive Projects</p>
-                <p className="text-2xl font-bold text-gray-600 dark:text-gray-400">
-                  {inactiveProjects}
-                </p>
-              </div>
-              <div className="w-10 h-10 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center">
-                <i className="fas fa-stop-circle text-gray-600 dark:text-gray-400"></i>
+                <i className="fas fa-money-bill-wave text-purple-600 dark:text-purple-400"></i>
               </div>
             </div>
           </div>
@@ -441,16 +426,26 @@ const ProjectReport = () => {
             />
             <button
               onClick={() => setShowExportModal(true)}
-              className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-full text-sm font-semibold flex items-center justify-center gap-2 transition-all shadow-md hover:shadow-lg w-full sm:w-auto"
+              disabled={exportLoading}
+              className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-full text-sm font-semibold flex items-center justify-center gap-2 transition-all shadow-md hover:shadow-lg w-full sm:w-auto disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <i className="fas fa-download"></i> Export Report
+              {exportLoading ? (
+                <>
+                  <i className="fas fa-spinner fa-spin"></i>
+                  Exporting...
+                </>
+              ) : (
+                <>
+                  <i className="fas fa-download"></i> Export Report
+                </>
+              )}
             </button>
           </div>
         </div>
 
         {/* Projects Table */}
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-x-auto shadow-soft">
-          <div className="min-w-[800px]">
+          <div className="min-w-[900px]">
             <table className="w-full border-collapse">
               <thead>
                 <tr className="bg-gray-50 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700">
@@ -458,6 +453,8 @@ const ProjectReport = () => {
                   <th className="px-3 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400">Project Name</th>
                   <th className="px-3 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400">Total Hours</th>
                   <th className="px-3 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400">Employees</th>
+                  <th className="px-3 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400">Estimated Cost</th>
+                  <th className="px-3 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400">Actual Cost</th>
                   <th className="px-3 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400">Status</th>
                   <th className="px-3 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400">Action</th>
                 </tr>
@@ -483,6 +480,12 @@ const ProjectReport = () => {
                           <i className="fas fa-user text-indigo-500 text-xs"></i>
                           {project.totalEmployees || 0}
                         </span>
+                      </td>
+                      <td className="px-3 py-3 text-sm font-mono text-gray-700 dark:text-gray-300">
+                        {project.plannedTotalCost ? `${formatCurrency(project.plannedTotalCost)}` : "-"}
+                      </td>
+                      <td className="px-3 py-3 text-sm font-mono text-gray-700 dark:text-gray-300">
+                        {project.actualCost ? `${formatCurrency(project.actualCost)}` : "-"}
                       </td>
                       <td className="px-3 py-3">
                         <span className={`px-2 py-1 rounded-full text-xs font-semibold ${getStatusBadge(project.status)}`}>
@@ -511,7 +514,7 @@ const ProjectReport = () => {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan="6" className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
+                    <td colSpan="8" className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
                       {loading ? "Loading projects..." : "No projects found"}
                     </td>
                   </tr>
@@ -543,6 +546,7 @@ const ProjectReport = () => {
         totalRecords={transformedProjects.length}
         formats={["csv", "pdf"]}
         defaultFormat="csv"
+        loading={exportLoading}
       />
 
       {/* Project Hours Modal */}
