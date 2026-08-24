@@ -137,7 +137,8 @@ export const getAddressFromCoordinates = async (latitude, longitude) => {
       `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`,
       {
         headers: {
-          'Accept-Language': 'en-US,en;q=0.9'
+          'Accept-Language': 'en-US,en;q=0.9',
+          'User-Agent': 'Probim/1.0 (hr@yopmail.com)'
         }
       }
     );

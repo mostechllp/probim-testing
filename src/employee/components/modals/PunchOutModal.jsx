@@ -177,15 +177,17 @@ const PunchOutModal = ({
     }
   };
   useEffect(() => {
-  if (isOpen) {
-    if (punchOutDate) {
-      setPunchOutTime("18:00");
-    } else {
-      const now = new Date();
-      setPunchOutTime(`${String(now.getHours()).padStart(2,"0")}:${String(now.getMinutes()).padStart(2,"0")}`);
+    if (isOpen) {
+      if (punchOutDate) {
+        setPunchOutTime("18:00");
+      } else {
+        const now = new Date();
+        setPunchOutTime(
+          `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`,
+        );
+      }
     }
-  }
-}, [isOpen, punchOutDate]);
+  }, [isOpen, punchOutDate]);
 
   // Calculate working hours when modal opens or punch out time changes
   useEffect(() => {
@@ -462,10 +464,10 @@ const PunchOutModal = ({
     const taskReportSaved = await handleSaveTaskReport();
     if (!taskReportSaved) return;
 
-    // Create full datetime with timezone
     let punchOutDateTime = null;
     if (punchOutTime && punchOutDate) {
-      const dateStr = `${punchOutDate}T${punchOutTime}:00+05:30`;
+      // Just send the date and time without offset
+      const dateStr = `${punchOutDate} ${punchOutTime}:00`;
       punchOutDateTime = dateStr;
     }
 

@@ -449,8 +449,8 @@ const DeveloperTickets = () => {
       {/* ─── Page Header ────────────────────────────────────────────────── */}
       <div className="flex flex-wrap justify-between items-center mb-6">
         <div>
-          <h2 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-gray-800 to-purple-600 dark:from-gray-200 dark:to-purple-400 bg-clip-text text-transparent">
-            <i className="fas fa-ticket-alt mr-2 text-purple-500"></i> Developer Tickets
+          <h2 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-gray-800 to-green-600 dark:from-gray-200 dark:to-green-400 bg-clip-text text-transparent">
+            <i className="fas fa-ticket-alt mr-2 text-green-500"></i> Developer Tickets
           </h2>
           <p className="text-xs md:text-sm text-gray-500 dark:text-gray-400 mt-1">
             Manage and resolve support tickets {loading && <span className="inline-block ml-2 animate-spin">⟳</span>}
