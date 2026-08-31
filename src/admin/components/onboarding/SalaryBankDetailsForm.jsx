@@ -326,7 +326,7 @@ const SalaryBankDetailsForm = () => {
     });
 
     setValidationErrors((prev) => ({ ...prev, [pkgId]: "" }));
-    showToast(`${pkg.name} salary structure saved!`, "success");
+    showToast(`${pkg.name} Country Split saved!`, "success");
   };
 
   const handleEditPackage = (pkgId) => {

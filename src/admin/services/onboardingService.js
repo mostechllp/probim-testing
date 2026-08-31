@@ -72,7 +72,7 @@ class OnboardingService {
   }
 
   /**
-   * Step 3 – Save salary structure (components + payment cycle).
+   * Step 3 – Save Country Split (components + payment cycle).
    * POST api/admin/employees/onboard/salary
    */
   async saveSalary(payload) {
@@ -81,7 +81,7 @@ class OnboardingService {
       return response.data;
     } catch (error) {
       console.error('[Onboarding] saveSalary error:', error);
-      throw handleError(error, 'Failed to save salary structure');
+      throw handleError(error, 'Failed to save Country Split');
     }
   }
 

@@ -38,6 +38,50 @@ const convertTo12Hour = (time24) => {
   return `${h12}:${minutes} ${ampm}`;
 };
 
+// Helper to format time in a specific timezone
+const formatTimeInTimezone = (time, timezone) => {
+  if (!time) return "—";
+  try {
+    let date;
+    if (typeof time === "string" && time.includes("T")) {
+      date = new Date(time);
+    } else if (typeof time === "string" && time.match(/^\d{2}:\d{2}:\d{2}$/)) {
+      const now = new Date();
+      const [hours, minutes, seconds] = time.split(":");
+      date = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate(),
+        parseInt(hours),
+        parseInt(minutes),
+        parseInt(seconds)
+      );
+    } else {
+      date = new Date(time);
+    }
+
+    if (isNaN(date.getTime())) return time;
+    
+    // If timezone is provided, format in that timezone
+    if (timezone) {
+      return date.toLocaleTimeString("en-US", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+        timeZone: timezone,
+      });
+    }
+    
+    return date.toLocaleTimeString("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    });
+  } catch (error) {
+    return time;
+  }
+};
+
 // Punch Out Modal Component
 const PunchOutModal = ({
   isOpen,
@@ -47,15 +91,15 @@ const PunchOutModal = ({
   punchOutDate,
   punchData,
   pendingPunchData,
+  timezone, // ✅ Added timezone prop
 }) => {
   const dispatch = useDispatch();
   const [projects, setProjects] = useState([]);
   const [projectTimes, setProjectTimes] = useState({});
   const [loadingProjects, setLoadingProjects] = useState(false);
-  const [totalHours, setTotalHours] = useState(0);
+  const [totalMinutes, setTotalMinutes] = useState(0);
   const [confirmNoProjects, setConfirmNoProjects] = useState(false);
-  const [maxWorkingHours, setMaxWorkingHours] = useState(0);
-
+  const [maxWorkingMinutes, setMaxWorkingMinutes] = useState(0);
   // Punch out time state - stored as 24-hour time string
   const [punchOutTime, setPunchOutTime] = useState("");
 
@@ -79,12 +123,14 @@ const PunchOutModal = ({
   const punchInTime = todayAttendance.punch_in_time;
   const punchInDate = todayAttendance.date;
 
+  // Get the user's timezone from props or fallback
+  const userTimezone = timezone || 
+    todayAttendance?.timezone || 
+    Intl.DateTimeFormat().resolvedOptions().timeZone;
+
   // Combined fetch function for both projects and punch data
   const fetchData = async () => {
-    // employeeId → for project-assignments (keyed by employee record)
     const employeeId = dashboardData?.employee?.id || user?.employee?.id;
-
-    // userId → for punch-data (this endpoint expects the actual auth user id)
     const userId = user?.id;
 
     if (!employeeId) {
@@ -117,7 +163,6 @@ const PunchOutModal = ({
 
       const results = await Promise.all(promises);
 
-      // Process projects data (first result)
       const projectsRes = results[0];
       let projectsData = [];
       if (
@@ -140,7 +185,6 @@ const PunchOutModal = ({
       }
       setProjects(projectsData);
 
-      // Process punch data if available (second result)
       if (punchOutDate && userId && results.length > 1) {
         const punchDataRes = results[1];
         if (punchDataRes?.data?.data) {
@@ -176,24 +220,28 @@ const PunchOutModal = ({
       setLoadingPunchData(false);
     }
   };
+
   useEffect(() => {
     if (isOpen) {
       if (punchOutDate) {
         setPunchOutTime("18:00");
       } else {
         const now = new Date();
+        // Show current time in the user's timezone
+        const nowInTz = new Date().toLocaleString("en-US", { timeZone: userTimezone });
+        const tzDate = new Date(nowInTz);
         setPunchOutTime(
-          `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`,
+          `${String(tzDate.getHours()).padStart(2, "0")}:${String(tzDate.getMinutes()).padStart(2, "0")}`,
         );
       }
     }
-  }, [isOpen, punchOutDate]);
+  }, [isOpen, punchOutDate, userTimezone]);
 
   // Calculate working hours when modal opens or punch out time changes
   useEffect(() => {
     if (isOpen) {
       calculateWorkingHours();
-      fetchData(); // Now fetches both projects and punch data
+      fetchData();
     }
     return () => {
       setConfirmNoProjects(false);
@@ -201,15 +249,14 @@ const PunchOutModal = ({
       setPlanTomorrow("");
       setRemarks("");
       setPunchOutTime("");
-      setTotalHours(0);
-      setMaxWorkingHours(0);
+      setTotalMinutes(0);
+      setMaxWorkingMinutes(0);
       setProjectTimes({});
       setProjects([]);
       setFetchedPunchData(null);
     };
   }, [isOpen]);
 
-  // Recalculate when punch out time changes
   useEffect(() => {
     if (isOpen && punchOutTime) {
       calculateWorkingHours();
@@ -224,8 +271,6 @@ const PunchOutModal = ({
 
   // Calculate working hours from punch in time and punch out time
   const calculateWorkingHours = () => {
-    // Use the fetched punch-in time for the target date when punching out
-    // for a past date; otherwise fall back to today's live punch-in time.
     const activePunchInTime = punchOutDate
       ? fetchedPunchData?.punch_in ||
         pendingPunchData?.punch_in ||
@@ -233,7 +278,7 @@ const PunchOutModal = ({
       : punchInTime;
 
     if (!activePunchInTime) {
-      setMaxWorkingHours(0);
+      setMaxWorkingMinutes(0);
       return;
     }
 
@@ -254,7 +299,6 @@ const PunchOutModal = ({
             if (meridian.toLowerCase() === "pm" && hours !== 12) hours += 12;
             if (meridian.toLowerCase() === "am" && hours === 12) hours = 0;
 
-            // Use punchOutDate as the base date if provided, else today
             const baseDate = punchOutDate ? new Date(punchOutDate) : new Date();
             punchInDateObj = new Date(
               baseDate.getFullYear(),
@@ -291,12 +335,12 @@ const PunchOutModal = ({
 
       if (isNaN(punchInDateObj.getTime())) {
         console.warn("Invalid punch in time:", activePunchInTime);
-        setMaxWorkingHours(0);
+        setMaxWorkingMinutes(0);
         return;
       }
     } catch (error) {
       console.error("Error parsing punch in time:", error);
-      setMaxWorkingHours(0);
+      setMaxWorkingMinutes(0);
       return;
     }
 
@@ -340,43 +384,50 @@ const PunchOutModal = ({
     }
 
     const diffMs = punchOutDateObj - punchInDateObj;
-    const diffHours = diffMs / (1000 * 60 * 60);
-    const roundedHours = Math.round(diffHours * 100) / 100;
-    const maxHours = Math.max(0, Math.min(roundedHours, 24));
-    setMaxWorkingHours(maxHours);
+    const diffMinutesTotal = diffMs / (1000 * 60);
+    const maxMinutes = Math.max(0, Math.min(Math.floor(diffMinutesTotal), 24 * 60));
+    setMaxWorkingMinutes(maxMinutes);
   };
 
   // Calculate total hours whenever project times change
   useEffect(() => {
-    let total = 0;
+    let totalMin = 0;
     Object.values(projectTimes).forEach((time) => {
-      if (time) {
-        const num = parseFloat(time);
-        if (!isNaN(num)) total += num;
-      }
+      const num = parseInt(time, 10);
+      if (!isNaN(num)) totalMin += num;
     });
-    const roundedTotal = Math.round(total * 100) / 100;
-    setTotalHours(roundedTotal);
+    setTotalMinutes(totalMin);
   }, [projectTimes]);
 
   // Set default punch out time when modal opens
   useEffect(() => {
     if (isOpen) {
       if (punchOutDate) {
-        // For past date, default to 6:00 PM (18:00)
         setPunchOutTime("18:00");
       } else {
-        // For today, use current time
         const now = new Date();
-        const hours = String(now.getHours()).padStart(2, "0");
-        const minutes = String(now.getMinutes()).padStart(2, "0");
+        // Show current time in the user's timezone
+        const nowInTz = new Date().toLocaleString("en-US", { timeZone: userTimezone });
+        const tzDate = new Date(nowInTz);
+        const hours = String(tzDate.getHours()).padStart(2, "0");
+        const minutes = String(tzDate.getMinutes()).padStart(2, "0");
         setPunchOutTime(`${hours}:${minutes}`);
       }
     }
-  }, [isOpen, punchOutDate]);
+  }, [isOpen, punchOutDate, userTimezone]);
 
   const handleTimeChange = (projectId, time) => {
-    setProjectTimes((prev) => ({ ...prev, [projectId]: time }));
+    if (time === "" || time === null || time === undefined) {
+      setProjectTimes((prev) => ({ ...prev, [projectId]: "" }));
+      return;
+    }
+    
+    const num = parseFloat(time);
+    if (!isNaN(num) && num >= 0) {
+      setProjectTimes((prev) => ({ ...prev, [projectId]: time }));
+    } else if (time === "" || time === "." || time === "0") {
+      setProjectTimes((prev) => ({ ...prev, [projectId]: time }));
+    }
   };
 
   // Handle saving task report
@@ -411,10 +462,8 @@ const PunchOutModal = ({
   // Check if at least one project has hours entered
   const isAtLeastOneProjectFilled = () => {
     if (projects.length === 0) {
-      // If no projects, use the confirmNoProjects checkbox
       return confirmNoProjects;
     }
-    // Check if at least one project has time entered (and > 0)
     return projects.some((project) => {
       const time = projectTimes[project.id];
       return time && time.trim() !== "" && parseFloat(time) > 0;
@@ -424,54 +473,73 @@ const PunchOutModal = ({
   // Check if total hours is valid (not exceeding max)
   const isTotalHoursValid = () => {
     if (projects.length === 0) return true;
-    if (totalHours === 0) return false;
-    if (maxWorkingHours > 0 && totalHours > maxWorkingHours) return false;
-    return true;
-  };
-
-  // Check if form is valid for submission
-  const isFormValid = () => {
-    // Check punch out time for past date
-    if (punchOutDate && (!punchOutTime || punchOutTime === "00:00")) {
-      return false;
-    }
-    // Check if at least one project has hours
-    if (!isAtLeastOneProjectFilled()) return false;
-    // Check total hours validity
-    if (!isTotalHoursValid()) return false;
+    if (totalMinutes === 0) return false;
+    if (maxWorkingMinutes > 0 && totalMinutes > maxWorkingMinutes) return false;
     return true;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Validate total hours against max working hours
-    if (maxWorkingHours > 0 && totalHours > maxWorkingHours) {
+    if (maxWorkingMinutes > 0 && totalMinutes > maxWorkingMinutes) {
       showToast(
-        `Total hours (${totalHours}) exceeds your working hours (${maxWorkingHours})`,
+        `Total hours (${totalMinutes}) exceeds your working hours (${maxWorkingMinutes})`,
         "error",
       );
       return;
     }
 
-    // Validate punch out time for past date
     if (punchOutDate && (!punchOutTime || punchOutTime === "00:00")) {
       showToast("Please enter the punch out time for " + punchOutDate, "error");
       return;
     }
 
-    // First, save the task report
     const taskReportSaved = await handleSaveTaskReport();
     if (!taskReportSaved) return;
 
     let punchOutDateTime = null;
-    if (punchOutTime && punchOutDate) {
-      // Just send the date and time without offset
-      const dateStr = `${punchOutDate} ${punchOutTime}:00`;
-      punchOutDateTime = dateStr;
+    
+    if (punchOutTime) {
+      const dateToUse = punchOutDate || new Date().toISOString().split('T')[0];
+      const timeToUse = punchOutTime || new Date().toTimeString().slice(0, 5);
+      
+      // Get the correct timezone offset for the user's timezone
+      let offsetStr = '';
+      try {
+        const dateObj = new Date(`${dateToUse}T${timeToUse}:00`);
+        const formatter = new Intl.DateTimeFormat('en', {
+          timeZone: userTimezone,
+          timeZoneName: 'shortOffset',
+        });
+        const parts = formatter.formatToParts(dateObj);
+        const offsetPart = parts.find(p => p.type === 'timeZoneName');
+        if (offsetPart) {
+          const match = offsetPart.value.match(/([+-])(\d{2}):?(\d{2})?/);
+          if (match) {
+            const sign = match[1] === '+' ? '' : '-';
+            const hours = match[2] || '00';
+            const mins = match[3] || '00';
+            offsetStr = `${sign}${hours}:${mins}`;
+          }
+        }
+      } catch (error) {
+        console.warn('Could not parse timezone offset, using browser offset');
+        const tzOffset = -new Date().getTimezoneOffset();
+        const offsetHours = Math.floor(Math.abs(tzOffset) / 60);
+        const offsetMins = Math.abs(tzOffset) % 60;
+        const offsetSign = tzOffset >= 0 ? '+' : '-';
+        offsetStr = `${offsetSign}${String(offsetHours).padStart(2, '0')}:${String(offsetMins).padStart(2, '0')}`;
+      }
+      
+      punchOutDateTime = `${dateToUse}T${timeToUse}:00${offsetStr}`;
+    } else {
+      const now = new Date();
+      punchOutDateTime = now.toISOString();
     }
 
-    // If no projects assigned
+    console.log("📤 Submitting punch_out_time with timezone:", punchOutDateTime);
+    console.log("📤 User timezone:", userTimezone);
+
     if (projects.length === 0) {
       if (!confirmNoProjects) {
         setConfirmNoProjects(true);
@@ -494,8 +562,8 @@ const PunchOutModal = ({
 
     onSubmit({
       project_times: projectTimes,
-      total_hours: totalHours,
-      max_working_hours: maxWorkingHours,
+      total_hours: totalMinutes,
+      max_working_hours: maxWorkingMinutes,
       punch_out_date: punchOutDate || null,
       punch_out_time: punchOutDateTime,
       task_report: {
@@ -510,17 +578,14 @@ const PunchOutModal = ({
     setProjectTimes({});
   };
 
-  const formatTimeDisplay = (time) => {
-    if (!time) return "0 hrs";
-    const num = parseFloat(time);
-    if (isNaN(num) || num === 0) return "0 hrs";
-
-    const hours = Math.floor(num);
-    const minutes = Math.round((num - hours) * 60);
-
-    if (hours === 0) return `${minutes} min`;
-    if (minutes === 0) return `${hours} hr${hours > 1 ? "s" : ""}`;
-    return `${hours} hr ${minutes} min`;
+  const formatTimeDisplay = (minutesVal) => {
+    const num = parseInt(minutesVal, 10);
+    if (!minutesVal || isNaN(num) || num === 0) return "0 min";
+    const hours = Math.floor(num / 60);
+    const mins = num % 60;
+    if (hours === 0) return `${mins} min`;
+    if (mins === 0) return `${hours} hr${hours > 1 ? "s" : ""}`;
+    return `${hours} hr ${mins} min`;
   };
 
   // Format date for display
@@ -539,60 +604,24 @@ const PunchOutModal = ({
     }
   };
 
-  // Helper to format punch time
+  // Helper to format punch time in user's timezone
   const formatPunchTime = (time) => {
-    if (!time) return "—";
-    try {
-      let date;
-      if (typeof time === "string" && time.match(/^\d{2}:\d{2}:\d{2}$/)) {
-        const now = new Date();
-        const [hours, minutes, seconds] = time.split(":");
-        date = new Date(
-          now.getFullYear(),
-          now.getMonth(),
-          now.getDate(),
-          parseInt(hours),
-          parseInt(minutes),
-          parseInt(seconds),
-        );
-      } else if (typeof time === "string" && time.includes("T")) {
-        date = new Date(time);
-      } else if (time instanceof Date) {
-        date = time;
-      } else {
-        date = new Date(time);
-      }
-
-      if (isNaN(date.getTime())) return time;
-      return date.toLocaleTimeString("en-US", {
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: true,
-      });
-    } catch (error) {
-      return time;
-    }
+    return formatTimeInTimezone(time, userTimezone);
   };
 
-  // Update the formatWorkingHours function to handle the display better
-  const formatWorkingHours = (hours) => {
-    if (!hours || hours <= 0) return "0 hrs";
-
-    const hrs = Math.floor(hours);
-    const mins = Math.round((hours - hrs) * 60);
-
+  const formatWorkingHours = (totalMin) => {
+    if (!totalMin || totalMin <= 0) return "0 min";
+    const hrs = Math.floor(totalMin / 60);
+    const mins = totalMin % 60;
     if (hrs === 0) return `${mins} min`;
     if (mins === 0) return `${hrs} hr${hrs > 1 ? "s" : ""}`;
     return `${hrs} hr ${mins} min`;
   };
 
-  // Add a new function to format decimal hours to hours and minutes for display
-  const formatHoursAndMinutes = (hours) => {
-    if (!hours || hours <= 0) return "0h 0m";
-
-    const hrs = Math.floor(hours);
-    const mins = Math.round((hours - hrs) * 60);
-
+  const formatHoursAndMinutes = (totalMin) => {
+    if (!totalMin || totalMin <= 0) return "0h 0m";
+    const hrs = Math.floor(totalMin / 60);
+    const mins = totalMin % 60;
     if (hrs === 0 && mins === 0) return "0h 0m";
     if (hrs === 0) return `${mins}m`;
     if (mins === 0) return `${hrs}h`;
@@ -604,7 +633,6 @@ const PunchOutModal = ({
     const data = fetchedPunchData || pendingPunchData || punchData;
     if (!data) return null;
 
-    // Only show the location row if we actually have something to show
     const hasLocation =
       data.punch_in_location &&
       (data.punch_in_location.address ||
@@ -627,7 +655,10 @@ const PunchOutModal = ({
           <div>
             <span className="text-[var(--muted)]">Punch In Time:</span>
             <span className="ml-2 font-medium text-[var(--text)]">
-              {data.punch_in || "—"}
+              {data.punch_in ? formatPunchTime(data.punch_in) : "—"}
+            </span>
+            <span className="ml-1 text-[10px] text-[var(--muted)]">
+              ({userTimezone})
             </span>
           </div>
           <div>
@@ -670,7 +701,6 @@ const PunchOutModal = ({
     );
   };
 
-  // Punch-in time to *display* — mirrors the logic used in calculateWorkingHours
   const displayPunchInTime = punchOutDate
     ? fetchedPunchData?.punch_in ||
       pendingPunchData?.punch_in ||
@@ -679,24 +709,19 @@ const PunchOutModal = ({
 
   if (!isOpen) return null;
 
-  // Check if form is valid for submit button
   const isSubmitDisabled = () => {
     if (loading || savingTaskReport) return true;
     if (projects.length > 0) {
-      // Check if at least one project has hours filled
       const atLeastOneFilled = projects.some((project) => {
         const time = projectTimes[project.id];
         return time && time.trim() !== "" && parseFloat(time) > 0;
       });
       if (!atLeastOneFilled) return true;
-      // Check total hours
-      if (totalHours === 0) return true;
-      if (maxWorkingHours > 0 && totalHours > maxWorkingHours) return true;
+      if (totalMinutes === 0) return true;
+      if (maxWorkingMinutes > 0 && totalMinutes > maxWorkingMinutes) return true;
     } else {
-      // No projects - need confirmation
       if (!confirmNoProjects) return true;
     }
-    // Check punch out time for past date
     if (punchOutDate && (!punchOutTime || punchOutTime === "00:00"))
       return true;
     return false;
@@ -717,6 +742,9 @@ const PunchOutModal = ({
                 ? `Record your work and tasks for ${formatDisplayDate(punchOutDate)}`
                 : "Record your work and tasks for today"}
             </p>
+            <p className="text-[10px] text-[var(--muted)] mt-0.5">
+              Timezone: {userTimezone}
+            </p>
           </div>
           <button
             onClick={onClose}
@@ -727,7 +755,6 @@ const PunchOutModal = ({
         </div>
 
         <form onSubmit={handleSubmit} className="p-5 flex-1 overflow-y-auto">
-          {/* Render punch data section */}
           {renderPunchData()}
 
           {/* Punch Out Time Field */}
@@ -745,6 +772,9 @@ const PunchOutModal = ({
                 </span>
               )}
               {punchOutDate && <span className="text-red-500 ml-1">*</span>}
+              <span className="text-[10px] text-[var(--muted)] ml-2">
+                ({userTimezone})
+              </span>
             </label>
             <div className="flex items-center gap-3">
               <div className="w-40">
@@ -762,7 +792,7 @@ const PunchOutModal = ({
               </span>
             </div>
             <div className="mt-2 text-xs text-[var(--muted)]">
-              Select the time you punched out (24-hour format)
+              Select the time you punched out (24-hour format) in {userTimezone}
             </div>
           </div>
 
@@ -849,6 +879,9 @@ const PunchOutModal = ({
                       ? formatPunchTime(displayPunchInTime)
                       : "—"}
                   </span>
+                  <span className="ml-1 text-[10px] text-[var(--muted)]">
+                    ({userTimezone})
+                  </span>
                 </div>
                 <div>
                   <span className="text-sm font-semibold text-[var(--text)]">
@@ -856,6 +889,9 @@ const PunchOutModal = ({
                   </span>
                   <span className="ml-2 text-sm text-[var(--text)]">
                     {punchOutTime ? convertTo12Hour(punchOutTime) : "—"}
+                  </span>
+                  <span className="ml-1 text-[10px] text-[var(--muted)]">
+                    ({userTimezone})
                   </span>
                 </div>
               </div>
@@ -866,8 +902,8 @@ const PunchOutModal = ({
                     Total Working Hours:
                   </span>
                   <span className="ml-2 text-lg font-bold text-blue-500">
-                    {maxWorkingHours > 0
-                      ? formatHoursAndMinutes(maxWorkingHours)
+                    {maxWorkingMinutes > 0
+                      ? formatHoursAndMinutes(maxWorkingMinutes)
                       : "—"}
                   </span>
                 </div>
@@ -876,27 +912,27 @@ const PunchOutModal = ({
                     Allocated:
                   </span>
                   <span
-                    className={`ml-2 text-lg font-bold ${totalHours > maxWorkingHours ? "text-red-500" : totalHours === 0 ? "text-gray-400" : "text-green-500"}`}
+                    className={`ml-2 text-lg font-bold ${totalMinutes > maxWorkingMinutes ? "text-red-500" : totalMinutes === 0 ? "text-gray-400" : "text-green-500"}`}
                   >
-                    {formatHoursAndMinutes(totalHours)}
+                    {formatHoursAndMinutes(totalMinutes)}
                   </span>
                 </div>
               </div>
 
-              {maxWorkingHours > 0 && totalHours > 0 && (
+              {maxWorkingMinutes > 0 && totalMinutes > 0 && (
                 <div className="mt-2">
                   <div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                     <div
-                      className={`h-full transition-all duration-300 ${totalHours > maxWorkingHours ? "bg-red-500" : "bg-green-500"}`}
+                      className={`h-full transition-all duration-300 ${totalMinutes > maxWorkingMinutes ? "bg-red-500" : "bg-green-500"}`}
                       style={{
-                        width: `${Math.min((totalHours / maxWorkingHours) * 100, 100)}%`,
+                        width: `${Math.min((totalMinutes / maxWorkingMinutes) * 100, 100)}%`,
                       }}
                     ></div>
                   </div>
                   <div className="text-xs text-[var(--muted)] mt-1">
-                    {totalHours > maxWorkingHours
-                      ? `⚠️ Over by ${formatHoursAndMinutes(totalHours - maxWorkingHours)}`
-                      : `${formatHoursAndMinutes(maxWorkingHours - totalHours)} remaining`}
+                    {totalMinutes > maxWorkingMinutes
+                      ? `⚠️ Over by ${formatHoursAndMinutes(totalMinutes - maxWorkingMinutes)}`
+                      : `${formatHoursAndMinutes(maxWorkingMinutes - totalMinutes)} remaining`}
                   </div>
                 </div>
               )}
@@ -905,7 +941,7 @@ const PunchOutModal = ({
             {projects.length > 0 && (
               <p className="text-xs text-[var(--muted)] mb-3">
                 Enter the time you spent working on each project (max{" "}
-                {formatWorkingHours(maxWorkingHours)} hours total)
+                {formatWorkingHours(maxWorkingMinutes)} total)
                 <span className="text-red-500 ml-1">*</span>
                 <span className="text-[var(--muted)] ml-1">
                   (Fill at least one project)
@@ -980,7 +1016,7 @@ const PunchOutModal = ({
                             onChange={(e) =>
                               handleTimeChange(project.id, e.target.value)
                             }
-                            maxHours={maxWorkingHours}
+                            maxHours={maxWorkingMinutes}
                             className="text-sm"
                           />
                         </div>
@@ -1007,7 +1043,7 @@ const PunchOutModal = ({
                   </span>
                 </div>
               )}
-              {totalHours === 0 && isAtLeastOneProjectFilled() && (
+              {totalMinutes === 0 && isAtLeastOneProjectFilled() && (
                 <div className="p-3 bg-yellow-500/10 rounded-xl border border-yellow-500/20 flex items-center gap-2">
                   <FiAlertCircle className="text-yellow-500 flex-shrink-0" />
                   <span className="text-sm text-yellow-600 dark:text-yellow-400">
@@ -1015,12 +1051,12 @@ const PunchOutModal = ({
                   </span>
                 </div>
               )}
-              {totalHours > maxWorkingHours && maxWorkingHours > 0 && (
+              {totalMinutes > maxWorkingMinutes && maxWorkingMinutes > 0 && (
                 <div className="p-3 bg-red-500/10 rounded-xl border border-red-500/20 flex items-center gap-2">
                   <FiAlertCircle className="text-red-500 flex-shrink-0" />
                   <span className="text-sm text-red-600 dark:text-red-400">
-                    Total hours ({formatHoursAndMinutes(totalHours)}) exceeds
-                    working hours ({formatHoursAndMinutes(maxWorkingHours)})
+                    Total hours ({formatHoursAndMinutes(totalMinutes)}) exceeds
+                    working hours ({formatHoursAndMinutes(maxWorkingMinutes)})
                   </span>
                 </div>
               )}
@@ -1089,12 +1125,10 @@ const TaskReportsList = () => {
     error = null,
   } = taskReportsState;
 
-  // Fetch task reports on component mount
   useEffect(() => {
     dispatch(fetchTaskReports());
   }, [dispatch]);
 
-  // Handle errors
   useEffect(() => {
     if (error) {
       showToast(error, "error");
@@ -1102,7 +1136,6 @@ const TaskReportsList = () => {
     }
   }, [error, dispatch]);
 
-  // Filter and paginate reports
   const filteredReports = Array.isArray(taskReports)
     ? taskReports.filter((report) => {
         if (!search) return true;
@@ -1172,14 +1205,12 @@ const TaskReportsList = () => {
 
   return (
     <div className="task-reports-container">
-      {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-5 mb-7">
         <h2 className="text-xl md:text-2xl font-semibold bg-gradient-to-r from-[var(--text)] to-green-600 bg-clip-text text-transparent">
           My Task Reports
         </h2>
       </div>
 
-      {/* Action Bar */}
       <div className="files-actions flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-5">
         <div className="entries-select flex items-center gap-2.5 bg-[var(--surface)] border border-[var(--border)] rounded-full px-3.5 py-1.5 text-xs text-[var(--text-secondary)]">
           <span>Show entries</span>
@@ -1208,7 +1239,6 @@ const TaskReportsList = () => {
         </div>
       </div>
 
-      {/* Task Reports Table */}
       <div className="task-reports-table-wrapper bg-[var(--surface)] rounded-xl border border-[var(--border)] overflow-x-auto shadow-sm">
         <table className="task-reports-table w-full border-collapse text-xs min-w-[800px]">
           <thead>
@@ -1285,7 +1315,6 @@ const TaskReportsList = () => {
         </table>
       </div>
 
-      {/* Pagination */}
       {filteredReports.length > 0 && (
         <div className="pagination-container flex flex-col sm:flex-row justify-between items-center gap-3 mt-5">
           <div className="text-xs text-[var(--muted)]">
@@ -1332,4 +1361,4 @@ const TaskReportsList = () => {
 };
 
 export { PunchOutModal, TaskReportsList };
-export default PunchOutModal;
+export default PunchOutModal; 

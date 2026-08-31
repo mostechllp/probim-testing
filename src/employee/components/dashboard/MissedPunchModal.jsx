@@ -1,11 +1,13 @@
 // file: src/employee/components/modals/MissedPunchModal.jsx
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { showToast } from "../../../components/common/Toast";
 import apiClient from "../../../utils/apiClient";
 import { fetchDashboardData } from "../../store/slices/attendanceSlice";
 import { TimeInputWorking } from "../common/TimeInputForWorkingHrs";
+import MapView from "../common/MapView";
+import { storeLocationData, getStoredLocationData } from "../../services/locationStorage";
 
 // Re-use the formatDateDisplay helper or import it
 const formatDateDisplay = (dateString) => {
@@ -27,24 +29,24 @@ const getBrowserTimezone = () => {
   return Intl.DateTimeFormat().resolvedOptions().timeZone;
 };
 
-// Format hours and minutes
-const formatHoursAndMinutes = (hours) => {
-  if (!hours || hours <= 0) return "0h 0m";
-  const hrs = Math.floor(hours);
-  const mins = Math.round((hours - hrs) * 60);
+// The formatHoursAndMinutes function already works with minutes
+const formatHoursAndMinutes = (minutes) => {
+  if (!minutes || minutes <= 0) return "0h 0m";
+  const hrs = Math.floor(minutes / 60);
+  const mins = minutes % 60;
   if (hrs === 0 && mins === 0) return "0h 0m";
   if (hrs === 0) return `${mins}m`;
   if (mins === 0) return `${hrs}h`;
   return `${hrs}h ${mins}m`;
 };
 
-// Format time display
+// Replace the formatTimeDisplay function with this version that handles minutes
 const formatTimeDisplay = (time) => {
-  if (!time) return "0 hrs";
+  if (!time) return "0 min";
   const num = parseFloat(time);
-  if (isNaN(num) || num === 0) return "0 hrs";
-  const hours = Math.floor(num);
-  const minutes = Math.round((num - hours) * 60);
+  if (isNaN(num) || num === 0) return "0 min";
+  const hours = Math.floor(num / 60);
+  const minutes = num % 60;
   if (hours === 0) return `${minutes} min`;
   if (minutes === 0) return `${hours} hr${hours > 1 ? "s" : ""}`;
   return `${hours} hr ${minutes} min`;
@@ -60,12 +62,14 @@ const convertTo12Hour = (time24) => {
   return `${h12}:${minutes} ${ampm}`;
 };
 
-const MissedPunchModal = ({ 
-  isOpen, 
-  onClose, 
-  selectedDate,
-  onSuccess 
-}) => {
+// Extract country from address
+const extractCountryFromAddress = (address) => {
+  if (!address) return "Unknown";
+  const parts = address.split(",").map(s => s.trim());
+  return parts[parts.length - 1] || "Unknown";
+};
+
+const MissedPunchModal = ({ isOpen, onClose, selectedDate, onSuccess }) => {
   const dispatch = useDispatch();
   const { user } = useSelector((state) => state.auth);
   const dashboardData = useSelector(
@@ -75,7 +79,6 @@ const MissedPunchModal = ({
   const [punchInTime, setPunchInTime] = useState("");
   const [punchOutTime, setPunchOutTime] = useState("");
   const [reason, setReason] = useState("");
-  // Request type is now fixed to "missed_punch_in" and disabled
   const [requestType] = useState("missed_punch_in");
   const [projects, setProjects] = useState([]);
   const [projectTimes, setProjectTimes] = useState({});
@@ -85,6 +88,20 @@ const MissedPunchModal = ({
   const [maxWorkingHours, setMaxWorkingHours] = useState(0);
   const [totalHours, setTotalHours] = useState(0);
   const [confirmNoProjects, setConfirmNoProjects] = useState(false);
+
+  // Location states
+  const [location, setLocation] = useState(null);
+  const [isLoadingLocation, setIsLoadingLocation] = useState(false);
+  const [showLocationPicker, setShowLocationPicker] = useState(false);
+  const [editingLocation, setEditingLocation] = useState(false);
+  const [tempLocation, setTempLocation] = useState(null);
+  
+  // Search location states
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [showSearchResults, setShowSearchResults] = useState(false);
+  const searchTimeoutRef = useRef(null);
 
   // Get employee ID for fetching projects
   const employeeId = dashboardData?.employee?.id || user?.employee?.id;
@@ -157,11 +174,47 @@ const MissedPunchModal = ({
     }
 
     const diffMs = punchOutDateObj - punchInDateObj;
-    const diffHours = diffMs / (1000 * 60 * 60);
-    const roundedHours = Math.round(diffHours * 100) / 100;
-    const maxHours = Math.max(0, Math.min(roundedHours, 24));
-    setMaxWorkingHours(maxHours);
+    const diffMinutes = diffMs / (1000 * 60);
+    const maxMinutes = Math.max(0, Math.min(Math.floor(diffMinutes), 24 * 60));
+    setMaxWorkingHours(maxMinutes);
   };
+
+  // Auto-cap project times when maxWorkingHours changes or total exceeds it
+  useEffect(() => {
+    if (maxWorkingHours > 0 && Object.keys(projectTimes).length > 0) {
+      let total = 0;
+      Object.values(projectTimes).forEach((time) => {
+        if (time) {
+          const num = parseFloat(time);
+          if (!isNaN(num)) total += num;
+        }
+      });
+      
+      if (total > maxWorkingHours) {
+        let newTotal = 0;
+        const cappedTimes = { ...projectTimes };
+        let lastProjectId = null;
+        
+        for (const [id, time] of Object.entries(projectTimes)) {
+          if (time && parseFloat(time) > 0) {
+            lastProjectId = id;
+          }
+        }
+        
+        if (lastProjectId) {
+          for (const [id, time] of Object.entries(projectTimes)) {
+            if (id !== lastProjectId && time && parseFloat(time) > 0) {
+              newTotal += parseFloat(time);
+            }
+          }
+          
+          const remaining = Math.max(0, maxWorkingHours - newTotal);
+          cappedTimes[lastProjectId] = String(Math.round(remaining));
+          setProjectTimes(cappedTimes);
+        }
+      }
+    }
+  }, [maxWorkingHours, projectTimes]);
 
   // Recalculate working hours when punch in/out times change
   useEffect(() => {
@@ -174,14 +227,212 @@ const MissedPunchModal = ({
   useEffect(() => {
     if (isOpen && employeeId) {
       fetchProjects();
+      // Get stored location if available
+      const storedLocation = getStoredLocationData();
+      if (storedLocation) {
+        setLocation(storedLocation);
+      } else {
+        // Or get from dashboard data
+        const punchLocation = dashboardData?.today_attendance?.punch_in_location;
+        if (punchLocation) {
+          setLocation({
+            latitude: punchLocation.latitude,
+            longitude: punchLocation.longitude,
+            address: punchLocation.address || "Unknown location",
+            work_location: punchLocation.work_location || extractCountryFromAddress(punchLocation.address),
+          });
+        }
+      }
     }
   }, [isOpen, employeeId]);
 
+  // Get user's current location
+  const getCurrentLocation = () => {
+    setIsLoadingLocation(true);
+    
+    if (!navigator.geolocation) {
+      showToast("Geolocation is not supported by your browser", "error");
+      setIsLoadingLocation(false);
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        try {
+          const { latitude, longitude } = position.coords;
+          
+          // Reverse geocode to get address
+          const response = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`
+          );
+          const data = await response.json();
+          
+          const address = data.display_name || `${latitude}, ${longitude}`;
+          const country = extractCountryFromAddress(address);
+          
+          const locationData = {
+            latitude,
+            longitude,
+            address,
+            work_location: country,
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+            timezone_offset_minutes: -new Date().getTimezoneOffset(),
+          };
+          
+          setLocation(locationData);
+          storeLocationData(locationData);
+          showToast("Location fetched successfully", "success");
+        } catch (error) {
+          console.error("Error getting address:", error);
+          // Fallback: use coordinates only
+          const locationData = {
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+            address: `${position.coords.latitude}, ${position.coords.longitude}`,
+            work_location: "Unknown",
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+            timezone_offset_minutes: -new Date().getTimezoneOffset(),
+          };
+          setLocation(locationData);
+          storeLocationData(locationData);
+        }
+        setIsLoadingLocation(false);
+      },
+      (error) => {
+        console.error("Error getting location:", error);
+        showToast("Unable to get location. Please check your permissions.", "error");
+        setIsLoadingLocation(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
+
+  // Search for locations using Nominatim
+  const searchLocation = async (query) => {
+    if (!query || query.trim().length < 2) {
+      setSearchResults([]);
+      setShowSearchResults(false);
+      return;
+    }
+
+    setIsSearching(true);
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5&addressdetails=1`
+      );
+      const data = await response.json();
+      
+      const results = data.map((item) => ({
+        lat: parseFloat(item.lat),
+        lon: parseFloat(item.lon),
+        display_name: item.display_name,
+        address: item.display_name,
+        class: item.class,
+        type: item.type,
+      }));
+      
+      setSearchResults(results);
+      setShowSearchResults(results.length > 0);
+    } catch (error) {
+      console.error("Error searching location:", error);
+      setSearchResults([]);
+      setShowSearchResults(false);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  // Handle search input with debounce
+  const handleSearchChange = (e) => {
+    const query = e.target.value;
+    setSearchQuery(query);
+    
+    // Clear previous timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+    
+    // Debounce search
+    searchTimeoutRef.current = setTimeout(() => {
+      searchLocation(query);
+    }, 500);
+  };
+
+  // Select a location from search results
+  const selectSearchResult = (result) => {
+    const country = extractCountryFromAddress(result.address);
+    const locationData = {
+      latitude: result.lat,
+      longitude: result.lon,
+      address: result.address,
+      work_location: country,
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      timezone_offset_minutes: -new Date().getTimezoneOffset(),
+    };
+    
+    setTempLocation(locationData);
+    setSearchQuery("");
+    setSearchResults([]);
+    setShowSearchResults(false);
+    showToast("Location selected from search", "success");
+  };
+
+  // Open location picker for editing
+  const openLocationPicker = () => {
+    setTempLocation(location ? { ...location } : null);
+    setEditingLocation(true);
+    setShowLocationPicker(true);
+    setSearchQuery("");
+    setSearchResults([]);
+    setShowSearchResults(false);
+  };
+
+  // Save location from picker
+  const saveLocation = () => {
+    if (tempLocation) {
+      setLocation(tempLocation);
+      storeLocationData(tempLocation);
+      showToast("Location updated successfully", "success");
+    }
+    setShowLocationPicker(false);
+    setEditingLocation(false);
+    setSearchQuery("");
+    setSearchResults([]);
+    setShowSearchResults(false);
+  };
+
+  // Cancel location editing
+  const cancelLocationEdit = () => {
+    setShowLocationPicker(false);
+    setEditingLocation(false);
+    setTempLocation(null);
+    setSearchQuery("");
+    setSearchResults([]);
+    setShowSearchResults(false);
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+  };
+
+  // Update location on map click or drag
+  const handleMapClick = (lat, lng) => {
+    if (tempLocation) {
+      setTempLocation({
+        ...tempLocation,
+        latitude: lat,
+        longitude: lng,
+      });
+    }
+  };
+
+  // Fetch projects
   const fetchProjects = async () => {
     try {
       setLoadingProjects(true);
-      const response = await apiClient.get(`/employee/project-assignments/${employeeId}`);
-      
+      const response = await apiClient.get(
+        `/employee/project-assignments/${employeeId}`,
+      );
+
       let projectsData = [];
       if (
         response.data?.data?.projects &&
@@ -193,10 +444,7 @@ const MissedPunchModal = ({
         Array.isArray(response.data.projects)
       ) {
         projectsData = response.data.projects;
-      } else if (
-        response.data?.data &&
-        Array.isArray(response.data.data)
-      ) {
+      } else if (response.data?.data && Array.isArray(response.data.data)) {
         projectsData = response.data.data;
       } else if (Array.isArray(response.data)) {
         projectsData = response.data;
@@ -226,11 +474,8 @@ const MissedPunchModal = ({
   // Set default times when modal opens
   useEffect(() => {
     if (isOpen) {
-      // Set default punch in time to 9:00 AM
       setPunchInTime("09:00");
-      // Set default punch out time to 6:00 PM
       setPunchOutTime("18:00");
-      // Reset project times
       setProjectTimes({});
       setConfirmNoProjects(false);
       setTotalHours(0);
@@ -238,7 +483,6 @@ const MissedPunchModal = ({
     }
   }, [isOpen]);
 
-  // Reset form when modal opens with new date
   const handleClose = () => {
     setPunchInTime("");
     setPunchOutTime("");
@@ -248,15 +492,40 @@ const MissedPunchModal = ({
     setConfirmNoProjects(false);
     setTotalHours(0);
     setMaxWorkingHours(0);
+    setShowLocationPicker(false);
+    setEditingLocation(false);
+    setSearchQuery("");
+    setSearchResults([]);
+    setShowSearchResults(false);
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
     onClose();
   };
 
-  // Handle time change for a project
   const handleTimeChange = (projectId, time) => {
-    setProjectTimes((prev) => ({ ...prev, [projectId]: time }));
+    if (time === "" || time === null || time === undefined) {
+      setProjectTimes((prev) => ({ ...prev, [projectId]: "" }));
+      return;
+    }
+    
+    const num = parseFloat(time);
+    if (!isNaN(num) && num >= 0) {
+      let cappedValue = num;
+      if (maxWorkingHours > 0 && num > maxWorkingHours) {
+        cappedValue = maxWorkingHours;
+        showToast(
+          `Value capped to ${formatHoursAndMinutes(maxWorkingHours)} (maximum working hours)`,
+          "warning",
+          "Auto-capped"
+        );
+      }
+      setProjectTimes((prev) => ({ ...prev, [projectId]: String(Math.round(cappedValue)) }));
+    } else if (time === "" || time === "." || time === "0") {
+      setProjectTimes((prev) => ({ ...prev, [projectId]: time }));
+    }
   };
 
-  // Check if at least one project has hours entered
   const isAtLeastOneProjectFilled = () => {
     if (projects.length === 0) {
       return confirmNoProjects;
@@ -267,48 +536,57 @@ const MissedPunchModal = ({
     });
   };
 
-  // Check if total hours is valid (not exceeding max working hours)
-  const isTotalHoursValid = () => {
-    if (projects.length === 0) return true;
-    if (totalHours === 0) return false;
-    if (maxWorkingHours > 0 && totalHours > maxWorkingHours) return false;
-    return true;
-  };
-
   const handleSubmit = async () => {
     // Validate required fields
     if (!selectedDate) {
       showToast("Please select a date", "error", "Validation Error");
       return;
     }
-    
+
     if (!punchInTime) {
       showToast("Please enter punch-in time", "error", "Validation Error");
       return;
     }
-    
+
     if (!punchOutTime) {
       showToast("Please enter punch-out time", "error", "Validation Error");
       return;
     }
-    
+
     if (!reason || reason.trim().length < 5) {
-      showToast("Please provide a valid reason (minimum 5 characters)", "error", "Validation Error");
+      showToast(
+        "Please provide a valid reason (minimum 5 characters)",
+        "error",
+        "Validation Error",
+      );
       return;
     }
 
-    // Check project time validation
+    // Validate location
+    if (!location || !location.latitude || !location.longitude) {
+      showToast(
+        "Please provide your location",
+        "error",
+        "Location Required",
+      );
+      return;
+    }
+
     if (projects.length > 0) {
       const atLeastOneFilled = projects.some((project) => {
         const time = projectTimes[project.id];
         return time && time.trim() !== "" && parseFloat(time) > 0;
       });
-      
+
       if (!atLeastOneFilled) {
-        showToast("Please enter hours for at least one project", "error", "Validation Error");
+        showToast(
+          "Please enter hours for at least one project",
+          "error",
+          "Validation Error",
+        );
         return;
       }
-      
+
       if (totalHours === 0) {
         showToast("Total hours cannot be zero", "error", "Validation Error");
         return;
@@ -317,73 +595,76 @@ const MissedPunchModal = ({
       if (maxWorkingHours > 0 && totalHours > maxWorkingHours) {
         showToast(
           `Total hours (${formatHoursAndMinutes(totalHours)}) exceeds working hours (${formatHoursAndMinutes(maxWorkingHours)})`,
-          "error", 
-          "Validation Error"
+          "error",
+          "Validation Error",
         );
         return;
       }
     } else {
       if (!confirmNoProjects) {
-        showToast("Please confirm you want to submit without projects", "error", "Validation Error");
+        showToast(
+          "Please confirm you want to submit without projects",
+          "error",
+          "Validation Error",
+        );
         return;
       }
     }
 
     setIsSubmitting(true);
-    
+
     try {
-      // Build payload according to API requirements
       const payload = {
-        type: requestType, // "missed_punch_in" - fixed
+        type: requestType,
         request_date: selectedDate,
         reason: reason.trim(),
         timezone: timezone,
         punch_in_time: punchInTime,
         punch_out_time: punchOutTime,
+        location: {
+          latitude: location.latitude,
+          longitude: location.longitude,
+          address: location.address,
+          work_location: location.work_location || extractCountryFromAddress(location.address),
+        },
       };
 
-      // Add project times if any exist
       if (projects.length > 0 && Object.keys(projectTimes).length > 0) {
         const projectTimeEntries = Object.entries(projectTimes)
           .filter(([_, time]) => time && parseFloat(time) > 0)
           .map(([projectId, time]) => ({
             project_id: parseInt(projectId),
-            time_minutes: Math.round(parseFloat(time) * 60)
+            time_minutes: Math.round(parseFloat(time)),
           }));
-        
+
         if (projectTimeEntries.length > 0) {
           payload.project_times = projectTimeEntries;
         }
       }
 
-      const response = await apiClient.post('/employee/missed-punch', payload);
-      
+      await apiClient.post("/employee/missed-punch", payload);
+
       showToast(
         `Missed punch request sent successfully for ${formatDateDisplay(selectedDate)}`,
         "success",
-        "Request Sent"
+        "Request Sent",
       );
-      
-      // Reset form and close modal
+
       handleClose();
-      
-      // Refresh dashboard data
       await dispatch(fetchDashboardData()).unwrap();
-      
+
       if (onSuccess) {
         onSuccess();
       }
-      
     } catch (error) {
       let errorMessage = "Failed to submit request";
-      
+
       if (error?.response?.data?.message) {
         errorMessage = error.response.data.message;
       } else if (error?.message) {
         errorMessage = error.message;
       }
-      
-      // Check for validation errors
+
       if (error?.response?.data?.errors) {
         const errors = error.response.data.errors;
         const firstError = Object.values(errors)[0]?.[0];
@@ -391,7 +672,7 @@ const MissedPunchModal = ({
           errorMessage = firstError;
         }
       }
-      
+
       showToast(errorMessage, "error", "Request Failed");
     } finally {
       setIsSubmitting(false);
@@ -400,12 +681,12 @@ const MissedPunchModal = ({
 
   if (!isOpen) return null;
 
-  // Check if submit should be disabled
   const isSubmitDisabled = () => {
     if (isSubmitting) return true;
     if (!punchInTime || !punchOutTime) return true;
     if (!reason || reason.trim().length < 5) return true;
-    
+    if (!location || !location.latitude || !location.longitude) return true;
+
     if (projects.length > 0) {
       const atLeastOneFilled = projects.some((project) => {
         const time = projectTimes[project.id];
@@ -417,7 +698,7 @@ const MissedPunchModal = ({
     } else {
       if (!confirmNoProjects) return true;
     }
-    
+
     return false;
   };
 
@@ -495,6 +776,68 @@ const MissedPunchModal = ({
             />
           </div>
 
+          {/* Location Section */}
+          <div>
+            <label className="block text-sm font-medium text-[var(--text)] mb-2">
+              <i className="fas fa-map-marker-alt text-green-500 mr-1"></i>
+              Location <span className="text-red-500">*</span>
+            </label>
+            
+            {!location ? (
+              <button
+                onClick={getCurrentLocation}
+                disabled={isLoadingLocation}
+                className="w-full py-3 px-4 bg-blue-500/10 border border-blue-500/20 rounded-lg text-blue-600 dark:text-blue-400 hover:bg-blue-500/20 transition-colors flex items-center justify-center gap-2"
+              >
+                {isLoadingLocation ? (
+                  <>
+                    <i className="fas fa-spinner fa-spin"></i>
+                    Getting location...
+                  </>
+                ) : (
+                  <>
+                    <i className="fas fa-location-dot"></i>
+                    Get Current Location
+                  </>
+                )}
+              </button>
+            ) : (
+              <div className="bg-[var(--surface2)] rounded-lg p-3 border border-[var(--border)]">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-[var(--text)] font-medium truncate">
+                      {location.address || "Unknown location"}
+                    </p>
+                    <p className="text-xs text-[var(--muted)] mt-1">
+                      <span className="font-medium">Country:</span> {location.work_location || extractCountryFromAddress(location.address)}
+                    </p>
+                    <p className="text-xs text-[var(--muted)]">
+                      <span className="font-medium">Coordinates:</span> {location.latitude?.toFixed(6)}, {location.longitude?.toFixed(6)}
+                    </p>
+                  </div>
+                  <div className="flex gap-2 flex-shrink-0">
+                    <button
+                      onClick={openLocationPicker}
+                      className="px-3 py-1.5 bg-blue-500 text-white rounded-lg text-xs hover:bg-blue-600 transition-colors"
+                    >
+                      <i className="fas fa-edit mr-1"></i>
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => {
+                        setLocation(null);
+                        storeLocationData(null);
+                      }}
+                      className="px-3 py-1.5 bg-red-500/10 text-red-500 rounded-lg text-xs hover:bg-red-500/20 transition-colors"
+                    >
+                      <i className="fas fa-times"></i>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Working Hours Summary */}
           <div className="p-4 bg-blue-500/10 rounded-xl border border-blue-500/20">
             <div className="flex justify-between items-center">
@@ -550,7 +893,9 @@ const MissedPunchModal = ({
                 <div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                   <div
                     className={`h-full transition-all duration-300 ${
-                      totalHours > maxWorkingHours ? "bg-red-500" : "bg-green-500"
+                      totalHours > maxWorkingHours
+                        ? "bg-red-500"
+                        : "bg-green-500"
                     }`}
                     style={{
                       width: `${Math.min((totalHours / maxWorkingHours) * 100, 100)}%`,
@@ -576,7 +921,7 @@ const MissedPunchModal = ({
                 </span>
               </label>
             </div>
-            
+
             {loadingProjects ? (
               <div className="text-center py-8">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500 mx-auto mb-3"></div>
@@ -637,7 +982,7 @@ const MissedPunchModal = ({
                             onChange={(e) =>
                               handleTimeChange(project.id, e.target.value)
                             }
-                            maxHours={maxWorkingHours || 24}
+                            maxHours={maxWorkingHours}
                             className="text-sm"
                           />
                         </div>
@@ -675,7 +1020,7 @@ const MissedPunchModal = ({
                 <div className="p-2 bg-red-500/10 rounded-lg border border-red-500/20 flex items-center gap-2">
                   <i className="fas fa-exclamation-circle text-red-500"></i>
                   <span className="text-sm text-red-600 dark:text-red-400">
-                    Total hours ({formatHoursAndMinutes(totalHours)}) exceeds 
+                    Total hours ({formatHoursAndMinutes(totalHours)}) exceeds
                     working hours ({formatHoursAndMinutes(maxWorkingHours)})
                   </span>
                 </div>
@@ -733,6 +1078,176 @@ const MissedPunchModal = ({
           </div>
         </div>
       </div>
+
+      {/* Location Picker Modal with Search */}
+      {showLocationPicker && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[70] p-4 animate-fade-in">
+          <div className="bg-[var(--surface)] rounded-xl max-w-2xl w-full max-h-[90vh] shadow-2xl animate-slide-up flex flex-col">
+            {/* Header - Fixed */}
+            <div className="flex justify-between items-center p-4 border-b border-[var(--border)] flex-shrink-0">
+              <h3 className="text-lg font-bold text-[var(--text)] flex items-center gap-2">
+                <i className="fas fa-map-marked-alt text-blue-500"></i>
+                Edit Location
+              </h3>
+              <button
+                onClick={cancelLocationEdit}
+                className="text-[var(--muted)] hover:text-[var(--text)] transition-colors"
+              >
+                <i className="fas fa-times text-xl"></i>
+              </button>
+            </div>
+
+            {/* Scrollable Content */}
+            <div className="p-4 overflow-y-auto flex-1">
+              {/* Search Location */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-[var(--text)] mb-1">
+                  <i className="fas fa-search text-blue-500 mr-1"></i>
+                  Search Location
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={handleSearchChange}
+                    placeholder="Search for a city, address, or place..."
+                    className="w-full px-3 py-2 bg-[var(--surface2)] border border-[var(--border)] rounded-lg text-[var(--text)] text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent pl-10"
+                  />
+                  <i className="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted)]"></i>
+                  {isSearching && (
+                    <i className="fas fa-spinner fa-spin absolute right-3 top-1/2 -translate-y-1/2 text-blue-500"></i>
+                  )}
+                  
+                  {/* Search Results Dropdown */}
+                  {showSearchResults && searchResults.length > 0 && (
+                    <div className="absolute z-10 w-full mt-1 bg-[var(--surface)] border border-[var(--border)] rounded-lg shadow-lg max-h-[200px] overflow-y-auto">
+                      {searchResults.map((result, index) => (
+                        <button
+                          key={index}
+                          onClick={() => selectSearchResult(result)}
+                          className="w-full text-left px-3 py-2 hover:bg-[var(--surface2)] transition-colors border-b border-[var(--border)] last:border-b-0"
+                        >
+                          <div className="text-sm text-[var(--text)]">
+                            {result.display_name}
+                          </div>
+                          <div className="text-xs text-[var(--muted)]">
+                            {result.lat.toFixed(4)}, {result.lon.toFixed(4)}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  
+                  {showSearchResults && searchResults.length === 0 && searchQuery.length >= 2 && (
+                    <div className="absolute z-10 w-full mt-1 bg-[var(--surface)] border border-[var(--border)] rounded-lg shadow-lg p-3 text-center">
+                      <span className="text-sm text-[var(--muted)]">No locations found</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Map */}
+              <div className="h-[280px] rounded-xl overflow-hidden border border-[var(--border)] mb-4">
+                <MapView
+                  latitude={tempLocation?.latitude || 25.2048}
+                  longitude={tempLocation?.longitude || 55.2708}
+                  address={tempLocation?.address}
+                  onMapClick={handleMapClick}
+                  interactive={true}
+                />
+              </div>
+
+              {/* Location Details */}
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-sm font-medium text-[var(--text)] mb-1">
+                    Address
+                  </label>
+                  <input
+                    type="text"
+                    value={tempLocation?.address || ""}
+                    onChange={(e) => setTempLocation({
+                      ...tempLocation,
+                      address: e.target.value,
+                      work_location: extractCountryFromAddress(e.target.value),
+                    })}
+                    className="w-full px-3 py-2 bg-[var(--surface2)] border border-[var(--border)] rounded-lg text-[var(--text)] text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Enter address"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-[var(--text)] mb-1">
+                      Latitude
+                    </label>
+                    <input
+                      type="number"
+                      step="any"
+                      value={tempLocation?.latitude || ""}
+                      onChange={(e) => setTempLocation({
+                        ...tempLocation,
+                        latitude: parseFloat(e.target.value),
+                      })}
+                      className="w-full px-3 py-2 bg-[var(--surface2)] border border-[var(--border)] rounded-lg text-[var(--text)] text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="0.000000"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-[var(--text)] mb-1">
+                      Longitude
+                    </label>
+                    <input
+                      type="number"
+                      step="any"
+                      value={tempLocation?.longitude || ""}
+                      onChange={(e) => setTempLocation({
+                        ...tempLocation,
+                        longitude: parseFloat(e.target.value),
+                      })}
+                      className="w-full px-3 py-2 bg-[var(--surface2)] border border-[var(--border)] rounded-lg text-[var(--text)] text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="0.000000"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-[var(--text)] mb-1">
+                    Work Location (Country)
+                  </label>
+                  <input
+                    type="text"
+                    value={tempLocation?.work_location || extractCountryFromAddress(tempLocation?.address) || ""}
+                    onChange={(e) => setTempLocation({
+                      ...tempLocation,
+                      work_location: e.target.value,
+                    })}
+                    className="w-full px-3 py-2 bg-[var(--surface2)] border border-[var(--border)] rounded-lg text-[var(--text)] text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Country name"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Footer - Fixed */}
+            <div className="flex gap-3 p-4 border-t border-[var(--border)] flex-shrink-0">
+              <button
+                onClick={cancelLocationEdit}
+                className="flex-1 py-2.5 px-4 bg-[var(--surface2)] border border-[var(--border)] rounded-lg text-[var(--text)] font-medium text-sm hover:bg-[var(--surface3)] transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={saveLocation}
+                className="flex-1 py-2.5 px-4 bg-blue-500 text-white rounded-lg font-medium text-sm hover:bg-blue-600 transition-colors"
+              >
+                <i className="fas fa-save mr-2"></i>
+                Save Location
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

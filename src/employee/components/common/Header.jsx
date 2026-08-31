@@ -522,13 +522,7 @@ const Header = ({ onMenuClick }) => {
                   </div>
 
                   <div className="p-3 border-t border-gray-200 dark:border-gray-700 text-center bg-gray-50 dark:bg-gray-700/50">
-                    <Link
-                      to={`${getBasePath()}/notifications`}
-                      onClick={() => setShowNotifications(false)}
-                      className="text-xs text-green-500 hover:text-green-600 font-medium"
-                    >
-                      View all notifications
-                    </Link>
+                    
                   </div>
                 </div>
               )}

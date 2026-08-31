@@ -92,7 +92,7 @@ export const saveOnboardingDetails = createAsyncThunk(
 );
 /**
  * POST api/admin/employees/onboard/salary
- * Save salary structure (Step 3).
+ * Save Country Split (Step 3).
  */
 export const saveOnboardingSalary = createAsyncThunk(
   "onboarding/saveSalary",
@@ -103,7 +103,7 @@ export const saveOnboardingSalary = createAsyncThunk(
     } catch (error) {
       console.error("[onboarding] saveOnboardingSalary error:", error);
       return rejectWithValue(
-        error.message || "Failed to save salary structure",
+        error.message || "Failed to save Country Split",
       );
     }
   },
