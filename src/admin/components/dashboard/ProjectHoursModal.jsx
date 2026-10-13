@@ -231,7 +231,7 @@ export const ProjectHoursModal = ({
                   <option value="all">All Employees</option>
                   {uniqueEmployees.map((emp) => (
                     <option key={emp.id} value={emp.id}>
-                      {emp.name}
+                      {emp.name.toUpperCase()}
                     </option>
                   ))}
                 </select>
@@ -312,7 +312,7 @@ export const ProjectHoursModal = ({
                                 {initials}
                               </div>
                               <span className="text-sm font-medium text-gray-800 dark:text-gray-200">
-                                {employeeName}
+                                {employeeName.toUpperCase()}
                               </span>
                             </div>
                           </td>
@@ -440,7 +440,7 @@ export const ProjectHoursModal = ({
                         {name.charAt(0)}
                       </div>
                       <div>
-                        <h4 className="text-lg font-bold text-gray-800 dark:text-gray-200">{name}</h4>
+                        <h4 className="text-lg font-bold text-gray-800 dark:text-gray-200">{name.toUpperCase()}</h4>
                         <p className="text-sm text-gray-500 dark:text-gray-400">
                           {user.designation?.name || "No Designation"} •{" "}
                           {user.department?.name || "No Department"}

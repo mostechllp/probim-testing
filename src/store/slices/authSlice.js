@@ -496,19 +496,16 @@ export const loginUser =
             normalizedUser,
         };
       } catch (error) {
-        console.error(
-          "Login error:",
-          error.response?.data ||
-            error.message
-        );
-
-        return rejectWithValue(
-          error.response?.data
-            ?.message ||
-            error.response?.data
-              ?.error ||
-            "Login failed"
-        );
+        console.error("Login error:", error.response?.data);
+      const errorMessage = 
+        error.response?.data?.message ||      // { message: "..." }
+        error.response?.data?.error ||        // { error: "..." }
+        error.response?.data?.errors?.message || // { errors: { message: "..." } }
+        (typeof error.response?.data === 'string' ? error.response.data : null) || // plain string response
+        error.message ||                       // Axios error message
+        "Login failed. Please check your credentials.";
+      
+      return rejectWithValue(errorMessage);
       }
     }
   );

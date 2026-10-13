@@ -1,6 +1,22 @@
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import { COLORS, STATUS_COLORS } from "../../pages/Dashboard";
 
+// ✅ Friendly display labels — API keys stay unchanged
+const STATUS_LABELS = {
+  punched_in: "Punched In",
+  punched_out: "Punched Out",
+  present: "Present",
+  Absent: "Absent",
+  Late: "Late",
+  Leave: "On Leave",
+  "On Time": "On Time",
+  half_day: "Half Day",
+  WFH: "Work From Home",
+  holiday: "Holiday",
+  week_off: "Week Off",
+  // add more as your backend sends them
+};
+
 export const TodayStatusChart = ({ data }) => {
   if (!data || Object.keys(data).length === 0) {
     return (
@@ -55,7 +71,10 @@ export const TodayStatusChart = ({ data }) => {
             </Pie>
             <Tooltip
               contentStyle={{ borderRadius: 8, border: "1px solid #e5e7eb" }}
-              formatter={(value, name) => [`${value} employees`, name]}
+              formatter={(value, name) => [
+                `${value} employees`,
+                STATUS_LABELS[name] || name, // ✅ friendly name in tooltip
+              ]}
             />
           </PieChart>
         </ResponsiveContainer>
@@ -71,7 +90,8 @@ export const TodayStatusChart = ({ data }) => {
                   backgroundColor: STATUS_COLORS[item.name] || COLORS.blue,
                 }}
               />
-              {item.name} {item.value}
+              {/* ✅ Friendly label in legend, raw key still used for color lookup above */}
+              {STATUS_LABELS[item.name] || item.name} {item.value}
             </span>
           ))}
         </div>

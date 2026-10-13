@@ -1,6 +1,6 @@
 import { lazy, useEffect, Suspense } from "react";
 
-import { Routes, Route, Navigate, useParams } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 
 import { useSelector, useDispatch } from "react-redux";
 
@@ -160,9 +160,11 @@ const PayrollDetails = lazy(() => import("./admin/pages/PayrollDetails"));
 const EditPayroll = lazy(() => import("./admin/pages/EditPayroll"));
 
 const Onboarding = lazy(() => import("./admin/pages/Onboarding"));
+
 const InitiateOnboarding = lazy(
   () => import("./admin/components/onboarding/InitiateOnboarding"),
 );
+
 const OnboardingView = lazy(() => import("./admin/pages/OnboardingView"));
 
 const ProjectWorkingHours = lazy(
@@ -277,7 +279,7 @@ const LazyWrapper = ({ children }) => {
 };
 
 // ============================================================
-// REDIRECT HELPERS
+// DASHBOARD PATH
 // ============================================================
 
 const getDashboardPath = (userType) => {
@@ -290,49 +292,6 @@ const getDashboardPath = (userType) => {
   }
 
   return "/login";
-};
-
-// ============================================================
-// DYNAMIC REDIRECT COMPONENTS
-// ============================================================
-
-const EmployeeAttendanceRedirect = () => {
-  const { employeeId } = useParams();
-
-  return (
-    <Navigate
-      to={`/employee/reports/attendance/employee/${employeeId}`}
-      replace
-    />
-  );
-};
-
-const AdminAttendanceRedirect = () => {
-  const { employeeId } = useParams();
-
-  return (
-    <Navigate to={`/admin/reports/attendance/employee/${employeeId}`} replace />
-  );
-};
-
-const EmployeePayrollRedirect = ({ type = "details" }) => {
-  const { id } = useParams();
-
-  if (type === "edit") {
-    return <Navigate to={`/employee/payroll/edit/${id}`} replace />;
-  }
-
-  return <Navigate to={`/employee/payroll/${id}`} replace />;
-};
-
-const AdminPayrollRedirect = ({ type = "details" }) => {
-  const { id } = useParams();
-
-  if (type === "edit") {
-    return <Navigate to={`/admin/payroll/edit/${id}`} replace />;
-  }
-
-  return <Navigate to={`/admin/payroll/${id}`} replace />;
 };
 
 // ============================================================
@@ -418,7 +377,7 @@ function AppContent() {
       />
 
       {/* ======================================================
-          ADMIN ROUTES
+          ADMIN ROUTES (admin-only)
       ====================================================== */}
 
       <Route
@@ -698,6 +657,8 @@ function AppContent() {
         <Route path="onboarding" element={<Onboarding />} />
         <Route path="onboarding/view/:id" element={<OnboardingView />} />
 
+        <Route path="notifications" element={<Notifications />} />
+
         <Route path="ticket-raise" element={<TicketRaise />} />
         <Route path="developer-tickets" element={<DeveloperTickets />} />
 
@@ -708,7 +669,7 @@ function AppContent() {
         />
 
         {/* ----------------------------------------------------
-            EMPLOYEE SIDE ADMIN/COMMON MODULES
+            EMPLOYEE SIDE ADMIN / COMMON MODULES
         ---------------------------------------------------- */}
 
         <Route path="employees" element={<Employees />} />
@@ -716,6 +677,10 @@ function AppContent() {
         <Route path="employees/add-employee" element={<AddEmployee />} />
 
         <Route path="employees/onboarding" element={<Onboarding />} />
+        <Route
+          path="employees/onboarding/initiate"
+          element={<InitiateOnboarding />}
+        />
         <Route
           path="employees/onboarding/view/:id"
           element={<OnboardingView />}
@@ -725,11 +690,74 @@ function AppContent() {
 
         <Route path="employees/:id" element={<EmployeeDetails />} />
 
+        {/* ----------------------------------------------------
+            OFFBOARDING SUBROUTES (mirrored from /admin)
+        ---------------------------------------------------- */}
+
+        <Route path="employees/offboarding" element={<Offboarding />} />
+
+        <Route
+          path="employees/offboarding-initiation"
+          element={<OffboardingInitiation />}
+        />
+
+        <Route
+          path="employees/offboarding-checklist-manager"
+          element={<OffboardingChecklistManager />}
+        />
+
+        <Route
+          path="employees/checklist-categories"
+          element={<ChecklistCategories />}
+        />
+
+        <Route
+          path="employees/asset-management"
+          element={<AssetManagement />}
+        />
+
+        <Route
+          path="employees/assets/types"
+          element={<AssetTypeManagement />}
+        />
+
+        <Route
+          path="employees/visa-cancellation"
+          element={<VisaCancellationAndExit />}
+        />
+
+        <Route
+          path="employees/offboarding-checklist"
+          element={<OffboardingChecklist />}
+        />
+
+        <Route path="employees/asset-return" element={<AssetReturn />} />
+
+        <Route path="employees/exit-interview" element={<ExitInterview />} />
+
+        <Route
+          path="employees/final-settlement"
+          element={<FinalSettlement />}
+        />
+
+        <Route
+          path="employees/letters-and-clearance"
+          element={<LettersAndClearance />}
+        />
+
+        {/* ----------------------------------------------------
+            PROJECTS
+        ---------------------------------------------------- */}
+
         <Route path="projects" element={<Projects />} />
 
         <Route path="projects/:id" element={<ProjectDetails />} />
 
         <Route path="project-assignments" element={<ProjectAssignments />} />
+
+        {/* ----------------------------------------------------
+            ORGANIZATIONS
+        ---------------------------------------------------- */}
 
         <Route path="organizations" element={<Organizations />} />
 
@@ -758,6 +786,10 @@ function AppContent() {
           element={<EditCompany />}
         />
 
+        {/* ----------------------------------------------------
+            AGREEMENTS / DOCUMENTS
+        ---------------------------------------------------- */}
+
         <Route path="agreements" element={<Agreements />} />
 
         <Route path="agreements/add-agreement" element={<AddAgreement />} />
@@ -768,6 +800,10 @@ function AppContent() {
           path="agreements/edit-agreement/:id"
           element={<EditAgreement />}
         />
+
+        {/* ----------------------------------------------------
+            ATTENDANCE / HR
+        ---------------------------------------------------- */}
 
         <Route path="attendance" element={<Attendances />} />
 
@@ -860,301 +896,31 @@ function AppContent() {
         <Route path="project-working-hours" element={<ProjectWorkingHours />} />
 
         {/* ----------------------------------------------------
-            PAYROLL
+            PAYROLL (HR view - full CRUD)
         ---------------------------------------------------- */}
 
-        <Route path="payroll" element={<EmployeeMyPayroll />} />
+        <Route path="payroll" element={<PayrollCalender />} />
+
+        <Route path="payroll/list" element={<PayrollList />} />
+
+        <Route path="payroll/add" element={<AddPayroll />} />
+
+        <Route path="payroll/:id" element={<PayrollDetails />} />
+
+        <Route path="payroll/edit/:id" element={<EditPayroll />} />
+
+        {/* Employee-only "my payroll" view */}
+        <Route path="my-payroll" element={<EmployeeMyPayroll />} />
+
+        {/* ----------------------------------------------------
+            REQUEST LEAVE FOR EMPLOYEE
+        ---------------------------------------------------- */}
 
         <Route
           path="request-leave-for-employee"
           element={<RequestLeaveForEmployee />}
         />
       </Route>
-
-      {/* ======================================================
-          LEGACY / ADMIN REDIRECT ROUTES
-      ====================================================== */}
-
-      <Route
-        path="/admin/employees/add-employee"
-        element={
-          <ProtectedRoute>
-            {isEmployeeType(userType) ? (
-              <Navigate to="/employee/employees/add-employee" replace />
-            ) : (
-              <Navigate to="/admin/employees/add-employee" replace />
-            )}
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/admin/employees/onboarding"
-        element={
-          <ProtectedRoute>
-            {isEmployeeType(userType) ? (
-              <Navigate to="/employee/employees/onboarding" replace />
-            ) : (
-              <Navigate to="/admin/employees/onboarding" replace />
-            )}
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/admin/employees/onboarding/initiate"
-        element={
-          <ProtectedRoute>
-            {isEmployeeType(userType) ? (
-              <Navigate to="/employee/employees/onboarding/initiate" replace />
-            ) : (
-              <Navigate to="/admin/employees/onboarding/initiate" replace />
-            )}
-          </ProtectedRoute>
-        }
-      />
-
-      {/* ======================================================
-          REPORT REDIRECTS
-      ====================================================== */}
-
-      <Route
-        path="/admin/reports/employee-details"
-        element={
-          <ProtectedRoute>
-            {isEmployeeType(userType) ? (
-              <Navigate to="/employee/reports/employee-details" replace />
-            ) : (
-              <Navigate to="/admin/reports/employee-details" replace />
-            )}
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/admin/reports/attendance-reports"
-        element={
-          <ProtectedRoute>
-            {isEmployeeType(userType) ? (
-              <Navigate to="/employee/reports/attendance-reports" replace />
-            ) : (
-              <Navigate to="/admin/reports/attendance-reports" replace />
-            )}
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/admin/reports/project-report"
-        element={
-          <ProtectedRoute>
-            {isEmployeeType(userType) ? (
-              <Navigate to="/employee/reports/project-report" replace />
-            ) : (
-              <Navigate to="/admin/reports/project-report" replace />
-            )}
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/admin/reports/leave-requests-reports"
-        element={
-          <ProtectedRoute>
-            {isEmployeeType(userType) ? (
-              <Navigate to="/employee/reports/leave-requests-reports" replace />
-            ) : (
-              <Navigate to="/admin/reports/leave-requests-reports" replace />
-            )}
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/admin/reports/pending-leaves-reports"
-        element={
-          <ProtectedRoute>
-            {isEmployeeType(userType) ? (
-              <Navigate to="/employee/reports/pending-leaves-reports" replace />
-            ) : (
-              <Navigate to="/admin/reports/pending-leaves-reports" replace />
-            )}
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/admin/reports/employee-near-expiry"
-        element={
-          <ProtectedRoute>
-            {isEmployeeType(userType) ? (
-              <Navigate to="/employee/reports/employee-near-expiry" replace />
-            ) : (
-              <Navigate to="/admin/reports/employee-near-expiry" replace />
-            )}
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/admin/reports/employee-upcoming-renewals"
-        element={
-          <ProtectedRoute>
-            {isEmployeeType(userType) ? (
-              <Navigate
-                to="/employee/reports/employee-upcoming-renewals"
-                replace
-              />
-            ) : (
-              <Navigate
-                to="/admin/reports/employee-upcoming-renewals"
-                replace
-              />
-            )}
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/admin/reports/organization-near-expiry"
-        element={
-          <ProtectedRoute>
-            {isEmployeeType(userType) ? (
-              <Navigate
-                to="/employee/reports/organization-near-expiry"
-                replace
-              />
-            ) : (
-              <Navigate to="/admin/reports/organization-near-expiry" replace />
-            )}
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/admin/reports/organization-upcoming-renewals"
-        element={
-          <ProtectedRoute>
-            {isEmployeeType(userType) ? (
-              <Navigate
-                to="/employee/reports/organization-upcoming-renewals"
-                replace
-              />
-            ) : (
-              <Navigate
-                to="/admin/reports/organization-upcoming-renewals"
-                replace
-              />
-            )}
-          </ProtectedRoute>
-        }
-      />
-
-      {/* ======================================================
-          DYNAMIC ATTENDANCE REPORT REDIRECT
-      ====================================================== */}
-
-      <Route
-        path="/admin/reports/attendance/employee/:employeeId"
-        element={
-          <ProtectedRoute>
-            {isEmployeeType(userType) ? (
-              <EmployeeAttendanceRedirect />
-            ) : (
-              <AdminAttendanceRedirect />
-            )}
-          </ProtectedRoute>
-        }
-      />
-
-      {/* ======================================================
-          MODULE REDIRECT
-      ====================================================== */}
-
-      <Route
-        path="/admin/modules"
-        element={
-          <ProtectedRoute>
-            {isEmployeeType(userType) ? (
-              <Navigate to="/employee/modules" replace />
-            ) : (
-              <Navigate to="/admin/modules" replace />
-            )}
-          </ProtectedRoute>
-        }
-      />
-
-      {/* ======================================================
-          PROJECT WORKING HOURS REDIRECT
-      ====================================================== */}
-
-      <Route
-        path="/admin/project-working-hours"
-        element={
-          <ProtectedRoute>
-            {isEmployeeType(userType) ? (
-              <Navigate to="/employee/project-working-hours" replace />
-            ) : (
-              <Navigate to="/admin/project-working-hours" replace />
-            )}
-          </ProtectedRoute>
-        }
-      />
-
-      {/* ======================================================
-          PAYROLL REDIRECTS
-      ====================================================== */}
-
-      <Route
-        path="/admin/payroll"
-        element={
-          <ProtectedRoute>
-            {isEmployeeType(userType) ? (
-              <Navigate to="/employee/payroll" replace />
-            ) : (
-              <Navigate to="/admin/payroll" replace />
-            )}
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/admin/payroll/add"
-        element={
-          <ProtectedRoute>
-            {isEmployeeType(userType) ? (
-              <Navigate to="/employee/payroll" replace />
-            ) : (
-              <Navigate to="/admin/payroll/add" replace />
-            )}
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/admin/payroll/edit/:id"
-        element={
-          <ProtectedRoute>
-            {isEmployeeType(userType) ? (
-              <EmployeePayrollRedirect type="edit" />
-            ) : (
-              <AdminPayrollRedirect type="edit" />
-            )}
-          </ProtectedRoute>
-        }
-      />
-
-      <Route
-        path="/admin/payroll/:id"
-        element={
-          <ProtectedRoute>
-            {isEmployeeType(userType) ? (
-              <EmployeePayrollRedirect />
-            ) : (
-              <AdminPayrollRedirect />
-            )}
-          </ProtectedRoute>
-        }
-      />
 
       {/* ======================================================
           GLOBAL 404

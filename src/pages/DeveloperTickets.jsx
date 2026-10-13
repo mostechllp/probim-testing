@@ -19,7 +19,7 @@ import {
   FiChevronLeft,
   FiChevronRight,
 } from "react-icons/fi";
-import apiClient from "../utils/apiClient";
+import apiClient, { getStorageUrl } from "../utils/apiClient";
 
 // ─── Constants ────────────────────────────────────────────────────────────
 const MODULE_LABELS = {
@@ -39,16 +39,44 @@ const MODULE_LABELS = {
 };
 
 const STATUS_CONFIG = {
-  open: { label: "Open", color: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-blue-200 dark:border-blue-800" },
-  inprogress: { label: "In Progress", color: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border-amber-200 dark:border-amber-800" },
-  closed: { label: "Closed", color: "bg-gray-100 text-gray-700 dark:bg-gray-700/30 dark:text-gray-400 border-gray-200 dark:border-gray-700" },
-  reopen: { label: "Reopen", color: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 border-purple-200 dark:border-purple-800" },
+  open: {
+    label: "Open",
+    color:
+      "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-blue-200 dark:border-blue-800",
+  },
+  inprogress: {
+    label: "In Progress",
+    color:
+      "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border-amber-200 dark:border-amber-800",
+  },
+  closed: {
+    label: "Closed",
+    color:
+      "bg-gray-100 text-gray-700 dark:bg-gray-700/30 dark:text-gray-400 border-gray-200 dark:border-gray-700",
+  },
+  reopen: {
+    label: "Reopen",
+    color:
+      "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 border-purple-200 dark:border-purple-800",
+  },
 };
 
 const PRIORITY_CONFIG = {
-  high: { label: "High", color: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-red-200 dark:border-red-800" },
-  medium: { label: "Medium", color: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border-amber-200 dark:border-amber-800" },
-  low: { label: "Low", color: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-green-200 dark:border-green-800" },
+  high: {
+    label: "High",
+    color:
+      "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-red-200 dark:border-red-800",
+  },
+  medium: {
+    label: "Medium",
+    color:
+      "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border-amber-200 dark:border-amber-800",
+  },
+  low: {
+    label: "Low",
+    color:
+      "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-green-200 dark:border-green-800",
+  },
 };
 
 // ─── Status Options for UI ──────────────────────────────────────────────
@@ -98,6 +126,8 @@ const DeveloperTickets = () => {
   // Modal states
   const [showViewModal, setShowViewModal] = useState(false);
   const [viewingTicket, setViewingTicket] = useState(null);
+  const [imageLoading, setImageLoading] = useState(true);
+  const [imageError, setImageError] = useState(false);
 
   // Edit modal
   const [showEditModal, setShowEditModal] = useState(false);
@@ -122,11 +152,13 @@ const DeveloperTickets = () => {
         page: currentPage,
       };
 
-      const response = await apiClient.get("/admin/developer-tickets", { params });
-      
+      const response = await apiClient.get("/admin/developer-tickets", {
+        params,
+      });
+
       const responseData = response.data.data;
       const ticketsData = responseData.data || [];
-      
+
       const transformedTickets = ticketsData.map((ticket) => ({
         id: ticket.id,
         name: ticket.user?.name || ticket.name || "Unknown User",
@@ -135,29 +167,32 @@ const DeveloperTickets = () => {
         issue_title: ticket.title || "Untitled Ticket",
         issue_description: ticket.description || "",
         screenshot: ticket.screenshot || null,
-        screenshot_preview: ticket.screenshot ? `/storage/${ticket.screenshot}` : null,
-        date: ticket.created_at?.split('T')[0] || "",
+        // Fix: Use the screenshot directly or use getStorageUrl if available
+        screenshot_preview: ticket.screenshot
+          ? getStorageUrl(ticket.screenshot)
+          : null,
+        date: ticket.created_at?.split("T")[0] || "",
         status: REVERSE_STATUS_MAP[ticket.status] || ticket.status || "open",
         priority: ticket.priority || "medium",
         created_at: ticket.created_at || "",
-        notes: ticket.notes || "", // Keep as string
+        notes: ticket.notes || "",
         user_id: ticket.user_id,
         module_id: ticket.module_id,
       }));
 
       setTickets(transformedTickets);
-      
+
       setTotalPages(responseData.last_page || 1);
       setTotalItems(responseData.total || 0);
       setCurrentPage(responseData.current_page || 1);
 
-      const modules = [...new Set(transformedTickets.map(t => t.module))];
+      const modules = [...new Set(transformedTickets.map((t) => t.module))];
       setAllModules(modules);
     } catch (error) {
       console.error("Error fetching tickets:", error);
       showToast(
         error.response?.data?.message || "Failed to load tickets",
-        "error"
+        "error",
       );
     } finally {
       setLoading(false);
@@ -167,10 +202,12 @@ const DeveloperTickets = () => {
   // View a single ticket
   const fetchTicketDetails = async (ticketId) => {
     try {
-      const response = await apiClient.get(`/admin/developer-tickets/${ticketId}`);
-      
+      const response = await apiClient.get(
+        `/admin/developer-tickets/${ticketId}`,
+      );
+
       const ticket = response.data.data || response.data;
-      
+
       const transformedTicket = {
         id: ticket.id,
         name: ticket.user?.name || ticket.name || "Unknown User",
@@ -179,22 +216,25 @@ const DeveloperTickets = () => {
         issue_title: ticket.title || "Untitled Ticket",
         issue_description: ticket.description || "",
         screenshot: ticket.screenshot || null,
-        screenshot_preview: ticket.screenshot ? `/storage/${ticket.screenshot}` : null,
-        date: ticket.created_at?.split('T')[0] || "",
+        // Fix: Use the screenshot directly or use getStorageUrl if available
+        screenshot_preview: ticket.screenshot
+          ? getStorageUrl(ticket.screenshot)
+          : null,
+        date: ticket.created_at?.split("T")[0] || "",
         status: REVERSE_STATUS_MAP[ticket.status] || ticket.status || "open",
         priority: ticket.priority || "medium",
         created_at: ticket.created_at || "",
-        notes: ticket.notes || "", // Keep as string
+        notes: ticket.notes || "",
         user_id: ticket.user_id,
         module_id: ticket.module_id,
       };
-      
+
       return transformedTicket;
     } catch (error) {
       console.error("Error fetching ticket details:", error);
       showToast(
         error.response?.data?.message || "Failed to load ticket details",
-        "error"
+        "error",
       );
       return null;
     }
@@ -204,16 +244,21 @@ const DeveloperTickets = () => {
   const updateTicketStatus = async (ticketId, status, note) => {
     try {
       const apiStatus = STATUS_MAP[status] || status;
-      
-      const response = await apiClient.patch(`/admin/developer-tickets/${ticketId}/status`, {
-        status: apiStatus,
-        notes: note || undefined,
-      });
-      
+
+      const response = await apiClient.patch(
+        `/admin/developer-tickets/${ticketId}/status`,
+        {
+          status: apiStatus,
+          notes: note || undefined,
+        },
+      );
+
       return response.data;
     } catch (error) {
       console.error("Error updating ticket:", error);
-      throw new Error(error.response?.data?.message || "Failed to update ticket");
+      throw new Error(
+        error.response?.data?.message || "Failed to update ticket",
+      );
     }
   };
 
@@ -229,17 +274,19 @@ const DeveloperTickets = () => {
 
   // ─── Filtered Tickets ──────────────────────────────────────────────────
   const filteredTickets = tickets.filter((ticket) => {
-    const matchesPriority = priorityFilter === "all" || ticket.priority === priorityFilter;
-    const matchesModule = moduleFilter === "all" || ticket.module === moduleFilter;
+    const matchesPriority =
+      priorityFilter === "all" || ticket.priority === priorityFilter;
+    const matchesModule =
+      moduleFilter === "all" || ticket.module === moduleFilter;
     return matchesPriority && matchesModule;
   });
 
   // ─── Stats ─────────────────────────────────────────────────────────────
   const stats = {
     total: totalItems || tickets.length,
-    open: tickets.filter(t => t.status === "open").length,
-    in_progress: tickets.filter(t => t.status === "inprogress").length,
-    closed: tickets.filter(t => t.status === "closed").length,
+    open: tickets.filter((t) => t.status === "open").length,
+    in_progress: tickets.filter((t) => t.status === "inprogress").length,
+    closed: tickets.filter((t) => t.status === "closed").length,
   };
 
   // ─── Format Date ──────────────────────────────────────────────────────
@@ -276,7 +323,9 @@ const DeveloperTickets = () => {
   const getStatusBadge = (status) => {
     const config = STATUS_CONFIG[status] || STATUS_CONFIG.open;
     return (
-      <span className={`px-2 py-0.5 rounded-full text-xs font-medium border ${config.color}`}>
+      <span
+        className={`px-2 py-0.5 rounded-full text-xs font-medium border ${config.color}`}
+      >
         {config.label}
       </span>
     );
@@ -285,7 +334,9 @@ const DeveloperTickets = () => {
   const getPriorityBadge = (priority) => {
     const config = PRIORITY_CONFIG[priority] || PRIORITY_CONFIG.medium;
     return (
-      <span className={`px-2 py-0.5 rounded-full text-xs font-medium border ${config.color}`}>
+      <span
+        className={`px-2 py-0.5 rounded-full text-xs font-medium border ${config.color}`}
+      >
         {config.label}
       </span>
     );
@@ -311,10 +362,10 @@ const DeveloperTickets = () => {
   // ─── Edit Modal Handlers ──────────────────────────────────────────────
   const openEditModal = async (ticket) => {
     setIsLoadingTicket(true);
-    
+
     try {
       const fullTicket = await fetchTicketDetails(ticket.id);
-      
+
       if (fullTicket) {
         setEditingTicket(fullTicket);
         setEditFormData({
@@ -358,7 +409,7 @@ const DeveloperTickets = () => {
       await updateTicketStatus(
         editingTicket.id,
         editFormData.status,
-        editFormData.note.trim()
+        editFormData.note.trim(),
       );
 
       showToast("Ticket updated successfully!", "success");
@@ -402,8 +453,12 @@ const DeveloperTickets = () => {
             <FiClock className="text-blue-600 dark:text-blue-400" />
           </div>
           <div>
-            <div className="text-xl font-bold text-gray-800 dark:text-gray-200">{stats.total}</div>
-            <div className="text-[10px] text-gray-500 dark:text-gray-400">Total Tickets</div>
+            <div className="text-xl font-bold text-gray-800 dark:text-gray-200">
+              {stats.total}
+            </div>
+            <div className="text-[10px] text-gray-500 dark:text-gray-400">
+              Total Tickets
+            </div>
           </div>
         </div>
       </div>
@@ -413,8 +468,12 @@ const DeveloperTickets = () => {
             <FiAlertCircle className="text-blue-600 dark:text-blue-400" />
           </div>
           <div>
-            <div className="text-xl font-bold text-blue-600 dark:text-blue-400">{stats.open}</div>
-            <div className="text-[10px] text-gray-500 dark:text-gray-400">Open</div>
+            <div className="text-xl font-bold text-blue-600 dark:text-blue-400">
+              {stats.open}
+            </div>
+            <div className="text-[10px] text-gray-500 dark:text-gray-400">
+              Open
+            </div>
           </div>
         </div>
       </div>
@@ -424,8 +483,12 @@ const DeveloperTickets = () => {
             <FiClock className="text-amber-600 dark:text-amber-400" />
           </div>
           <div>
-            <div className="text-xl font-bold text-amber-600 dark:text-amber-400">{stats.in_progress}</div>
-            <div className="text-[10px] text-gray-500 dark:text-gray-400">In Progress</div>
+            <div className="text-xl font-bold text-amber-600 dark:text-amber-400">
+              {stats.in_progress}
+            </div>
+            <div className="text-[10px] text-gray-500 dark:text-gray-400">
+              In Progress
+            </div>
           </div>
         </div>
       </div>
@@ -435,8 +498,12 @@ const DeveloperTickets = () => {
             <FiCheckCircle className="text-green-600 dark:text-green-400" />
           </div>
           <div>
-            <div className="text-xl font-bold text-green-600 dark:text-green-400">{stats.closed || 0}</div>
-            <div className="text-[10px] text-gray-500 dark:text-gray-400">Closed</div>
+            <div className="text-xl font-bold text-green-600 dark:text-green-400">
+              {stats.closed || 0}
+            </div>
+            <div className="text-[10px] text-gray-500 dark:text-gray-400">
+              Closed
+            </div>
           </div>
         </div>
       </div>
@@ -450,10 +517,14 @@ const DeveloperTickets = () => {
       <div className="flex flex-wrap justify-between items-center mb-6">
         <div>
           <h2 className="text-xl md:text-2xl font-bold bg-gradient-to-r from-gray-800 to-green-600 dark:from-gray-200 dark:to-green-400 bg-clip-text text-transparent">
-            <i className="fas fa-ticket-alt mr-2 text-green-500"></i> Developer Tickets
+            <i className="fas fa-ticket-alt mr-2 text-green-500"></i> Developer
+            Tickets
           </h2>
           <p className="text-xs md:text-sm text-gray-500 dark:text-gray-400 mt-1">
-            Manage and resolve support tickets {loading && <span className="inline-block ml-2 animate-spin">⟳</span>}
+            Manage and resolve support tickets{" "}
+            {loading && (
+              <span className="inline-block ml-2 animate-spin">⟳</span>
+            )}
           </p>
         </div>
         <button
@@ -461,7 +532,8 @@ const DeveloperTickets = () => {
           disabled={loading}
           className="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors flex items-center gap-2 text-sm font-medium shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          <FiRefreshCw size={16} className={loading ? "animate-spin" : ""} /> Refresh
+          <FiRefreshCw size={16} className={loading ? "animate-spin" : ""} />{" "}
+          Refresh
         </button>
       </div>
 
@@ -510,7 +582,9 @@ const DeveloperTickets = () => {
         >
           <option value="all">All Modules</option>
           {allModules.map((mod) => (
-            <option key={mod} value={mod}>{MODULE_LABELS[mod] || mod}</option>
+            <option key={mod} value={mod}>
+              {MODULE_LABELS[mod] || mod}
+            </option>
           ))}
         </select>
       </div>
@@ -521,19 +595,36 @@ const DeveloperTickets = () => {
           <table className="w-full border-collapse">
             <thead>
               <tr className="bg-gray-50 dark:bg-gray-700/50 border-b border-gray-200 dark:border-gray-700">
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400">#</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400">Title</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400">Module</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400">Priority</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400">Status</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400">Date</th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 dark:text-gray-400">Actions</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400">
+                  #
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400">
+                  Title
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400">
+                  Module
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400">
+                  Priority
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400">
+                  Status
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400">
+                  Date
+                </th>
+                <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 dark:text-gray-400">
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="7" className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
+                  <td
+                    colSpan="7"
+                    className="px-4 py-8 text-center text-gray-500 dark:text-gray-400"
+                  >
                     <div className="flex flex-col items-center gap-2">
                       <div className="animate-spin">
                         <FiRefreshCw size={32} className="text-purple-500" />
@@ -549,7 +640,7 @@ const DeveloperTickets = () => {
                     className="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors"
                   >
                     <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
-                      {((currentPage - 1) * perPage) + index + 1}
+                      {(currentPage - 1) * perPage + index + 1}
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
@@ -561,8 +652,12 @@ const DeveloperTickets = () => {
                     <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
                       {MODULE_LABELS[ticket.module] || ticket.module}
                     </td>
-                    <td className="px-4 py-3">{getPriorityBadge(ticket.priority)}</td>
-                    <td className="px-4 py-3">{getStatusBadge(ticket.status)}</td>
+                    <td className="px-4 py-3">
+                      {getPriorityBadge(ticket.priority)}
+                    </td>
+                    <td className="px-4 py-3">
+                      {getStatusBadge(ticket.status)}
+                    </td>
                     <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
                       {formatDate(ticket.date)}
                     </td>
@@ -590,7 +685,10 @@ const DeveloperTickets = () => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="7" className="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
+                  <td
+                    colSpan="7"
+                    className="px-4 py-8 text-center text-gray-500 dark:text-gray-400"
+                  >
                     <div className="flex flex-col items-center gap-2">
                       <i className="fas fa-ticket-alt text-4xl text-gray-300 dark:text-gray-600"></i>
                       <p>No tickets found</p>
@@ -606,7 +704,9 @@ const DeveloperTickets = () => {
         {!loading && totalPages > 1 && (
           <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200 dark:border-gray-700">
             <div className="text-sm text-gray-500 dark:text-gray-400">
-              Showing {(currentPage - 1) * perPage + 1} to {Math.min(currentPage * perPage, totalItems)} of {totalItems} tickets
+              Showing {(currentPage - 1) * perPage + 1} to{" "}
+              {Math.min(currentPage * perPage, totalItems)} of {totalItems}{" "}
+              tickets
             </div>
             <div className="flex gap-2">
               <button
@@ -669,36 +769,57 @@ const DeveloperTickets = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-xs text-[var(--muted)]">Title</label>
-                  <p className="text-sm font-medium text-[var(--text)]">{viewingTicket.issue_title}</p>
+                  <p className="text-sm font-medium text-[var(--text)]">
+                    {viewingTicket.issue_title}
+                  </p>
                 </div>
                 <div>
                   <label className="text-xs text-[var(--muted)]">Module</label>
-                  <p className="text-sm text-[var(--text)]">{MODULE_LABELS[viewingTicket.module] || viewingTicket.module}</p>
+                  <p className="text-sm text-[var(--text)]">
+                    {MODULE_LABELS[viewingTicket.module] ||
+                      viewingTicket.module}
+                  </p>
                 </div>
                 <div>
-                  <label className="text-xs text-[var(--muted)]">Priority</label>
-                  <div className="mt-1">{getPriorityBadge(viewingTicket.priority)}</div>
+                  <label className="text-xs text-[var(--muted)]">
+                    Priority
+                  </label>
+                  <div className="mt-1">
+                    {getPriorityBadge(viewingTicket.priority)}
+                  </div>
                 </div>
                 <div>
                   <label className="text-xs text-[var(--muted)]">Status</label>
-                  <div className="mt-1">{getStatusBadge(viewingTicket.status)}</div>
+                  <div className="mt-1">
+                    {getStatusBadge(viewingTicket.status)}
+                  </div>
                 </div>
                 <div>
                   <label className="text-xs text-[var(--muted)]">Date</label>
-                  <p className="text-sm text-[var(--text)]">{formatDate(viewingTicket.date)}</p>
+                  <p className="text-sm text-[var(--text)]">
+                    {formatDate(viewingTicket.date)}
+                  </p>
                 </div>
                 <div>
                   <label className="text-xs text-[var(--muted)]">Created</label>
-                  <p className="text-sm text-[var(--text)]">{formatDateTime(viewingTicket.created_at)}</p>
+                  <p className="text-sm text-[var(--text)]">
+                    {formatDateTime(viewingTicket.created_at)}
+                  </p>
                 </div>
                 <div className="col-span-2">
-                  <label className="text-xs text-[var(--muted)]">Employee</label>
-                  <p className="text-sm text-[var(--text)]">{viewingTicket.name} ({viewingTicket.email})</p>
+                  <label className="text-xs text-[var(--muted)]">
+                    Employee
+                  </label>
+                  <p className="text-sm text-[var(--text)]">
+                    {viewingTicket.name} ({viewingTicket.email})
+                  </p>
                 </div>
               </div>
 
               <div>
-                <label className="text-xs text-[var(--muted)]">Description</label>
+                <label className="text-xs text-[var(--muted)]">
+                  Description
+                </label>
                 <p className="text-sm text-[var(--text)] mt-1 bg-[var(--surface2)] p-3 rounded-lg">
                   {viewingTicket.issue_description}
                 </p>
@@ -706,15 +827,84 @@ const DeveloperTickets = () => {
 
               {viewingTicket.screenshot && (
                 <div>
-                  <label className="text-xs text-[var(--muted)]">Screenshot</label>
-                  <img
-                    src={viewingTicket.screenshot_preview || viewingTicket.screenshot}
-                    alt="Screenshot"
-                    className="mt-2 max-h-64 rounded-lg border border-[var(--border)]"
-                    onError={(e) => {
-                      e.target.style.display = 'none';
-                    }}
-                  />
+                  <label className="text-xs text-[var(--muted)]">
+                    Screenshot
+                  </label>
+
+                  {/* Loading indicator */}
+                  {imageLoading && (
+                    <div className="mt-2 p-4 bg-[var(--surface2)] rounded-lg border border-[var(--border)] flex flex-col items-center justify-center min-h-[100px]">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-500"></div>
+                      <p className="text-xs text-[var(--muted)] mt-2">
+                        Loading screenshot...
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Image */}
+                  <a
+                    href={
+                      viewingTicket.screenshot_preview ||
+                      viewingTicket.screenshot
+                    }
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={`block mt-2 cursor-pointer hover:opacity-90 transition-opacity ${imageLoading ? "hidden" : ""}`}
+                  >
+                    <img
+                      src={
+                        viewingTicket.screenshot_preview ||
+                        viewingTicket.screenshot
+                      }
+                      alt="Screenshot"
+                      className="max-h-64 rounded-lg border border-[var(--border)] object-contain"
+                      onLoad={() => {
+                        setImageLoading(false);
+                        setImageError(false);
+                      }}
+                      onError={(e) => {
+                        setImageLoading(false);
+                        setImageError(true);
+                        e.target.style.display = "none";
+                        // Show fallback message
+                        const parent = e.target.parentElement;
+                        if (parent) {
+                          const fallback = document.createElement("p");
+                          fallback.className =
+                            "text-sm text-red-500 p-3 bg-red-50 dark:bg-red-900/20 rounded-lg";
+                          fallback.textContent = "Screenshot failed to load";
+                          parent.appendChild(fallback);
+                        }
+                      }}
+                      style={{ display: imageLoading ? "none" : "block" }}
+                    />
+                  </a>
+
+                  {/* Error message */}
+                  {imageError && (
+                    <div className="mt-2 p-3 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
+                      <p className="text-sm text-red-600 dark:text-red-400">
+                        <i className="fas fa-exclamation-circle mr-2"></i>
+                        Failed to load screenshot.
+                        <a
+                          href={
+                            viewingTicket.screenshot_preview ||
+                            viewingTicket.screenshot
+                          }
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="underline hover:text-red-700 dark:hover:text-red-300 ml-1"
+                        >
+                          Try opening directly
+                        </a>
+                      </p>
+                    </div>
+                  )}
+
+                  <p className="text-xs text-[var(--muted)] mt-1">
+                    <i className="fas fa-external-link-alt mr-1"></i>
+                    Click image to open in new tab
+                  </p>
                 </div>
               )}
 
@@ -725,9 +915,13 @@ const DeveloperTickets = () => {
                 </label>
                 <div className="mt-2 p-3 bg-[var(--surface2)] rounded-lg border border-[var(--border)]">
                   {viewingTicket.notes ? (
-                    <p className="text-sm text-[var(--text)]">{viewingTicket.notes}</p>
+                    <p className="text-sm text-[var(--text)]">
+                      {viewingTicket.notes}
+                    </p>
                   ) : (
-                    <p className="text-sm text-[var(--muted)] italic">No notes</p>
+                    <p className="text-sm text-[var(--muted)] italic">
+                      No notes
+                    </p>
                   )}
                 </div>
               </div>
@@ -738,7 +932,7 @@ const DeveloperTickets = () => {
                     closeViewModal();
                     openEditModal(viewingTicket);
                   }}
-                  className="flex-1 py-2.5 px-4 bg-purple-500 text-white rounded-lg font-medium text-sm hover:bg-purple-600 transition-colors flex items-center justify-center gap-2"
+                  className="flex-1 py-2.5 px-4 bg-gray-500 text-white rounded-lg font-medium text-sm hover:bg-purple-600 transition-colors flex items-center justify-center gap-2"
                 >
                   <FiEdit /> Update Ticket
                 </button>
@@ -781,10 +975,14 @@ const DeveloperTickets = () => {
               <div className="space-y-4">
                 {/* Ticket Info */}
                 <div className="p-3 bg-[var(--surface2)] rounded-lg border border-[var(--border)]">
-                  <p className="text-sm font-medium text-[var(--text)]">{editingTicket.issue_title}</p>
+                  <p className="text-sm font-medium text-[var(--text)]">
+                    {editingTicket.issue_title}
+                  </p>
                   <p className="text-xs text-[var(--muted)] mt-1">
                     <FiUser className="inline mr-1" size={12} />
-                    {editingTicket.name} • {MODULE_LABELS[editingTicket.module] || editingTicket.module}
+                    {editingTicket.name} •{" "}
+                    {MODULE_LABELS[editingTicket.module] ||
+                      editingTicket.module}
                   </p>
                 </div>
 
@@ -797,7 +995,12 @@ const DeveloperTickets = () => {
                     </label>
                     <select
                       value={editFormData.status}
-                      onChange={(e) => setEditFormData({ ...editFormData, status: e.target.value })}
+                      onChange={(e) =>
+                        setEditFormData({
+                          ...editFormData,
+                          status: e.target.value,
+                        })
+                      }
                       className="w-full px-3.5 py-2.5 bg-[var(--surface2)] border border-[var(--border)] rounded-lg text-sm text-[var(--text)] focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20"
                     >
                       {STATUS_OPTIONS.map((opt) => (
@@ -811,11 +1014,18 @@ const DeveloperTickets = () => {
                   <div>
                     <label className="text-xs font-semibold text-[var(--text)] flex items-center gap-1">
                       <FiMessageSquare className="text-purple-500" /> Add Note
-                      <span className="text-[10px] text-[var(--muted)] ml-1">(Optional)</span>
+                      <span className="text-[10px] text-[var(--muted)] ml-1">
+                        (Optional)
+                      </span>
                     </label>
                     <textarea
                       value={editFormData.note}
-                      onChange={(e) => setEditFormData({ ...editFormData, note: e.target.value })}
+                      onChange={(e) =>
+                        setEditFormData({
+                          ...editFormData,
+                          note: e.target.value,
+                        })
+                      }
                       rows="3"
                       placeholder="Add a note about the update (e.g., progress, findings, resolution)..."
                       className="w-full px-3.5 py-2.5 bg-[var(--surface2)] border border-[var(--border)] rounded-lg text-sm text-[var(--text)] focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 resize-none"
@@ -855,9 +1065,13 @@ const DeveloperTickets = () => {
                 className="flex-1 py-2.5 px-4 bg-gray-500 text-white rounded-lg font-medium text-sm hover:bg-purple-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {submitting ? (
-                  <><i className="fas fa-spinner fa-spin"></i> Updating...</>
+                  <>
+                    <i className="fas fa-spinner fa-spin"></i> Updating...
+                  </>
                 ) : (
-                  <><FiSend /> Update Ticket</>
+                  <>
+                    <FiSend /> Update Ticket
+                  </>
                 )}
               </button>
             </div>

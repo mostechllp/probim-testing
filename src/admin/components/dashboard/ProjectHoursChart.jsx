@@ -1,13 +1,16 @@
-import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 
 // Blue gradient shades
-const BLUE_GRADIENT = [
-  "#1a56db",
-  "#2563eb", 
-  "#3b82f6",
-  "#60a5fa",
-  "#93c5fd",
-];
+const BLUE_GRADIENT = ["#1a56db", "#2563eb", "#3b82f6", "#60a5fa", "#93c5fd"];
 
 export const ProjectHoursChart = ({ data, onBarClick }) => {
   if (!data || data.length === 0) {
@@ -59,9 +62,9 @@ export const ProjectHoursChart = ({ data, onBarClick }) => {
           <i className="fas fa-hand-pointer mr-1"></i> Click for details
         </span>
       </div>
-      
+
       {/* SVG Gradient Definition */}
-      <svg style={{ position: 'absolute', width: 0, height: 0 }}>
+      <svg style={{ position: "absolute", width: 0, height: 0 }}>
         <defs>
           <linearGradient id="hoursBlueGradient" x1="0" y1="0" x2="1" y2="0">
             <stop offset="0%" stopColor="#1a56db" />
@@ -70,7 +73,7 @@ export const ProjectHoursChart = ({ data, onBarClick }) => {
           </linearGradient>
         </defs>
       </svg>
-      
+
       <ResponsiveContainer width="100%" height={220}>
         <BarChart
           data={truncatedData}
@@ -99,9 +102,12 @@ export const ProjectHoursChart = ({ data, onBarClick }) => {
             contentStyle={{ borderRadius: 8, border: "1px solid #e5e7eb" }}
             formatter={(value) => [`${value} hours`]}
             labelFormatter={(label, props) => {
-              // Get the full name from the payload
               if (props && props.length > 0) {
-                return props[0]?.payload?.fullName || label;
+                return (
+                  props[0]?.payload?.fullName ||
+                  label ||
+                  ""
+                ).toUpperCase();
               }
               return label;
             }}
@@ -140,7 +146,8 @@ export const ProjectHoursChart = ({ data, onBarClick }) => {
         </BarChart>
       </ResponsiveContainer>
       <div className="text-xs text-gray-400 text-center mt-2">
-        <i className="fas fa-hand-pointer mr-1 text-blue-400"></i> Click on any bar to view employee details
+        <i className="fas fa-hand-pointer mr-1 text-blue-400"></i> Click on any
+        bar to view employee details
       </div>
     </div>
   );

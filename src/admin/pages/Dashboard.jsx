@@ -26,6 +26,8 @@ import { RecentPunchesList } from "../components/dashboard/RecentPunchesList";
 import { PunchDistributionChart } from "../components/dashboard/PunchDistributionChart";
 import { ProjectHoursModal } from "../components/dashboard/ProjectHoursModal";
 import { ProjectTimeCostChart } from "../components/dashboard/ProjectTimeCostChart";
+import { fetchAttendanceStats } from "../store/slices/attendanceSlice";
+import { AttendanceEmployeesModal } from "../components/dashboard/AttendanceEmployeesModal";
 
 // ─── COLOR PALETTE ──────────────────────────────────────────────────────
 export const COLORS = {
@@ -114,9 +116,7 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const { employees } = useSelector((state) => state.employees);
   const { user } = useSelector((state) => state.auth);
-  const { stats, charts, loading } = useSelector(
-    (state) => state.dashboard,
-  );
+  const { stats, charts, loading } = useSelector((state) => state.dashboard);
   const { projectTimeCost } = useSelector((state) => state.dashboard);
   const { projects, loading: projectsLoading } = useSelector(
     (state) => state.projects || { projects: [], loading: false },
@@ -132,6 +132,9 @@ const Dashboard = () => {
   const [reportMonth, setReportMonth] = useState(new Date().getMonth() + 1);
   const [reportYear, setReportYear] = useState(new Date().getFullYear());
 
+  const [attendanceModalOpen, setAttendanceModalOpen] = useState(false);
+  const [attendanceModalType, setAttendanceModalType] = useState(null);
+
   const userType = user?.type || "admin";
   const basePath = userType === "admin" ? "/admin" : "/employee";
 
@@ -142,9 +145,22 @@ const Dashboard = () => {
     dispatch(fetchEmployees());
     // Fetch project time & cost report for current month
     dispatch(fetchProjectTimeCost({ month: reportMonth, year: reportYear }));
+    dispatch(fetchAttendanceStats());
   }, [dispatch, reportMonth, reportYear]);
 
-  const totalEmployees = employees?.length || 0;
+  const openAttendanceModal = (type) => {
+    setAttendanceModalType(type);
+    setAttendanceModalOpen(true);
+  };
+
+  const closeAttendanceModal = () => {
+    setAttendanceModalOpen(false);
+    setAttendanceModalType(null);
+  };
+
+   const todayStatus = charts?.today_status || {};
+
+  const totalEmployees = todayStatus.total_employees || 0;
   const activeProjects = projects.filter((p) => p.status === "Active").length;
   const totalAssignments = assignments.length;
   const totalTaggedEmployees = assignments.reduce(
@@ -152,16 +168,17 @@ const Dashboard = () => {
     0,
   );
 
-  const todayStatus = charts?.today_status || {};
+ 
   const onTimeCount = todayStatus["On time"] || 0;
   const lateCount = todayStatus.Late || 0;
   const absentCount = todayStatus.Absent || 0;
   const wfhCount = todayStatus.WFH || 0;
   const leaveCount = todayStatus.Leave || 0;
-  
-  const punchedInToday = todayStatus.punched_in || (onTimeCount + lateCount);
+
+  const punchedInToday = todayStatus.punched_in || onTimeCount + lateCount;
   const totalPresent = onTimeCount + lateCount;
-  const attendanceRate = totalEmployees > 0 ? Math.round((totalPresent / totalEmployees) * 100) : 0;
+  const attendanceRate =
+    totalEmployees > 0 ? Math.round((totalPresent / totalEmployees) * 100) : 0;
 
   const lateArrivals = lateCount;
   const absentToday = absentCount;
@@ -169,12 +186,15 @@ const Dashboard = () => {
   const projectStats = charts?.project_stats || {};
   const totalProjects = projectStats.total_projects || projects.length;
   const activeProjectsCount = projectStats.active_projects || activeProjects;
-  const totalAssignmentsCount = projectStats.total_assignments || totalAssignments;
-  const employeesAssigned = projectStats.employees_assigned || totalTaggedEmployees;
+  const totalAssignmentsCount =
+    projectStats.total_assignments || totalAssignments;
+  const employeesAssigned =
+    projectStats.employees_assigned || totalTaggedEmployees;
 
   const allocationData = charts?.project_allocation || [];
   const hoursData = charts?.project_hours || [];
-  const timeCostData = charts?.project_time_cost || projectTimeCost?.data?.projects || [];
+  const timeCostData =
+    charts?.project_time_cost || projectTimeCost?.data?.projects || [];
 
   const handleNavigate = (route) => {
     navigate(`${basePath}${route}`);
@@ -187,7 +207,10 @@ const Dashboard = () => {
         projectData.fullName || projectData.name || projectData.displayName;
       const matchedProject = projects.find((p) => p.name === projectName);
       const projectId =
-        matchedProject?.id || projectData.id || projectData.projectId || projectData.project_id;
+        matchedProject?.id ||
+        projectData.id ||
+        projectData.projectId ||
+        projectData.project_id;
 
       if (projectId) {
         setSelectedProject({
@@ -209,7 +232,8 @@ const Dashboard = () => {
       const projectData = data.activePayload[0].payload;
       const projectName = projectData.fullName || projectData.name;
       const matchedProject = projects.find((p) => p.name === projectName);
-      const projectId = matchedProject?.id || projectData.projectId || projectData.project_id;
+      const projectId =
+        matchedProject?.id || projectData.projectId || projectData.project_id;
 
       if (projectId) {
         setSelectedProject({
@@ -255,32 +279,28 @@ const Dashboard = () => {
           value={totalEmployees}
           icon="fas fa-users"
           color="green"
-          route="/employees"
-          onClick={() => handleNavigate("/employees")}
+          onClick={() => openAttendanceModal("total")}
         />
         <StatsCard
           title="Punched In Today"
           value={punchedInToday}
           icon="fas fa-fingerprint"
           color="blue"
-          route="/attendances"
-          onClick={() => handleNavigate("/attendances")}
+          onClick={() => openAttendanceModal("punched_in")}
         />
         <StatsCard
           title="Late Arrivals"
           value={lateArrivals}
           icon="fas fa-clock"
           color="amber"
-          route="/attendances"
-          onClick={() => handleNavigate("/attendances")}
+          onClick={() => openAttendanceModal("late")}
         />
         <StatsCard
           title="Absent Today"
           value={absentToday}
           icon="fas fa-user-slash"
           color="red"
-          route="/attendances"
-          onClick={() => handleNavigate("/attendances")}
+          onClick={() => openAttendanceModal("absent")}
         />
         <StatsCard
           title="Total Projects"
@@ -377,6 +397,11 @@ const Dashboard = () => {
         month={modalMonth}
         year={modalYear}
         employees={employees}
+      />
+      <AttendanceEmployeesModal
+        isOpen={attendanceModalOpen}
+        onClose={closeAttendanceModal}
+        type={attendanceModalType}
       />
     </div>
   );

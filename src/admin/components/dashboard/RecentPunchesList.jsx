@@ -105,7 +105,7 @@ export const RecentPunchesList = ({ punches, employees }) => {
                 {initials}
               </div>
               <span className="text-sm text-gray-700 dark:text-gray-300 flex-1">
-                {punch.name || "Unknown"}
+                {(punch.name || "Unknown").toUpperCase()}
               </span>
               <span className="text-xs text-gray-400 dark:text-gray-500">
                 {punch.time || "—"}

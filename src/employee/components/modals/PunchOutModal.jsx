@@ -124,8 +124,9 @@ const PunchOutModal = ({
   const punchInDate = todayAttendance.date;
 
   // Get the user's timezone from props or fallback
-  const userTimezone = timezone || 
-    todayAttendance?.timezone || 
+  const userTimezone = 
+    todayAttendance?.punch_in_timezone ||   // ✅ authoritative: the zone the punch-in actually happened in
+    timezone ||                             // fallback: explicit prop, if dashboard doesn't have it
     Intl.DateTimeFormat().resolvedOptions().timeZone;
 
   // Combined fetch function for both projects and punch data
@@ -188,7 +189,11 @@ const PunchOutModal = ({
       if (punchOutDate && userId && results.length > 1) {
         const punchDataRes = results[1];
         if (punchDataRes?.data?.data) {
-          setFetchedPunchData(punchDataRes.data.data);
+          const data = punchDataRes.data.data;
+          if (data.raw_punch_in) {
+    data.punch_in_raw = data.raw_punch_in;
+  }
+  setFetchedPunchData(data);
         } else if (pendingPunchData) {
           setFetchedPunchData(pendingPunchData);
         } else if (punchData) {
@@ -269,125 +274,213 @@ const PunchOutModal = ({
     }
   }, [fetchedPunchData]);
 
-  // Calculate working hours from punch in time and punch out time
-  const calculateWorkingHours = () => {
-    const activePunchInTime = punchOutDate
-      ? fetchedPunchData?.punch_in ||
-        pendingPunchData?.punch_in ||
-        punchData?.punch_in
-      : punchInTime;
+  // Calculate working hours from punch in time and punch out time with precision
+const calculateWorkingHours = () => {
+ const activePunchInTime = punchOutDate
+  ? fetchedPunchData?.punch_in_raw ||
+    pendingPunchData?.punch_in_raw ||
+    punchData?.punch_in_raw ||
+    // fall back to AM/PM-only value only if no raw datetime exists at all
+    fetchedPunchData?.punch_in ||
+    pendingPunchData?.punch_in ||
+    punchData?.punch_in
+  : punchInTime;
+  
+  if (!activePunchInTime) {
+    setMaxWorkingMinutes(0);
+    return;
+  }
 
-    if (!activePunchInTime) {
-      setMaxWorkingMinutes(0);
-      return;
-    }
+  let punchInDateObj, punchOutDateObj;
 
-    let punchInDateObj, punchOutDateObj;
+  // Parse punch in time with milliseconds precision
+    // Parse punch in time with milliseconds precision
+  try {
+    if (typeof activePunchInTime === "string") {
+      const fullDateTimeMatch = activePunchInTime.match(
+        /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})/
+      );
 
-    // Parse punch in time
-    try {
-      if (typeof activePunchInTime === "string") {
-        if (activePunchInTime.includes("T")) {
-          punchInDateObj = new Date(activePunchInTime);
-        } else if (activePunchInTime.includes(":")) {
-          if (
-            activePunchInTime.toLowerCase().includes("am") ||
-            activePunchInTime.toLowerCase().includes("pm")
-          ) {
-            const [time, meridian] = activePunchInTime.split(" ");
-            let [hours, minutes] = time.split(":").map(Number);
-            if (meridian.toLowerCase() === "pm" && hours !== 12) hours += 12;
-            if (meridian.toLowerCase() === "am" && hours === 12) hours = 0;
+      // ✅ Handle full datetime strings like "2026-08-27 19:02:16"
+      // (covers raw_punch_in / punch_in_raw) — must be checked BEFORE
+      // the bare "HH:MM:SS" branch, otherwise parts[0] becomes
+      // "2026-08-27 19" and parseInt() silently returns 2026 as "hours".
+      if (fullDateTimeMatch) {
+        const [, year, month, day, hours, minutes, seconds] = fullDateTimeMatch;
+        punchInDateObj = new Date(
+          parseInt(year),
+          parseInt(month) - 1,
+          parseInt(day),
+          parseInt(hours),
+          parseInt(minutes),
+          parseInt(seconds),
+          0
+        );
+      } else if (
+        activePunchInTime.toLowerCase().includes("am") ||
+        activePunchInTime.toLowerCase().includes("pm")
+      ) {
+        // Parse "07:02 PM" format
+        const parts = activePunchInTime.split(" ");
+        const timeStr = parts[0];
+        const meridian = parts[1];
 
-            const baseDate = punchOutDate ? new Date(punchOutDate) : new Date();
-            punchInDateObj = new Date(
-              baseDate.getFullYear(),
-              baseDate.getMonth(),
-              baseDate.getDate(),
-              hours,
-              minutes || 0,
-              0,
-            );
-          } else {
-            const parts = activePunchInTime.split(":");
-            const hours = parseInt(parts[0]);
-            const minutes = parseInt(parts[1]) || 0;
-            const seconds = parseInt(parts[2]) || 0;
+        const timeParts = timeStr.split(":");
+        let hours = parseInt(timeParts[0]);
+        const minutes = parseInt(timeParts[1]) || 0;
+        const seconds = parseInt(timeParts[2]) || 0;
 
-            const baseDate = punchOutDate ? new Date(punchOutDate) : new Date();
-            punchInDateObj = new Date(
-              baseDate.getFullYear(),
-              baseDate.getMonth(),
-              baseDate.getDate(),
-              hours,
-              minutes,
-              seconds,
-            );
-          }
-        } else {
-          punchInDateObj = new Date(activePunchInTime);
+        if (meridian.toLowerCase() === "pm" && hours !== 12) {
+          hours = hours + 12;
+        } else if (meridian.toLowerCase() === "am" && hours === 12) {
+          hours = 0;
         }
-      } else if (activePunchInTime instanceof Date) {
-        punchInDateObj = activePunchInTime;
+
+        const baseDate = punchOutDate ? new Date(punchOutDate) : new Date();
+        punchInDateObj = new Date(
+          baseDate.getFullYear(),
+          baseDate.getMonth(),
+          baseDate.getDate(),
+          hours,
+          minutes,
+          seconds,
+          0
+        );
+      } else if (activePunchInTime.includes("T")) {
+        // ISO format with T
+        punchInDateObj = new Date(activePunchInTime);
+      } else if (activePunchInTime.includes(":")) {
+        // Bare time only, e.g. "19:02:16" (no date component)
+        const parts = activePunchInTime.split(":");
+        const hours = parseInt(parts[0]);
+        const minutes = parseInt(parts[1]) || 0;
+        const seconds = parseInt(parts[2]) || 0;
+
+        const baseDate = punchOutDate ? new Date(punchOutDate) : new Date();
+        punchInDateObj = new Date(
+          baseDate.getFullYear(),
+          baseDate.getMonth(),
+          baseDate.getDate(),
+          hours,
+          minutes,
+          seconds,
+          0
+        );
       } else {
         punchInDateObj = new Date(activePunchInTime);
       }
+    } else if (activePunchInTime instanceof Date) {
+      punchInDateObj = activePunchInTime;
+    } else {
+      punchInDateObj = new Date(activePunchInTime);
+    }
 
-      if (isNaN(punchInDateObj.getTime())) {
-        console.warn("Invalid punch in time:", activePunchInTime);
-        setMaxWorkingMinutes(0);
-        return;
-      }
-    } catch (error) {
-      console.error("Error parsing punch in time:", error);
+    if (isNaN(punchInDateObj.getTime())) {
+      console.warn("Invalid punch in time:", activePunchInTime);
       setMaxWorkingMinutes(0);
       return;
     }
+  } catch (error) {
+    console.error("Error parsing punch in time:", error);
+    setMaxWorkingMinutes(0);
+    return;
+  }
+  // Determine punch out time with precision
+  let punchOutTimeStr = punchOutTime;
+  if (!punchOutTimeStr && !punchOutDate && todayAttendance.punch_out_time) {
+    punchOutTimeStr = todayAttendance.punch_out_time;
+  }
 
-    // Determine punch out time
-    let punchOutTimeStr = punchOutTime;
-    if (!punchOutTimeStr && !punchOutDate && todayAttendance.punch_out_time) {
-      punchOutTimeStr = todayAttendance.punch_out_time;
-    }
-
-    if (!punchOutTimeStr) {
-      punchOutDateObj = new Date();
-    } else {
-      try {
-        if (punchOutTimeStr.includes("T")) {
-          punchOutDateObj = new Date(punchOutTimeStr);
-        } else if (punchOutTimeStr.includes(":")) {
-          const parts = punchOutTimeStr.split(":");
-          const hours = parseInt(parts[0]);
-          const minutes = parseInt(parts[1]) || 0;
-          const seconds = parseInt(parts[2]) || 0;
-
-          punchOutDateObj = new Date(
-            punchInDateObj.getFullYear(),
-            punchInDateObj.getMonth(),
-            punchInDateObj.getDate(),
-            hours,
-            minutes,
-            seconds,
-          );
+  if (!punchOutTimeStr) {
+    // Use current time with milliseconds for precision
+    punchOutDateObj = new Date();
+  } else {
+    try {
+      if (punchOutTimeStr.includes("T")) {
+        punchOutDateObj = new Date(punchOutTimeStr);
+      } else if (punchOutTimeStr.includes(":")) {
+        // Handle both 24-hour and 12-hour formats for punch out
+        let hours, minutes = 0, seconds = 0;
+        
+        if (punchOutTimeStr.toLowerCase().includes("am") || 
+            punchOutTimeStr.toLowerCase().includes("pm")) {
+          // 12-hour format like "07:04 PM"
+          const parts = punchOutTimeStr.split(" ");
+          const timeStr = parts[0];
+          const meridian = parts[1];
+          
+          const timeParts = timeStr.split(":");
+          hours = parseInt(timeParts[0]);
+          minutes = parseInt(timeParts[1]) || 0;
+          seconds = parseInt(timeParts[2]) || 0;
+          
+          // ✅ CORRECT AM/PM conversion
+          if (meridian.toLowerCase() === "pm" && hours !== 12) {
+            hours = hours + 12;
+          } else if (meridian.toLowerCase() === "am" && hours === 12) {
+            hours = 0;
+          }
         } else {
-          punchOutDateObj = new Date(punchOutTimeStr);
+          // 24-hour format like "18:00"
+          const parts = punchOutTimeStr.split(":");
+          hours = parseInt(parts[0]);
+          minutes = parseInt(parts[1]) || 0;
+          seconds = parseInt(parts[2]) || 0;
         }
 
+        punchOutDateObj = new Date(
+          punchInDateObj.getFullYear(),
+          punchInDateObj.getMonth(),
+          punchInDateObj.getDate(),
+          hours,
+          minutes,
+          seconds,
+          0
+        );
+
+        // Handle case where punch out time is on the next day
         if (punchOutDateObj < punchInDateObj) {
           punchOutDateObj.setDate(punchOutDateObj.getDate() + 1);
         }
-      } catch (error) {
-        console.error("Error parsing punch out time:", error);
-        punchOutDateObj = new Date();
+      } else {
+        punchOutDateObj = new Date(punchOutTimeStr);
       }
+    } catch (error) {
+      console.error("Error parsing punch out time:", error);
+      punchOutDateObj = new Date();
     }
+  }
 
-    const diffMs = punchOutDateObj - punchInDateObj;
-    const diffMinutesTotal = diffMs / (1000 * 60);
-    const maxMinutes = Math.max(0, Math.min(Math.floor(diffMinutesTotal), 24 * 60));
-    setMaxWorkingMinutes(maxMinutes);
-  };
+  // Calculate exact difference in milliseconds
+  const diffMs = punchOutDateObj.getTime() - punchInDateObj.getTime();
+  
+  // Calculate total minutes with decimal precision
+  const diffMinutesExact = diffMs / (1000 * 60);
+  
+  // Floor (round down) - most common for attendance
+  const maxMinutes = Math.max(0, Math.floor(diffMinutesExact));
+  
+  // Log for debugging
+  console.log("📊 Punch In Raw:", activePunchInTime);
+  console.log("📊 Punch In Date:", punchInDateObj.toISOString());
+
+if (!punchOutDateObj || isNaN(punchOutDateObj.getTime())) {
+  console.warn("Invalid punch out time:", punchOutTimeStr);
+  setMaxWorkingMinutes(0);
+  return;
+}
+
+console.log("📊 Punch Out Date:", punchOutDateObj.toISOString());
+
+  console.log("📊 Punch Out Date:", punchOutDateObj.toISOString());
+  console.log("📊 Difference in seconds:", diffMs / 1000);
+  console.log("📊 Difference in minutes (exact):", diffMinutesExact);
+  console.log("📊 Max working minutes (rounded):", maxMinutes);
+
+  // Cap at 24 hours maximum
+  const cappedMinutes = Math.min(maxMinutes, 24 * 60);
+  setMaxWorkingMinutes(cappedMinutes);
+};
 
   // Calculate total hours whenever project times change
   useEffect(() => {

@@ -45,6 +45,8 @@ import { ProjectTimeCostChart } from "../../admin/components/dashboard/ProjectTi
 import apiClient from "../../utils/apiClient";
 import { submitAttendanceRequest } from "../store/slices/attendanceTypeSlice";
 import { getStoredLocationData } from "../services/locationStorage";
+import { AttendanceEmployeesModal } from "../../admin/components/dashboard/AttendanceEmployeesModal";
+import { fetchAttendanceStats } from "../../admin/store/slices/attendanceSlice";
 
 // ─── COLOR PALETTE ──────────────────────────────────────────────────────
 export const COLORS = {
@@ -294,6 +296,19 @@ const Dashboard = () => {
   const [pendingPunchData, setPendingPunchData] = useState(null);
   const [isLoadingPunchData, setIsLoadingPunchData] = useState(false);
 
+  const [attendanceModalOpen, setAttendanceModalOpen] = useState(false);
+  const [attendanceModalType, setAttendanceModalType] = useState(null);
+
+  const openAttendanceModal = (type) => {
+    setAttendanceModalType(type);
+    setAttendanceModalOpen(true);
+  };
+
+  const closeAttendanceModal = () => {
+    setAttendanceModalOpen(false);
+    setAttendanceModalType(null);
+  };
+
   // Check for dark mode
   useEffect(() => {
     const checkDarkMode = () => {
@@ -370,6 +385,7 @@ const Dashboard = () => {
       dispatch(fetchProjects());
       dispatch(fetchAssignments());
       dispatch(fetchEmployees());
+      dispatch(fetchAttendanceStats()); 
     }
   }, [dispatch, showAdminGraphs]);
 
@@ -449,77 +465,81 @@ const Dashboard = () => {
 
   // Handle location confirmation
   const handleLocationConfirm = async (locationData) => {
-  setShowLocationModal(false);
-  setIsSubmitting(true);
+    setShowLocationModal(false);
+    setIsSubmitting(true);
 
-  storeLocationData(locationData);
+    storeLocationData(locationData);
 
-  if (punchType === "punch-in") {
-    try {
-      // ✅ Directly dispatch and catch the error
-      const result = await dispatch(punchIn({ location: locationData })).unwrap();
-      
-      showToastMessage("Punched in successfully!", "success", "Success");
-      clearStoredLocationData();
-      await dispatch(fetchDashboardData()).unwrap();
-      
-    } catch (err) {
-      console.error("Punch in error:", err);
-      
-      // Extract error message
-      let errorMsg = "";
-      if (typeof err === "string") {
-        errorMsg = err;
-      } else if (err?.payload?.message) {
-        errorMsg = err.payload.message;
-      } else if (err?.message) {
-        errorMsg = err.message;
-      } else if (err?.response?.data?.message) {
-        errorMsg = err.response.data.message;
-      } else {
-        errorMsg = String(err);
-      }
+    if (punchType === "punch-in") {
+      try {
+        // ✅ Directly dispatch and catch the error
+        const result = await dispatch(
+          punchIn({ location: locationData }),
+        ).unwrap();
 
-      // Check for pending punch-out error
-      if (
-        errorMsg.includes("pending punch-out") ||
-        errorMsg.includes("punch out for that day") ||
-        errorMsg.includes("Please punch out first")
-      ) {
-        const match = errorMsg.match(/for (\d{4}-\d{2}-\d{2})/);
-        const date = match ? match[1] : "that day";
-        setPendingPunchOutDate(date);
-        setShowPendingErrorModal(true);
+        showToastMessage("Punched in successfully!", "success", "Success");
+        clearStoredLocationData();
+        await dispatch(fetchDashboardData()).unwrap();
+      } catch (err) {
+        console.error("Punch in error:", err);
+
+        // Extract error message
+        let errorMsg = "";
+        if (typeof err === "string") {
+          errorMsg = err;
+        } else if (err?.payload?.message) {
+          errorMsg = err.payload.message;
+        } else if (err?.message) {
+          errorMsg = err.message;
+        } else if (err?.response?.data?.message) {
+          errorMsg = err.response.data.message;
+        } else {
+          errorMsg = String(err);
+        }
+
+        // Check for pending punch-out error
+        if (
+          errorMsg.includes("pending punch-out") ||
+          errorMsg.includes("punch out for that day") ||
+          errorMsg.includes("Please punch out first")
+        ) {
+          const match = errorMsg.match(/for (\d{4}-\d{2}-\d{2})/);
+          const date = match ? match[1] : "that day";
+          setPendingPunchOutDate(date);
+          setShowPendingErrorModal(true);
+          setIsSubmitting(false);
+          return;
+        }
+
+        // ✅ Check for late punch-in with HR approval
+        if (
+          errorMsg.includes("Punch-in blocked") ||
+          errorMsg.includes("pending HR approval") ||
+          errorMsg.includes("late check-in request") ||
+          errorMsg.includes("late check-in is pending") ||
+          errorMsg.includes("late check-in request is pending")
+        ) {
+          // Store the error for later use
+          localStorage.setItem("late-punch-error", errorMsg);
+
+          // Show the blocked modal with the error message
+          setShowBlockedErrorModal(true);
+          setBlockedErrorMessage(errorMsg);
+
+          // ✅ AUTO-SUBMIT: Call the API automatically
+          await handleLatePunchRequest();
+
+          setIsSubmitting(false);
+          return;
+        }
+
+        // Show other errors using error handler
+        showToastMessage(
+          errorMsg || "Punch in failed. Please try again.",
+          "error",
+        );
         setIsSubmitting(false);
-        return;
       }
-
-      // ✅ Check for late punch-in with HR approval
-      if (
-        errorMsg.includes("Punch-in blocked") ||
-        errorMsg.includes("pending HR approval") ||
-        errorMsg.includes("late check-in request") ||
-        errorMsg.includes("late check-in is pending") ||
-        errorMsg.includes("late check-in request is pending")
-      ) {
-        // Store the error for later use
-        localStorage.setItem("late-punch-error", errorMsg);
-        
-        // Show the blocked modal with the error message
-        setShowBlockedErrorModal(true);
-        setBlockedErrorMessage(errorMsg);
-        
-        // ✅ AUTO-SUBMIT: Call the API automatically
-        await handleLatePunchRequest();
-        
-        setIsSubmitting(false);
-        return;
-      }
-
-      // Show other errors using error handler
-      showToastMessage(errorMsg || "Punch in failed. Please try again.", "error");
-      setIsSubmitting(false);
-    }
     } else if (punchOutData) {
       const isPastDatePunchOut = punchType === "punch-out-then-punchin";
 
@@ -746,7 +766,16 @@ const Dashboard = () => {
   };
 
   // Admin dashboard calculations
-  const totalEmployees = employees?.length || 0;
+  const { stats: attendanceStats } = useSelector(
+  (state) => state.attendance || { stats: {} }
+);
+
+const totalEmployees =
+  attendanceStats?.totalEmployees ??
+  attendanceStats?.total_employees ??
+  attendanceStats?.totalActiveEmployees ??
+  employees?.length ??
+  0;
   const activeProjects = allProjects.filter(
     (p) => p.status === "Active",
   ).length;
@@ -764,12 +793,9 @@ const Dashboard = () => {
     totalEmployees > 0 ? Math.round((totalPresent / totalEmployees) * 100) : 0;
 
   const todayStatus = charts?.today_status || {};
-  const punchedInToday =
-    Object.values(todayStatus).reduce((a, b) => a + b, 0) ||
-    adminStats?.today?.punched_in ||
-    0;
-  const lateArrivals = todayStatus.Late || adminStats?.today?.late || 0;
-  const absentToday = todayStatus.Absent || adminStats?.today?.absent || 0;
+ const punchedInToday = adminStats?.today?.punched_in || 0;
+  const lateArrivals = adminStats?.today?.late || 0;
+const absentToday = adminStats?.today?.absent || 0;
 
   const projectStats = charts?.project_stats || {};
   const totalProjects = projectStats.total_projects || allProjects.length;
@@ -923,108 +949,176 @@ const Dashboard = () => {
   };
 
   // In Dashboard.jsx - Update the handleLatePunchRequest function
-let isLatePunchRequestSubmitted = false;
+  let isLatePunchRequestSubmitted = false;
 
-// Dashboard.jsx - Update handleLatePunchRequest function
+  // Dashboard.jsx - Update handleLatePunchRequest function
 
-const handleLatePunchRequest = async () => {
-  // ✅ Prevent duplicate submissions
-  if (isLatePunchRequestSubmitted) {
-    console.log("Late punch request already submitted, skipping...");
-    return;
-  }
-  
-  try {
-    // Get stored location data
-    const locationData = getStoredLocationData();
-
-    if (!locationData) {
-      console.error("Location data not found");
-      showToastMessage(
-        "Location data not found. Please try punching in again.",
-        "error",
-      );
+  const handleLatePunchRequest = async () => {
+    // ✅ Prevent duplicate submissions
+    if (isLatePunchRequestSubmitted) {
+      console.log("Late punch request already submitted, skipping...");
       return;
     }
 
-    // Get the error message to extract late duration
-    const errorMsg = localStorage.getItem("late-punch-error") || "";
-    const lateDurationMatch = errorMsg.match(
-      /(\d+)\s*(hrs?|hours?|minutes?|min)/i,
-    );
-    const lateDuration = lateDurationMatch
-      ? lateDurationMatch[0]
-      : "several minutes";
+    try {
+      // Get stored location data
+      const locationData = getStoredLocationData();
 
-    // Extract scheduled start time
-    const scheduledMatch = errorMsg.match(
-      /scheduled start:\s*(\d{1,2}:\d{2}\s*(?:AM|PM))/i,
-    );
-    const scheduledStartTime = scheduledMatch
-      ? scheduledMatch[1]
-      : "09:00 AM";
+      if (!locationData) {
+        console.error("Location data not found");
+        showToastMessage(
+          "Location data not found. Please try punching in again.",
+          "error",
+        );
+        return;
+      }
 
-    // Get current date and time
-    const now = new Date();
-    const today = now.toISOString().split("T")[0];
-    const currentTime = now.toTimeString().slice(0, 8);
-
-    // ✅ Get work_location from locationData
-    const workLocation = locationData.work_location || 
-                         locationData.country || 
-                         'Unknown';
-
-    // Prepare payload
-    const payload = {
-      employee_id: user?.employee?.id || user?.id,
-      type: "late_check_in",
-      request_date: today,
-      request_time: currentTime,
-      reason: `Employee attempted to punch in ${lateDuration} late (scheduled: ${scheduledStartTime}).`,
-      status: "pending",
-      timezone: locationData.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
-      created_by: "admin",
-      work_location: workLocation, // ✅ Add work_location
-      location: {
-        latitude: locationData.latitude,
-        longitude: locationData.longitude,
-        address: locationData.address || locationData.work_location || "Unknown",
-        work_location: workLocation // ✅ Also include in location object
-      },
-    };
-
-    console.log("📤 Auto-submitting late attendance request:", payload);
-
-    // ✅ Mark as submitted before making the API call
-    isLatePunchRequestSubmitted = true;
-
-    // Submit the request
-    const result = await dispatch(
-      submitLateAttendanceRequest(payload),
-    ).unwrap();
-
-    if (result) {
-      console.log("✅ Late attendance request submitted successfully:", result);
-      showToastMessage(
-        "Your late punch-in request has been automatically submitted to HR for approval.",
-        "success",
-        "Request Submitted",
+      // Get the error message to extract late duration
+      const errorMsg = localStorage.getItem("late-punch-error") || "";
+      const lateDurationMatch = errorMsg.match(
+        /(\d+)\s*(hrs?|hours?|minutes?|min)/i,
       );
+      const lateDuration = lateDurationMatch
+        ? lateDurationMatch[0]
+        : "several minutes";
 
-      // Clear stored error after successful submission
-      localStorage.removeItem("late-punch-error");
-      // Don't clear location data yet - might need it if request is rejected
+      // Extract scheduled start time
+      const scheduledMatch = errorMsg.match(
+        /scheduled start:\s*(\d{1,2}:\d{2}\s*(?:AM|PM))/i,
+      );
+      const scheduledStartTime = scheduledMatch
+        ? scheduledMatch[1]
+        : "09:00 AM";
+
+      // Get current date and time
+      const now = new Date();
+      const today = now.toISOString().split("T")[0];
+      const currentTime = now.toTimeString().slice(0, 8); // HH:MM:SS format
+
+      // ✅ CRITICAL FIX: Use the timezone from location data
+      // The timezone_offset_minutes should already be in the location data
+      let tzOffsetMinutes = locationData.timezone_offset_minutes;
+
+      // If not available, try to get it from the timezone string
+      if (!tzOffsetMinutes && locationData.timezone) {
+        // Parse timezone like "Asia/Kolkata" or "+05:30"
+        if (
+          locationData.timezone.startsWith("+") ||
+          locationData.timezone.startsWith("-")
+        ) {
+          // Parse offset string like "+05:30"
+          const match = locationData.timezone.match(/([+-])(\d{2}):(\d{2})/);
+          if (match) {
+            const sign = match[1] === "+" ? 1 : -1;
+            const hours = parseInt(match[2]);
+            const minutes = parseInt(match[3]);
+            tzOffsetMinutes = sign * (hours * 60 + minutes);
+          }
+        } else {
+          // For named timezone like "Asia/Kolkata", calculate offset
+          const dateInTz = new Date().toLocaleString("en-US", {
+            timeZone: locationData.timezone,
+          });
+          const dateInUTC = new Date().toLocaleString("en-US", {
+            timeZone: "UTC",
+          });
+          const offsetMs =
+            new Date(dateInTz).getTime() - new Date(dateInUTC).getTime();
+          tzOffsetMinutes = Math.round(offsetMs / 60000);
+        }
+      }
+
+      // If still no offset, use India timezone (UTC+5:30) as fallback
+      if (!tzOffsetMinutes) {
+        // Check if user is in India timezone
+        const userTimezone =
+          locationData.timezone ||
+          Intl.DateTimeFormat().resolvedOptions().timeZone;
+        if (userTimezone === "Asia/Kolkata" || userTimezone === "IST") {
+          tzOffsetMinutes = 330; // UTC+5:30 in minutes
+        } else {
+          // Default to browser's timezone offset
+          tzOffsetMinutes = -now.getTimezoneOffset();
+        }
+      }
+
+      // Format the offset
+      const offsetHours = Math.floor(Math.abs(tzOffsetMinutes) / 60);
+      const offsetMins = Math.abs(tzOffsetMinutes) % 60;
+      const offsetSign = tzOffsetMinutes >= 0 ? "+" : "-";
+      const offsetStr = `${offsetSign}${String(offsetHours).padStart(2, "0")}:${String(offsetMins).padStart(2, "0")}`;
+
+      // Create full datetime string with timezone
+      const requestDateTime = `${today}T${currentTime}+05:30`;
+
+      console.log(
+        "📍 Timezone offset:",
+        tzOffsetMinutes,
+        "Offset string:",
+        offsetStr,
+      );
+      console.log("📅 Request datetime:", requestDateTime);
+
+      // Get work_location from locationData
+      const workLocation =
+        locationData.work_location || locationData.country || "India"; // Default to India
+
+      // Prepare payload
+      const payload = {
+        employee_id: user?.employee?.id || user?.id,
+        type: "late_check_in",
+        request_date: today,
+        request_time: requestDateTime, // Now in format: "2026-09-04T13:40:46+05:30"
+        reason: `Employee attempted to punch in ${lateDuration} late (scheduled: ${scheduledStartTime}).`,
+        status: "pending",
+        timezone: locationData.timezone || "Asia/Kolkata",
+        created_by: "admin",
+        work_location: workLocation,
+        location: {
+          latitude: locationData.latitude,
+          longitude: locationData.longitude,
+          address:
+            locationData.address || locationData.work_location || "Unknown",
+          work_location: workLocation,
+          timezone: locationData.timezone || "Asia/Kolkata",
+          timezone_offset_minutes: tzOffsetMinutes,
+        },
+      };
+
+      console.log("📤 Auto-submitting late attendance request:", payload);
+
+      // ✅ Mark as submitted before making the API call
+      isLatePunchRequestSubmitted = true;
+
+      // Submit the request
+      const result = await dispatch(
+        submitLateAttendanceRequest(payload),
+      ).unwrap();
+
+      if (result) {
+        console.log(
+          "✅ Late attendance request submitted successfully:",
+          result,
+        );
+        showToastMessage(
+          "Your late punch-in request has been automatically submitted to HR for approval.",
+          "success",
+          "Request Submitted",
+        );
+
+        // Clear stored error after successful submission
+        localStorage.removeItem("late-punch-error");
+      }
+    } catch (error) {
+      console.error("Error submitting late attendance request:", error);
+      // Reset the flag so it can be retried
+      isLatePunchRequestSubmitted = false;
+      showToastMessage(
+        error?.message || "Failed to submit request. Please contact HR.",
+        "error",
+      );
     }
-  } catch (error) {
-    console.error("Error submitting late attendance request:", error);
-    // Reset the flag so it can be retried
-    isLatePunchRequestSubmitted = false;
-    showToastMessage(
-      error?.message || "Failed to submit request. Please contact HR.",
-      "error",
-    );
-  }
-};
+  };
 
   // Submit missed punch request
 
@@ -1451,32 +1545,28 @@ const handleLatePunchRequest = async () => {
               value={totalEmployees}
               icon="fas fa-users"
               color="green"
-              route="/employees"
-              onClick={() => handleNavigate("/employees")}
+              onClick={() => openAttendanceModal("total")}
             />
             <StatsCard
               title="Punched In"
               value={punchedInToday}
               icon="fas fa-fingerprint"
               color="blue"
-              route="/attendance"
-              onClick={() => handleNavigate("/attendance")}
+              onClick={() => openAttendanceModal("punched_in")}
             />
             <StatsCard
               title="Late"
               value={lateArrivals}
               icon="fas fa-clock"
               color="amber"
-              route="/attendance"
-              onClick={() => handleNavigate("/attendance")}
+              onClick={() => openAttendanceModal("late")}
             />
             <StatsCard
               title="Absent"
               value={absentToday}
               icon="fas fa-user-slash"
               color="red"
-              route="/attendance"
-              onClick={() => handleNavigate("/attendance")}
+              onClick={() => openAttendanceModal("absent")}
             />
           </div>
 
@@ -2119,6 +2209,12 @@ const handleLatePunchRequest = async () => {
           }}
         />
       )}
+
+      <AttendanceEmployeesModal
+        isOpen={attendanceModalOpen}
+        onClose={closeAttendanceModal}
+        type={attendanceModalType}
+      />
     </div>
   );
 };

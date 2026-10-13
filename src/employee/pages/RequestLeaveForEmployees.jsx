@@ -39,6 +39,9 @@ const RequestLeaveForEmployee = () => {
   };
   const basePath = getBasePath();
 
+  const leavePath =
+  basePath === '/employee' ? '/leave-management' : '/leaves';
+
   const leavesState = useSelector((state) => state.EmpLeaves);
   const leaveTypes = leavesState?.leaveTypes || [];
   const submitting = leavesState?.submitting || false;
@@ -384,7 +387,7 @@ const RequestLeaveForEmployee = () => {
         </Link>
         <i className="fas fa-chevron-right text-gray-400 text-[10px] md:text-xs"></i>
         <Link
-          to={`${basePath}/leaves`}
+          to={`${basePath}${leavePath}`}
           className="text-green-500 hover:text-green-600 font-medium"
         >
           Leaves

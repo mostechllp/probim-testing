@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import {
   UserPlus,
@@ -34,11 +34,19 @@ import {
 const OnboardingDashboard = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
+  const location = useLocation();
 
   const [loading, setLoading] = useState(true);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedOnboarding, setSelectedOnboarding] = useState(null);
   const [deleting, setDeleting] = useState(false);
+
+  const getBasePath = () => {
+    if (location.pathname.startsWith('/admin')) return '/admin';
+    if (location.pathname.startsWith('/employee')) return '/employee';
+    return '';
+  };
+  const basePath = getBasePath();
 
   // Get data from Redux store
   const { employees, loading: employeesLoading } = useSelector(
@@ -280,7 +288,7 @@ const OnboardingDashboard = () => {
 
             // Reset Redux state (will be handled by the initiate page)
             // Navigate to fresh onboarding
-            navigate("/admin/employees/onboarding/initiate", {
+            navigate(`/${basePath}/employees/onboarding/initiate`, {
               state: {
                 isFreshStart: true,
               },

@@ -1,6 +1,5 @@
-import React from 'react';
-import { FiAlertTriangle, FiRefreshCw } from 'react-icons/fi';
-import errorHandler from '../../utils/errorHandler';
+import React from "react";
+import { FiAlertTriangle, FiRefreshCw } from "react-icons/fi";
 
 class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -13,7 +12,12 @@ class ErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error, errorInfo) {
-    console.error('Error caught by boundary:', error, errorInfo);
+    // ✅ Only log to console — never surface to UI
+    console.error("[ErrorBoundary] Caught error:", error);
+    console.error("[ErrorBoundary] Component stack:", errorInfo?.componentStack);
+
+    // Optional: send to monitoring (Sentry, LogRocket, etc.)
+    // logErrorToService(error, errorInfo);
   }
 
   handleRetry = () => {
@@ -25,8 +29,7 @@ class ErrorBoundary extends React.Component {
 
   render() {
     if (this.state.hasError) {
-      const friendlyError = errorHandler.getFriendlyError(this.state.error);
-      
+      // ✅ Show only a generic message — no error details
       return (
         <div className="min-h-[400px] flex items-center justify-center p-8">
           <div className="text-center max-w-md">
@@ -34,10 +37,10 @@ class ErrorBoundary extends React.Component {
               <FiAlertTriangle className="text-red-500 text-3xl" />
             </div>
             <h3 className="text-lg font-bold text-[var(--text)] mb-2">
-              {friendlyError.title}
+              Something went wrong
             </h3>
             <p className="text-sm text-[var(--text-secondary)] mb-6">
-              {friendlyError.message}
+              We couldn't load this section. Please try again.
             </p>
             <button
               onClick={this.handleRetry}

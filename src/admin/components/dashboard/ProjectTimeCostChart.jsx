@@ -43,7 +43,7 @@ const CustomTooltip = ({ active, payload }) => {
     return (
       <div className="bg-white dark:bg-gray-800 p-3 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 text-xs min-w-[200px]">
         <p className="font-semibold text-gray-800 dark:text-white mb-1 text-sm">
-          {data.fullName || data.name}
+          {(data.fullName || data.name || "").toUpperCase()}
         </p>
         <div className="space-y-0.5">
           <p className="text-blue-600 dark:text-blue-400 flex justify-between">
@@ -740,7 +740,7 @@ export const ProjectTimeCostChart = ({
                         return (
                           <div className="bg-white dark:bg-gray-800 p-2 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 text-xs">
                             <p className="font-semibold text-gray-800 dark:text-white">
-                              {data.fullName}
+                              {(data.fullName || "").toUpperCase()}
                             </p>
                             <p className="text-purple-600 dark:text-purple-400">
                               Utilization: {data.utilization}%
@@ -1040,7 +1040,7 @@ export const ProjectTimeCostChart = ({
                     return (
                       <div className="bg-white dark:bg-gray-800 p-2 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 text-xs">
                         <p className="font-semibold text-gray-800 dark:text-white">
-                          {data.fullName}
+                          {(data.fullName || "").toUpperCase()}
                         </p>
                         <p className="text-green-600 dark:text-green-400">
                           Actual: {data.currency || "AED"}{" "}

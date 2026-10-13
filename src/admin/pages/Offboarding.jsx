@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import {
   ClipboardList,
@@ -36,7 +36,6 @@ import {
 } from "../store/slices/offboardingSlice";
 
 // Helper function to get step name
-// Helper function to get step name
 const getStepName = (stepKey) => {
   if (!stepKey) return "Unknown";
 
@@ -62,7 +61,6 @@ const getStepName = (stepKey) => {
     checklist: "General Checklist",
     general_checklist: "General Checklist",
     completed: "Completed",
-    // Additional step keys
     pending_visa: "Visa Cancel",
     pending_checklist: "General Checklist",
     pending_assets: "Assets",
@@ -116,7 +114,20 @@ const MessageSquareIcon = ({ size }) => (
 
 const OffboardingDashboard = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const dispatch = useDispatch();
+
+  // ✅ FIX: derive base path from current URL
+  //    /admin/employees/offboarding  → /admin/employees
+  //    /employee/employees/offboarding → /employee/employees
+  const getBasePath = () => {
+    const path = location.pathname;
+    if (path.startsWith("/admin")) return "/admin";
+    if (path.startsWith("/employee")) return "/employee";
+    return "";
+  };
+
+  const basePath = `${getBasePath()}/employees`;
 
   const [stats, setStats] = useState({
     total_offboarding: 0,
@@ -169,7 +180,6 @@ const OffboardingDashboard = () => {
     const map = new Map();
     if (employees && employees.length > 0) {
       employees.forEach((emp) => {
-        // Store by both id and employee_id
         map.set(String(emp.id), emp);
         if (emp.employee_id) {
           map.set(String(emp.employee_id), emp);
@@ -197,7 +207,6 @@ const OffboardingDashboard = () => {
       await dispatch(deleteOffboarding(selectedOffboarding.id)).unwrap();
       setShowDeleteModal(false);
       setSelectedOffboarding(null);
-      // Refresh the list
       dispatch(fetchAllOffboarding({ page: 1, perPage: 50 }));
     } catch (error) {
       console.error("Delete error:", error);
@@ -213,113 +222,99 @@ const OffboardingDashboard = () => {
   }, [dispatch]);
 
   // Track which offboarding IDs we have fetched progress for
-  // Track which offboarding IDs we have fetched progress for
-const fetchedProgressIds = React.useRef(new Set());
+  const fetchedProgressIds = React.useRef(new Set());
 
-// Fetch progress for each offboarding record
-useEffect(() => {
-  const fetchProgressForAll = async () => {
-    // ✅ FIX: Define progressMap inside the function
-    const progressMap = {};
-    
-    if (offboardings && offboardings.length > 0) {
-      for (const offboarding of offboardings) {
-        try {
-          // Check if we already have progress for this offboarding to avoid re-fetching
-          if (fetchedProgressIds.current.has(offboarding.id)) continue;
-          
-          // Mark as fetching/fetched
-          fetchedProgressIds.current.add(offboarding.id);
+  // Fetch progress for each offboarding record
+  useEffect(() => {
+    const fetchProgressForAll = async () => {
+      const progressMap = {};
 
-          const result = await dispatch(
-            fetchOffboardingProgress(offboarding.id),
-          ).unwrap();
-          
-          if (result) {
-            // Create a new object instead of modifying the read-only result
-            let processedResult = { ...result };
+      if (offboardings && offboardings.length > 0) {
+        for (const offboarding of offboardings) {
+          try {
+            if (fetchedProgressIds.current.has(offboarding.id)) continue;
 
-            // If steps is not an array, create a steps array
-            if (!Array.isArray(processedResult.steps)) {
-              // If steps is a number, create a default steps array
-              const totalSteps = processedResult.steps || 7;
-              const stepOrder = [
-                "initiation",
-                "checklist",
-                "visa",
-                "assets",
-                "interview",
-                "settlement",
-                "letters",
-              ];
-              const currentStatus =
-                processedResult.current_status || "initiation";
-              const currentIndex = stepOrder.indexOf(currentStatus);
+            fetchedProgressIds.current.add(offboarding.id);
 
-              processedResult.steps = stepOrder.map((stepKey, index) => {
-                let status = "pending";
-                if (index < currentIndex) {
-                  status = "completed";
-                } else if (index === currentIndex) {
-                  status = "in_progress";
+            const result = await dispatch(
+              fetchOffboardingProgress(offboarding.id),
+            ).unwrap();
+
+            if (result) {
+              let processedResult = { ...result };
+
+              if (!Array.isArray(processedResult.steps)) {
+                const totalSteps = processedResult.steps || 7;
+                const stepOrder = [
+                  "initiation",
+                  "checklist",
+                  "visa",
+                  "assets",
+                  "interview",
+                  "settlement",
+                  "letters",
+                ];
+                const currentStatus =
+                  processedResult.current_status || "initiation";
+                const currentIndex = stepOrder.indexOf(currentStatus);
+
+                processedResult.steps = stepOrder.map((stepKey, index) => {
+                  let status = "pending";
+                  if (index < currentIndex) {
+                    status = "completed";
+                  } else if (index === currentIndex) {
+                    status = "in_progress";
+                  }
+                  return {
+                    key: stepKey,
+                    status: status,
+                    name: getStepName(stepKey),
+                  };
+                });
+
+                if (!processedResult.total_steps) {
+                  processedResult.total_steps = stepOrder.length;
                 }
-                return {
-                  key: stepKey,
-                  status: status,
-                  name: getStepName(stepKey),
-                };
-              });
-
-              // Update total_steps if needed
-              if (!processedResult.total_steps) {
-                processedResult.total_steps = stepOrder.length;
               }
-            }
 
-            progressMap[offboarding.id] = processedResult;
+              progressMap[offboarding.id] = processedResult;
+            }
+          } catch (error) {
+            fetchedProgressIds.current.delete(offboarding.id);
+            console.error(
+              `Failed to fetch progress for offboarding ${offboarding.id}:`,
+              error,
+            );
+            progressMap[offboarding.id] = {
+              steps: [],
+              progress_percentage: 0,
+              completed_steps: 0,
+              total_steps: 7,
+              current_status: "initiation",
+            };
           }
-        } catch (error) {
-          // Remove from set if failed so it can be retried if needed
-          fetchedProgressIds.current.delete(offboarding.id);
-          console.error(
-            `Failed to fetch progress for offboarding ${offboarding.id}:`,
-            error,
-          );
-          // Set default progress
-          progressMap[offboarding.id] = {
-            steps: [],
-            progress_percentage: 0,
-            completed_steps: 0,
-            total_steps: 7,
-            current_status: "initiation",
-          };
         }
       }
-    }
-    
-    // ✅ FIX: Set progress data after all fetches are complete
-    setProgressData(prev => {
-      if (Object.keys(progressMap).length === 0) return prev;
-      return { ...prev, ...progressMap };
-    });
-  };
 
-  fetchProgressForAll();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [offboardings, dispatch]);
+      setProgressData((prev) => {
+        if (Object.keys(progressMap).length === 0) return prev;
+        return { ...prev, ...progressMap };
+      });
+    };
+
+    fetchProgressForAll();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [offboardings, dispatch]);
 
   // Process offboarding data
   useEffect(() => {
     if (!offboardingLoading && offboardings) {
-      // Format recent offboarding data with employee names
       const formattedOffboardings = offboardings.map((off) => {
-        // Try to find employee by various ID fields
         let employee = null;
         if (off.employee_id) {
           employee = employeeMap.get(String(off.employee_id));
         }
 
-        // Get employee name from employee data or fallback to offboarding data
         let employeeName = "Unknown Employee";
         if (employee) {
           employeeName =
@@ -328,7 +323,6 @@ useEffect(() => {
           employeeName = off.employee_name;
         }
 
-        // Get department
         let department = off.department || "-";
         if (employee && employee.department) {
           department = employee.department;
@@ -339,37 +333,59 @@ useEffect(() => {
         const combinedStatus = progress?.status ?? off.status;
         let calculatedCurrentStep = off.current_step || "initiation";
 
-        if (progress && Array.isArray(progress.steps) && progress.steps.length > 0) {
-          const inProgressStep = progress.steps.find((s) => s.status === "in_progress");
+        if (
+          progress &&
+          Array.isArray(progress.steps) &&
+          progress.steps.length > 0
+        ) {
+          const inProgressStep = progress.steps.find(
+            (s) => s.status === "in_progress",
+          );
           if (inProgressStep) {
             calculatedCurrentStep = inProgressStep.key;
           } else {
-            const pendingStep = progress.steps.find((s) => s.status === "pending");
+            const pendingStep = progress.steps.find(
+              (s) => s.status === "pending",
+            );
             if (pendingStep) {
               calculatedCurrentStep = pendingStep.key;
-            } else if (progress.progress_percentage === 100 || combinedStatus === "completed") {
+            } else if (
+              progress.progress_percentage === 100 ||
+              combinedStatus === "completed"
+            ) {
               calculatedCurrentStep = "Completed";
             }
           }
-        } 
-        
-        // If we still don't have a good calculated step (it's initiation or missing), use the combinedStatus parsing
-        if (calculatedCurrentStep === "initiation" || !calculatedCurrentStep) {
-           if (progress?.progress_percentage === 100 || combinedStatus === "completed") calculatedCurrentStep = "Completed";
-           else if (combinedStatus?.includes("visa")) calculatedCurrentStep = "visa";
-           else if (combinedStatus?.includes("checklist") || combinedStatus?.includes("final") || combinedStatus?.includes("clearance")) calculatedCurrentStep = "checklist";
-           else if (combinedStatus?.includes("asset")) calculatedCurrentStep = "assets";
-           else if (combinedStatus?.includes("interview")) calculatedCurrentStep = "interview";
-           else if (combinedStatus?.includes("settlement")) calculatedCurrentStep = "settlement";
-           else if (combinedStatus?.includes("letter")) calculatedCurrentStep = "letters";
         }
 
-        // Determine completed steps count
+        if (calculatedCurrentStep === "initiation" || !calculatedCurrentStep) {
+          if (
+            progress?.progress_percentage === 100 ||
+            combinedStatus === "completed"
+          )
+            calculatedCurrentStep = "Completed";
+          else if (combinedStatus?.includes("visa"))
+            calculatedCurrentStep = "visa";
+          else if (
+            combinedStatus?.includes("checklist") ||
+            combinedStatus?.includes("final") ||
+            combinedStatus?.includes("clearance")
+          )
+            calculatedCurrentStep = "checklist";
+          else if (combinedStatus?.includes("asset"))
+            calculatedCurrentStep = "assets";
+          else if (combinedStatus?.includes("interview"))
+            calculatedCurrentStep = "interview";
+          else if (combinedStatus?.includes("settlement"))
+            calculatedCurrentStep = "settlement";
+          else if (combinedStatus?.includes("letter"))
+            calculatedCurrentStep = "letters";
+        }
+
         let completedSteps = progress?.completed_steps || 0;
         let totalSteps = progress?.total_steps || 7;
         let progressPercentage = progress?.progress_percentage || 0;
 
-        // If steps is a number and we have completed steps from progress
         if (typeof progress?.steps === "number" && progress?.completed_steps) {
           totalSteps = progress.steps;
           completedSteps = progress.completed_steps;
@@ -508,13 +524,11 @@ useEffect(() => {
     try {
       const currentStepKey = offboarding.currentStep || "initiation";
 
-      // Fetch full offboarding data
       const result = await dispatch(
         fetchOffboardingById(offboarding.id),
       ).unwrap();
 
       if (result) {
-        // Navigate based on the current step
         navigateToStep(currentStepKey, offboarding.id, result);
       }
     } catch (error) {
@@ -523,9 +537,8 @@ useEffect(() => {
     }
   };
 
-  // Helper function to navigate to the correct step
+  // ✅ FIX: navigate using basePath instead of hardcoded "/admin/employees"
   const navigateToStep = (stepKey, offboardingId, offboardingData) => {
-    const basePath = "/admin/employees";
     const state = { offboardingData, id: offboardingId, isEdit: true };
 
     switch (stepKey) {
@@ -542,10 +555,6 @@ useEffect(() => {
       case "visa":
       case "visa_cancellation":
         navigate(`${basePath}/visa-cancellation`, { state });
-        break;
-      case "checklist":
-      case "general_checklist":
-        navigate(`${basePath}/offboarding-checklist`, { state });
         break;
       case "assets":
       case "asset_return":
@@ -564,7 +573,6 @@ useEffect(() => {
         navigate(`${basePath}/letters-and-clearance`, { state });
         break;
       default:
-        // Default to initiation page
         navigate(`${basePath}/offboarding-initiation`, { state });
         break;
     }
@@ -613,12 +621,13 @@ useEffect(() => {
         <h2 className="text-lg md:text-2xl font-bold gradient-heading bg-clip-text text-transparent">
           Offboarding
         </h2>
+        {/* ✅ FIX: Initiate button now uses basePath */}
         <button
           className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 font-semibold text-sm flex items-center gap-2 transition-all shadow-sm"
           onClick={() => {
             localStorage.removeItem("offboarding_id");
             localStorage.removeItem("offboarding_draft");
-            navigate("/admin/employees/offboarding-initiation");
+            navigate(`${basePath}/offboarding-initiation`);
           }}
         >
           <UserPlus size={16} />
@@ -732,8 +741,9 @@ useEffect(() => {
                           {item.status === "completed" && (
                             <button
                               onClick={() => {
-                                navigate("/admin/employees/offboarding-initiation", {
-                                  state: { id: item.id, isView: true }
+                                // ✅ FIX: use basePath for view too
+                                navigate(`${basePath}/offboarding-initiation`, {
+                                  state: { id: item.id, isView: true },
                                 });
                               }}
                               title="View"
@@ -797,6 +807,7 @@ useEffect(() => {
           </div>
         </div>
       </div>
+
       {/* Delete Confirmation Modal */}
       {showDeleteModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">

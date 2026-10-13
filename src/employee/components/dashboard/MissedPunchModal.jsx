@@ -69,6 +69,142 @@ const extractCountryFromAddress = (address) => {
   return parts[parts.length - 1] || "Unknown";
 };
 
+// ✅ NEW: Get timezone from coordinates using Nominatim
+const getTimezoneFromCoordinates = async (latitude, longitude) => {
+  try {
+    // First try to get address details which includes country
+    const response = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=10&addressdetails=1`
+    );
+    const data = await response.json();
+    
+    if (data && data.address) {
+      const country = data.address.country || "";
+      const countryCode = data.address.country_code || "";
+      
+      // Map country to timezone
+      const timezoneMap = {
+        'United Arab Emirates': { timezone: 'Asia/Dubai', offset: 240 },
+        'Saudi Arabia': { timezone: 'Asia/Riyadh', offset: 180 },
+        'India': { timezone: 'Asia/Kolkata', offset: 330 },
+        'United States': { timezone: 'America/New_York', offset: -300 },
+        'United Kingdom': { timezone: 'Europe/London', offset: 60 },
+        'Australia': { timezone: 'Australia/Sydney', offset: 660 },
+        'Singapore': { timezone: 'Asia/Singapore', offset: 480 },
+        'Malaysia': { timezone: 'Asia/Kuala_Lumpur', offset: 480 },
+        'Philippines': { timezone: 'Asia/Manila', offset: 480 },
+        'Japan': { timezone: 'Asia/Tokyo', offset: 540 },
+        'South Korea': { timezone: 'Asia/Seoul', offset: 540 },
+        'China': { timezone: 'Asia/Shanghai', offset: 480 },
+        'Hong Kong': { timezone: 'Asia/Hong_Kong', offset: 480 },
+        'Taiwan': { timezone: 'Asia/Taipei', offset: 480 },
+        'Thailand': { timezone: 'Asia/Bangkok', offset: 420 },
+        'Vietnam': { timezone: 'Asia/Ho_Chi_Minh', offset: 420 },
+        'Indonesia': { timezone: 'Asia/Jakarta', offset: 420 },
+        'Pakistan': { timezone: 'Asia/Karachi', offset: 300 },
+        'Bangladesh': { timezone: 'Asia/Dhaka', offset: 360 },
+        'Sri Lanka': { timezone: 'Asia/Colombo', offset: 330 },
+        'Nepal': { timezone: 'Asia/Kathmandu', offset: 345 },
+        'Afghanistan': { timezone: 'Asia/Kabul', offset: 270 },
+        'Iraq': { timezone: 'Asia/Baghdad', offset: 180 },
+        'Iran': { timezone: 'Asia/Tehran', offset: 210 },
+        'Turkey': { timezone: 'Europe/Istanbul', offset: 180 },
+        'Egypt': { timezone: 'Africa/Cairo', offset: 120 },
+        'South Africa': { timezone: 'Africa/Johannesburg', offset: 120 },
+        'Nigeria': { timezone: 'Africa/Lagos', offset: 60 },
+        'Kenya': { timezone: 'Africa/Nairobi', offset: 180 },
+        'Brazil': { timezone: 'America/Sao_Paulo', offset: -180 },
+        'Argentina': { timezone: 'America/Buenos_Aires', offset: -180 },
+        'Chile': { timezone: 'America/Santiago', offset: -240 },
+        'Mexico': { timezone: 'America/Mexico_City', offset: -360 },
+        'Canada': { timezone: 'America/Toronto', offset: -300 },
+        'France': { timezone: 'Europe/Paris', offset: 60 },
+        'Germany': { timezone: 'Europe/Berlin', offset: 60 },
+        'Italy': { timezone: 'Europe/Rome', offset: 60 },
+        'Spain': { timezone: 'Europe/Madrid', offset: 60 },
+        'Portugal': { timezone: 'Europe/Lisbon', offset: 0 },
+        'Netherlands': { timezone: 'Europe/Amsterdam', offset: 60 },
+        'Belgium': { timezone: 'Europe/Brussels', offset: 60 },
+        'Switzerland': { timezone: 'Europe/Zurich', offset: 60 },
+        'Austria': { timezone: 'Europe/Vienna', offset: 60 },
+        'Sweden': { timezone: 'Europe/Stockholm', offset: 60 },
+        'Norway': { timezone: 'Europe/Oslo', offset: 60 },
+        'Denmark': { timezone: 'Europe/Copenhagen', offset: 60 },
+        'Finland': { timezone: 'Europe/Helsinki', offset: 120 },
+        'Poland': { timezone: 'Europe/Warsaw', offset: 60 },
+        'Ukraine': { timezone: 'Europe/Kyiv', offset: 120 },
+        'Russia': { timezone: 'Europe/Moscow', offset: 180 },
+        'New Zealand': { timezone: 'Pacific/Auckland', offset: 720 },
+      };
+      
+      // Try exact match
+      let tzInfo = timezoneMap[country];
+      
+      // Try partial match if exact not found
+      if (!tzInfo) {
+        for (const [key, value] of Object.entries(timezoneMap)) {
+          if (country.includes(key) || key.includes(country)) {
+            tzInfo = value;
+            break;
+          }
+        }
+      }
+      
+      if (tzInfo) {
+        return {
+          timezone: tzInfo.timezone,
+          timezone_offset_minutes: tzInfo.offset,
+          country: country,
+        };
+      }
+    }
+    
+    // Fallback: use browser timezone
+    const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const now = new Date();
+    const tzDate = new Date(now.toLocaleString('en-US', { timeZone: browserTz }));
+    const utcDate = new Date(now.toLocaleString('en-US', { timeZone: 'UTC' }));
+    const offsetMinutes = Math.round((tzDate.getTime() - utcDate.getTime()) / 60000);
+    
+    return {
+      timezone: browserTz,
+      timezone_offset_minutes: offsetMinutes,
+      country: data?.address?.country || 'Unknown',
+    };
+  } catch (error) {
+    console.error('Error fetching timezone from coordinates:', error);
+    // Fallback to browser timezone
+    const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const now = new Date();
+    const tzDate = new Date(now.toLocaleString('en-US', { timeZone: browserTz }));
+    const utcDate = new Date(now.toLocaleString('en-US', { timeZone: 'UTC' }));
+    const offsetMinutes = Math.round((tzDate.getTime() - utcDate.getTime()) / 60000);
+    
+    return {
+      timezone: browserTz,
+      timezone_offset_minutes: offsetMinutes,
+      country: 'Unknown',
+    };
+  }
+};
+
+// ✅ FIXED: Format time as HH:MM:SS (no date or timezone)
+const formatTimeOnly = (timeStr) => {
+  if (!timeStr) return null;
+  
+  // If time already has seconds, return as is
+  if (timeStr.split(':').length === 3) {
+    return timeStr;
+  }
+  
+  // If time has only HH:MM, add :00 seconds
+  if (timeStr.split(':').length === 2) {
+    return `${timeStr}:00`;
+  }
+  
+  return timeStr;
+};
+
 const MissedPunchModal = ({ isOpen, onClose, selectedDate, onSuccess }) => {
   const dispatch = useDispatch();
   const { user } = useSelector((state) => state.auth);
@@ -84,7 +220,8 @@ const MissedPunchModal = ({ isOpen, onClose, selectedDate, onSuccess }) => {
   const [projectTimes, setProjectTimes] = useState({});
   const [loadingProjects, setLoadingProjects] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [timezone] = useState(getBrowserTimezone());
+  const [timezone, setTimezone] = useState(getBrowserTimezone());
+  const [timezoneOffset, setTimezoneOffset] = useState(-new Date().getTimezoneOffset());
   const [maxWorkingHours, setMaxWorkingHours] = useState(0);
   const [totalHours, setTotalHours] = useState(0);
   const [confirmNoProjects, setConfirmNoProjects] = useState(false);
@@ -231,22 +368,33 @@ const MissedPunchModal = ({ isOpen, onClose, selectedDate, onSuccess }) => {
       const storedLocation = getStoredLocationData();
       if (storedLocation) {
         setLocation(storedLocation);
+        if (storedLocation.timezone) {
+          setTimezone(storedLocation.timezone);
+        }
+        if (storedLocation.timezone_offset_minutes !== undefined) {
+          setTimezoneOffset(storedLocation.timezone_offset_minutes);
+        }
       } else {
         // Or get from dashboard data
         const punchLocation = dashboardData?.today_attendance?.punch_in_location;
         if (punchLocation) {
-          setLocation({
+          const locationData = {
             latitude: punchLocation.latitude,
             longitude: punchLocation.longitude,
             address: punchLocation.address || "Unknown location",
             work_location: punchLocation.work_location || extractCountryFromAddress(punchLocation.address),
-          });
+            timezone: punchLocation.timezone || getBrowserTimezone(),
+            timezone_offset_minutes: punchLocation.timezone_offset_minutes || -new Date().getTimezoneOffset(),
+          };
+          setLocation(locationData);
+          setTimezone(locationData.timezone);
+          setTimezoneOffset(locationData.timezone_offset_minutes);
         }
       }
     }
   }, [isOpen, employeeId]);
 
-  // Get user's current location
+  // ✅ FIXED: Get user's current location with timezone from address
   const getCurrentLocation = () => {
     setIsLoadingLocation(true);
     
@@ -270,16 +418,21 @@ const MissedPunchModal = ({ isOpen, onClose, selectedDate, onSuccess }) => {
           const address = data.display_name || `${latitude}, ${longitude}`;
           const country = extractCountryFromAddress(address);
           
+          // ✅ Get timezone from coordinates
+          const timezoneInfo = await getTimezoneFromCoordinates(latitude, longitude);
+          
           const locationData = {
             latitude,
             longitude,
             address,
             work_location: country,
-            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-            timezone_offset_minutes: -new Date().getTimezoneOffset(),
+            timezone: timezoneInfo?.timezone || getBrowserTimezone(),
+            timezone_offset_minutes: timezoneInfo?.timezone_offset_minutes || -new Date().getTimezoneOffset(),
           };
           
           setLocation(locationData);
+          setTimezone(locationData.timezone);
+          setTimezoneOffset(locationData.timezone_offset_minutes);
           storeLocationData(locationData);
           showToast("Location fetched successfully", "success");
         } catch (error) {
@@ -290,10 +443,12 @@ const MissedPunchModal = ({ isOpen, onClose, selectedDate, onSuccess }) => {
             longitude: position.coords.longitude,
             address: `${position.coords.latitude}, ${position.coords.longitude}`,
             work_location: "Unknown",
-            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+            timezone: getBrowserTimezone(),
             timezone_offset_minutes: -new Date().getTimezoneOffset(),
           };
           setLocation(locationData);
+          setTimezone(locationData.timezone);
+          setTimezoneOffset(locationData.timezone_offset_minutes);
           storeLocationData(locationData);
         }
         setIsLoadingLocation(false);
@@ -358,16 +513,20 @@ const MissedPunchModal = ({ isOpen, onClose, selectedDate, onSuccess }) => {
     }, 500);
   };
 
-  // Select a location from search results
-  const selectSearchResult = (result) => {
+  // ✅ FIXED: Select a location from search results with timezone
+  const selectSearchResult = async (result) => {
     const country = extractCountryFromAddress(result.address);
+    
+    // Get timezone from coordinates
+    const timezoneInfo = await getTimezoneFromCoordinates(result.lat, result.lon);
+    
     const locationData = {
       latitude: result.lat,
       longitude: result.lon,
       address: result.address,
       work_location: country,
-      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-      timezone_offset_minutes: -new Date().getTimezoneOffset(),
+      timezone: timezoneInfo?.timezone || getBrowserTimezone(),
+      timezone_offset_minutes: timezoneInfo?.timezone_offset_minutes || -new Date().getTimezoneOffset(),
     };
     
     setTempLocation(locationData);
@@ -387,10 +546,12 @@ const MissedPunchModal = ({ isOpen, onClose, selectedDate, onSuccess }) => {
     setShowSearchResults(false);
   };
 
-  // Save location from picker
+  // ✅ FIXED: Save location from picker
   const saveLocation = () => {
     if (tempLocation) {
       setLocation(tempLocation);
+      setTimezone(tempLocation.timezone || getBrowserTimezone());
+      setTimezoneOffset(tempLocation.timezone_offset_minutes || -new Date().getTimezoneOffset());
       storeLocationData(tempLocation);
       showToast("Location updated successfully", "success");
     }
@@ -415,12 +576,16 @@ const MissedPunchModal = ({ isOpen, onClose, selectedDate, onSuccess }) => {
   };
 
   // Update location on map click or drag
-  const handleMapClick = (lat, lng) => {
+  const handleMapClick = async (lat, lng) => {
     if (tempLocation) {
+      // Get timezone for new coordinates
+      const timezoneInfo = await getTimezoneFromCoordinates(lat, lng);
       setTempLocation({
         ...tempLocation,
         latitude: lat,
         longitude: lng,
+        timezone: timezoneInfo?.timezone || tempLocation.timezone || getBrowserTimezone(),
+        timezone_offset_minutes: timezoneInfo?.timezone_offset_minutes || tempLocation.timezone_offset_minutes || -new Date().getTimezoneOffset(),
       });
     }
   };
@@ -536,6 +701,7 @@ const MissedPunchModal = ({ isOpen, onClose, selectedDate, onSuccess }) => {
     });
   };
 
+  // ✅ FIXED: Handle submit with time only format (HH:MM:SS)
   const handleSubmit = async () => {
     // Validate required fields
     if (!selectedDate) {
@@ -614,18 +780,35 @@ const MissedPunchModal = ({ isOpen, onClose, selectedDate, onSuccess }) => {
     setIsSubmitting(true);
 
     try {
+      // ✅ Get the correct timezone from location
+      const tz = location.timezone || getBrowserTimezone();
+      const tzOffset = location.timezone_offset_minutes !== undefined 
+        ? location.timezone_offset_minutes 
+        : -new Date().getTimezoneOffset();
+
+      // ✅ Format time as HH:MM:SS only (no date, no timezone)
+      const punchInTimeFormatted = formatTimeOnly(punchInTime);
+      const punchOutTimeFormatted = formatTimeOnly(punchOutTime);
+
+      console.log("📤 Submitting with timezone:", tz);
+      console.log("📤 Timezone offset:", tzOffset);
+      console.log("📤 Punch In Time:", punchInTimeFormatted);
+      console.log("📤 Punch Out Time:", punchOutTimeFormatted);
+
       const payload = {
         type: requestType,
         request_date: selectedDate,
         reason: reason.trim(),
-        timezone: timezone,
-        punch_in_time: punchInTime,
-        punch_out_time: punchOutTime,
+        timezone: tz,
+        punch_in_time: punchInTimeFormatted, // ✅ Only time: HH:MM:SS
+        punch_out_time: punchOutTimeFormatted, // ✅ Only time: HH:MM:SS
         location: {
           latitude: location.latitude,
           longitude: location.longitude,
           address: location.address,
           work_location: location.work_location || extractCountryFromAddress(location.address),
+          timezone: tz,
+          timezone_offset_minutes: tzOffset,
         },
       };
 
@@ -759,6 +942,9 @@ const MissedPunchModal = ({ isOpen, onClose, selectedDate, onSuccess }) => {
               step="60"
               required
             />
+            <p className="text-xs text-[var(--muted)] mt-1">
+              Timezone: {timezone} (UTC{timezoneOffset >= 0 ? '+' : ''}{Math.floor(timezoneOffset / 60)}:{String(Math.abs(timezoneOffset) % 60).padStart(2, '0')})
+            </p>
           </div>
 
           {/* Punch Out Time - Required */}
@@ -813,6 +999,9 @@ const MissedPunchModal = ({ isOpen, onClose, selectedDate, onSuccess }) => {
                     </p>
                     <p className="text-xs text-[var(--muted)]">
                       <span className="font-medium">Coordinates:</span> {location.latitude?.toFixed(6)}, {location.longitude?.toFixed(6)}
+                    </p>
+                    <p className="text-xs text-[var(--muted)]">
+                      <span className="font-medium">Timezone:</span> {location.timezone || getBrowserTimezone()} (UTC{location.timezone_offset_minutes >= 0 ? '+' : ''}{Math.floor((location.timezone_offset_minutes || 0) / 60)}:{String(Math.abs(location.timezone_offset_minutes || 0) % 60).padStart(2, '0')})
                     </p>
                   </div>
                   <div className="flex gap-2 flex-shrink-0">
@@ -1225,6 +1414,27 @@ const MissedPunchModal = ({ isOpen, onClose, selectedDate, onSuccess }) => {
                     className="w-full px-3 py-2 bg-[var(--surface2)] border border-[var(--border)] rounded-lg text-[var(--text)] text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="Country name"
                   />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-[var(--text)] mb-1">
+                    Timezone
+                  </label>
+                  <input
+                    type="text"
+                    value={tempLocation?.timezone || getBrowserTimezone()}
+                    onChange={(e) => setTempLocation({
+                      ...tempLocation,
+                      timezone: e.target.value,
+                    })}
+                    className="w-full px-3 py-2 bg-[var(--surface2)] border border-[var(--border)] rounded-lg text-[var(--text)] text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Timezone (e.g., Asia/Kolkata)"
+                  />
+                  <p className="text-xs text-[var(--muted)] mt-1">
+                    Offset: UTC{tempLocation?.timezone_offset_minutes >= 0 ? '+' : ''}
+                    {Math.floor((tempLocation?.timezone_offset_minutes || 0) / 60)}:
+                    {String(Math.abs(tempLocation?.timezone_offset_minutes || 0) % 60).padStart(2, '0')}
+                  </p>
                 </div>
               </div>
             </div>

@@ -1,9 +1,18 @@
 import { useState, useEffect } from "react";
 import { NavLink, useLocation } from "react-router-dom";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
+import { fetchLeaves } from "../../admin/store/slices/LeaveSlice";
+import { fetchAttendanceRequests } from "../../admin/store/slices/attendanceRequestSlice";
+import { fetchAdminWFHRequests } from "../../admin/store/slices/wfhSlice";
+import apiClient from "../../utils/apiClient";
+
+// ────────────────────────────────────────────────────────────────
+// ROUTE MAPS
+// ────────────────────────────────────────────────────────────────
 
 const ADMIN_ROUTE_MAP = {
   dashboard: "/admin/dashboard",
+  "pending-requests": "/admin/pending-requests",
   onboarding: "/admin/employees/onboarding",
   offboarding: "/admin/employees/offboarding",
   employees: "/admin/employees",
@@ -17,8 +26,10 @@ const ADMIN_ROUTE_MAP = {
   reports: "/admin/reports",
   projects: "/admin/projects",
   "project-assignments": "/admin/project-assignments",
+  timesheets: "/admin/timesheets",
+  "project-cost": "/admin/project-cost",
   payroll: "/admin/payroll",
-  roles: "/admin/roles",
+  "roles-permissions": "/admin/roles",
   settings: "/admin/settings",
   "my-tasks": "/admin/my-tasks",
   organizations: "/admin/organizations",
@@ -26,8 +37,9 @@ const ADMIN_ROUTE_MAP = {
   "role-management": "/admin/role-management",
   wfh: "/admin/wfh",
   "my-wfh-requests": "/admin/my-wfh-requests",
-  "my-payroll": "/employee/payroll",
+  "my-payroll": "/employee/my-payroll",
   "my-documents": "/employee/my-documents",
+  "my-profile": "/employee/profile",
   "ticket-raise": "/admin/ticket-raise",
   "developer-tickets": "/admin/developer-tickets",
   "admin-tickets": "/admin/admin-tickets",
@@ -37,6 +49,7 @@ const ADMIN_ROUTE_MAP = {
 const EMPLOYEE_ROUTE_MAP = {
   dashboard: "/employee/dashboard",
   onboarding: "/employee/onboarding",
+  offboarding: "/employee/employees/offboarding",
   employees: "/employee/employees",
   attendance: "/employee/attendance",
   "attendance-requests": "/employee/attendance-requests",
@@ -52,20 +65,28 @@ const EMPLOYEE_ROUTE_MAP = {
   "my-wfh-requests": "/employee/my-wfh",
   "wfh-requests": "/employee/wfh",
   payroll: "/employee/payroll",
-  roles: "/employee/roles",
+  "roles-permissions": "/employee/roles",
   "my-tasks": "/employee/my-tasks",
   "my-profile": "/employee/profile",
   "project-assignments": "/employee/project-assignments",
+  organizations: "/employee/organizations",
+  agreements: "/employee/agreements",
+  "role-management": "/employee/role-management",
   wfh: "/employee/wfh",
-  "my-payroll": "/employee/payroll",
+  "my-payroll": "/employee/my-payroll",
   "ticket-raise": "/employee/ticket-raise",
   "developer-tickets": "/employee/developer-tickets",
   "admin-tickets": "/employee/admin-tickets",
   "support-admin-dashboard": "/employee/support-admin-dashboard",
 };
 
+// ────────────────────────────────────────────────────────────────
+// ICON MAP
+// ────────────────────────────────────────────────────────────────
+
 const ICON_MAP = {
   dashboard: "fas fa-chart-line",
+  "pending-requests": "fas fa-clock",
   onboarding: "fas fa-user-plus",
   offboarding: "fas fa-user-minus",
   employees: "fas fa-users",
@@ -82,8 +103,10 @@ const ICON_MAP = {
   reports: "fas fa-chart-bar",
   projects: "fas fa-folder",
   "project-assignments": "fas fa-user-check",
+  timesheets: "fas fa-clock",
+  "project-cost": "fas fa-dollar-sign",
   payroll: "fas fa-file-invoice-dollar",
-  roles: "fas fa-user-shield",
+  "roles-permissions": "fas fa-user-shield",
   settings: "fas fa-gear",
   "my-tasks": "fas fa-list-check",
   "my-profile": "fas fa-user-circle",
@@ -98,29 +121,31 @@ const ICON_MAP = {
   "support-admin-dashboard": "fas fa-tachometer-alt",
 };
 
-// Configuration for parent menus and their children
+// ────────────────────────────────────────────────────────────────
+// PARENT MENU CONFIG
+// ────────────────────────────────────────────────────────────────
+
 const PARENT_MENU_CONFIG = {
-  leaves: {
-    label: "Leaves",
-    icon: "fas fa-calendar-check",
-    children: ["leaves", "my-leaves"],
-    roles: [
-      "HR Manager",
-      "hr manager",
-      "HR",
-      "manager",
-      "team_lead",
-      "Team Lead",
-      "BIM Manager",
-      "Support Admin",
-      "support_admin",
-    ],
-    order: 999,
+  main_group: {
+    label: "Main",
+    icon: "fas fa-home",
+    children: ["dashboard", "pending-requests"],
+    roles: ["*"],
+    order: 1,
   },
-  tasks: {
-    label: "Tasks",
-    icon: "fas fa-tasks",
-    children: ["task-reports", "my-tasks"],
+
+  people_group: {
+    label: "People",
+    icon: "fas fa-users",
+    children: [
+      "employees",
+      "onboarding",
+      "offboarding",
+      "leaves",
+      "attendance",
+      "attendance-requests",
+      "wfh-requests",
+    ],
     roles: [
       "HR Manager",
       "hr manager",
@@ -131,13 +156,20 @@ const PARENT_MENU_CONFIG = {
       "BIM Manager",
       "Support Admin",
       "support_admin",
+      "admin",
     ],
-    order: 1000,
+    order: 2,
   },
-  wfh: {
-    label: "WFH Requests",
-    icon: "fas fa-house-user",
-    children: ["wfh-requests", "my-wfh-requests"],
+
+  projects_group: {
+    label: "Projects",
+    icon: "fas fa-project-diagram",
+    children: [
+      "projects",
+      "project-assignments",
+      "timesheets",
+      "project-cost",
+    ],
     roles: [
       "HR Manager",
       "hr manager",
@@ -148,13 +180,26 @@ const PARENT_MENU_CONFIG = {
       "BIM Manager",
       "Support Admin",
       "support_admin",
+      "admin",
     ],
-    order: 998,
+    order: 3,
   },
-  attendance_requests: {
-    label: "Attendance Requests",
-    icon: "fas fa-clock",
-    children: ["attendance-requests", "my-attendance-requests"],
+
+  administration_group: {
+    label: "Administration",
+    icon: "fas fa-cogs",
+    children: [
+      "documents",
+      "payroll",
+      "reports",
+      "ticket-raise",
+      "admin-tickets",
+      "developer-tickets",
+      "roles-permissions",
+      "organizations",
+      "settings",
+      "task-reports",
+    ],
     roles: [
       "HR Manager",
       "hr manager",
@@ -165,59 +210,112 @@ const PARENT_MENU_CONFIG = {
       "BIM Manager",
       "Support Admin",
       "support_admin",
+      "admin",
     ],
-    order: 997,
+    order: 4,
   },
 };
 
-// Define which modules are children (for filtering)
-const ALL_CHILDREN = Object.values(PARENT_MENU_CONFIG).flatMap(
-  (config) => config.children,
-);
-
-// Define modules that should be hidden (aliases/duplicates)
+// Modules intentionally hidden because they are aliases / duplicates
 const HIDDEN_MODULES = ["role-management", "agreements", "wfh"];
 
-// Define order of standalone modules
-const MODULE_ORDER = {
-  dashboard: 1,
-  "support-admin-dashboard": 2,
-  onboarding: 3,
-  employees: 4,
-  offboarding: 5,
-  projects: 6,
-  "project-assignments": 7,
-  attendance: 8,
-  "attendance-requests": 9,
-  "my-attendance-requests": 10,
-  documents: 11,
-  leaves: 12,
-  "my-leaves": 13,
-  "task-reports": 14,
-  "my-tasks": 15,
-  "wfh-requests": 16,
-  "my-wfh-requests": 17,
-  reports: 18,
-  payroll: 19,
-  "my-payroll": 20,
-  roles: 21,
-  organizations: 22,
-  agreements: 23,
-  settings: 24,
-  "role-management": 25,
-  "my-profile": 26,
-  "my-documents": 27,
-  "ticket-raise": 28,
-
-  "developer-tickets": 29,
-  "admin-tickets": 30,
+// Badge colors per module slug
+const BADGE_COLORS = {
+  leaves: "bg-red-500",
+  "attendance-requests": "bg-red-500",
+  "wfh-requests": "bg-red-500",
+  "admin-tickets": "bg-red-500",
+  "pending-requests": "bg-red-500",
 };
+
+
+// ────────────────────────────────────────────────────────────────
+// COMPONENT
+// ────────────────────────────────────────────────────────────────
 
 const Sidebar = ({ isOpen, setIsOpen }) => {
   const [isMobile, setIsMobile] = useState(false);
   const [expandedMenus, setExpandedMenus] = useState({});
   const location = useLocation();
+  const dispatch = useDispatch();
   const { user } = useSelector((state) => state.auth);
+
+  // ────────────────────────────────────────────────────────────
+  // Badge counts from Redux slices
+  // ────────────────────────────────────────────────────────────
+
+  const leaves = useSelector((state) => state.leaves?.leaves) || [];
+  const leavesArray = Array.isArray(leaves) ? leaves : [];
+  const pendingLeaveCount = leavesArray.filter(
+    (l) => (l.status || "").toLowerCase() === "pending",
+  ).length;
+
+  const attendanceRequests =
+    useSelector((state) => state.adminAttendance?.requests) || [];
+  const attendanceArray = Array.isArray(attendanceRequests)
+    ? attendanceRequests
+    : [];
+  const pendingAttendanceCount = attendanceArray.filter(
+    (r) => (r.status || "").toLowerCase() === "pending",
+  ).length;
+
+  const wfhRequests = useSelector((state) => state.wfh?.requests) || [];
+  const wfhArray = Array.isArray(wfhRequests) ? wfhRequests : [];
+  const pendingWfhCount = wfhArray.filter(
+    (r) => (r.status || "").toLowerCase() === "pending",
+  ).length;
+
+  const [openTicketsCount, setOpenTicketsCount] = useState(0);
+
+  const badgeCounts = {
+    leaves: pendingLeaveCount,
+    "attendance-requests": pendingAttendanceCount,
+    "wfh-requests": pendingWfhCount,
+    "admin-tickets": openTicketsCount,
+  };
+
+  // ────────────────────────────────────────────────────────────
+  // Fetch badge data on mount
+  // ────────────────────────────────────────────────────────────
+
+  useEffect(() => {
+    if (!user) return;
+
+    const canSeeAdminModules =
+      user?.type === "admin" ||
+      user?.type === "hr" ||
+      user?.type === "manager" ||
+      user?.type === "team_lead" ||
+      user?.role?.name?.toLowerCase().includes("hr") ||
+      user?.role?.name?.toLowerCase().includes("manager") ||
+      user?.permissions?.all === true;
+
+    if (!canSeeAdminModules) return;
+
+    dispatch(fetchLeaves());
+    dispatch(fetchAttendanceRequests({}));
+    dispatch(fetchAdminWFHRequests());
+  }, [dispatch, user]);
+
+  useEffect(() => {
+    if (!user) return;
+    const fetchOpenTicketsCount = async () => {
+      try {
+        const res = await apiClient.get("/admin/tickets");
+        const list = res.data?.data?.data || res.data?.data || [];
+        setOpenTicketsCount(
+          list.filter((t) => (t.status || "").toLowerCase() === "open").length,
+        );
+      } catch (e) {
+        // silent fail — badge just won't show
+      }
+    };
+    fetchOpenTicketsCount();
+  }, [user]);
+
+  // ────────────────────────────────────────────────────────────
+  // Responsive behaviour
+  // ────────────────────────────────────────────────────────────
 
   useEffect(() => {
     const checkMobile = () => {
@@ -238,15 +336,13 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
     }
   }, [location, isMobile, setIsOpen]);
 
-  // Determine which route map to use based on user type
-  const activeRouteMap =
-    user?.type === "admin" ? ADMIN_ROUTE_MAP : EMPLOYEE_ROUTE_MAP;
+  // ────────────────────────────────────────────────────────────
+  // Role / permission helpers
+  // ────────────────────────────────────────────────────────────
 
-  // Get user role and type
   const userRole = user?.role?.name || user?.role || "";
   const userType = user?.type || "";
 
-  // Check if user is HR
   const isHR =
     userType === "hr" ||
     userRole === "HR Manager" ||
@@ -254,7 +350,6 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
     userRole === "hr manager" ||
     userRole?.toLowerCase() === "hr";
 
-  // Check if user is Manager or Team Lead
   const isManager =
     userType === "manager" ||
     userType === "team_lead" ||
@@ -264,59 +359,48 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
     userRole === "Team Lead" ||
     userRole === "BIM Manager";
 
-  // Check if user has all permissions (Super Admin or Admin with all permissions)
   const hasAllPermissions = user?.permissions?.all === true;
-
-  // Check if user is admin (either type admin or has all permissions)
   const isAdmin = userType === "admin" || hasAllPermissions;
 
-  // Check if user is Support Admin
   const isSupportAdmin =
     userRole === "Support Admin" ||
     userRole === "support_admin" ||
     userRole?.toLowerCase().includes("support admin");
 
-  // Check if user should see parent menus (HR, Manager, Team Lead, Admin, or Support Admin)
-  const shouldShowParentMenus = isHR || isManager || isAdmin || isSupportAdmin;
+  const shouldShowParentMenus =
+    isHR || isManager || isAdmin || isSupportAdmin;
 
-  // Get permissions from user object
+// Only actual admins (or users with permissions.all) use the admin tree.
+// HR / Manager / Team Lead live in the employee tree.
+const activeRouteMap =
+  userType === "admin" || hasAllPermissions
+    ? ADMIN_ROUTE_MAP
+    : EMPLOYEE_ROUTE_MAP;
+
   const permissions = user?.permissions || {};
 
-  // Check if user has read permission for a module
-  const hasReadPermission = (slug) => {
-    // If user has 'all' permission (Super Admin), allow all
-    if (hasAllPermissions) return true;
+  // ────────────────────────────────────────────────────────────
+  // Permission check
+  // ────────────────────────────────────────────────────────────
 
-    // If user is admin type, allow all
+  const hasReadPermission = (slug) => {
+    if (hasAllPermissions) return true;
     if (userType === "admin") return true;
 
-    // For Support Admin, check specific permissions
     if (isSupportAdmin) {
-      // Allow developer-tickets if permission exists
       if (slug === "developer-tickets") {
         return permissions["developer-tickets"]?.read === true;
       }
-      // Allow ticket-raise
-      if (slug === "ticket-raise") {
-        return true;
-      }
-      // Allow dashboard
-      if (slug === "dashboard") {
-        return true;
-      }
-      // Allow support-admin-dashboard
-      if (slug === "support-admin-dashboard") {
-        return true;
-      }
+      if (slug === "ticket-raise") return true;
+      if (slug === "dashboard") return true;
+      if (slug === "support-admin-dashboard") return true;
     }
 
-    // Check specific permission for the module
     const modulePermission = permissions[slug];
     if (modulePermission) {
       return modulePermission.read === true;
     }
 
-    // If no permission found, check if it's a public module
     const publicModules = [
       "dashboard",
       "my-leaves",
@@ -332,83 +416,58 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
     return false;
   };
 
-  // Check if module should be shown
+  // ✅ FIX 2: stop hard-coding admin-tickets/developer-tickets to admin.
+  // Trust the backend permission flag — it's the source of truth.
   const shouldShowModule = (slug) => {
-    // Always show dashboard
     if (slug === "dashboard") return true;
+    if (slug === "support-admin-dashboard") return isSupportAdmin;
 
-    // Show support-admin-dashboard for Support Admin
-    if (slug === "support-admin-dashboard") {
-      return isSupportAdmin;
-    }
-
-    // Show developer-tickets for Support Admin
-    if (slug === "developer-tickets") {
-      return isSupportAdmin || hasAllPermissions || userType === "admin";
-    }
-
-    if (slug === "admin-tickets") {
-      return isAdmin || hasAllPermissions || userType === "admin";
-    }
-
-    // Hide hidden modules (duplicates, sensitive)
     if (HIDDEN_MODULES.includes(slug)) return false;
 
-    // Hide sensitive modules for users without all permissions
-    if (!hasAllPermissions && HIDDEN_MODULES.includes(slug)) return false;
-
-    // Check if user has permission
     return hasReadPermission(slug);
   };
 
-  // Get all available modules from API and filter
+  // ────────────────────────────────────────────────────────────
+  // Build list of available module slugs
+  // ────────────────────────────────────────────────────────────
+
   const apiModules = (user?.sidebar_modules || [])
     .filter((mod) => {
-      // Must be active
       if (mod.status !== "active") return false;
-
-      // Must have a route mapped
       if (!activeRouteMap[mod.slug]) {
         console.warn(`No route mapping found for slug: ${mod.slug}`);
         return false;
       }
-
-      // Check if module should be shown
       if (!shouldShowModule(mod.slug)) return false;
-
       return true;
     })
     .map((mod) => mod.slug);
 
-  // Start with apiModules
-  let allModules = [...apiModules];
+  const allModules = [...apiModules];
 
-  // If user is Support Admin and has developer-tickets permission, ensure it's included
+  // Support Admin special cases
   if (isSupportAdmin && permissions["developer-tickets"]?.read === true) {
     if (!allModules.includes("developer-tickets")) {
       allModules.push("developer-tickets");
     }
   }
-
-  // If user is Support Admin, ensure support-admin-dashboard is included
-  if (isSupportAdmin) {
-    if (!allModules.includes("support-admin-dashboard")) {
-      allModules.unshift("support-admin-dashboard");
-    }
+  if (isSupportAdmin && !allModules.includes("support-admin-dashboard")) {
+    allModules.unshift("support-admin-dashboard");
   }
 
-  // Build navigation with submenus
+  // ────────────────────────────────────────────────────────────
+  // Build nav items
+  // ────────────────────────────────────────────────────────────
+
   const buildNavItems = () => {
-    const navItems = [];
     const processedSlugs = new Set();
     const parentItems = [];
     const standaloneItems = [];
 
-    // Create parent menus for users with appropriate roles
     if (shouldShowParentMenus) {
       Object.entries(PARENT_MENU_CONFIG).forEach(([parentKey, config]) => {
-        // Check if user has access to this parent menu
         const hasRoleAccess =
+          config.roles.includes("*") ||
           config.roles.some(
             (role) =>
               userRole === role ||
@@ -421,14 +480,16 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
 
         if (!hasRoleAccess) return;
 
-        // Get children that exist in allModules
         const availableChildren = config.children.filter((child) => {
           return allModules.includes(child) && hasReadPermission(child);
         });
 
-        // Show parent menu if there are 2 or more children
         if (availableChildren.length >= 2) {
-          const children = availableChildren.map((childSlug) => {
+          const sortedChildren = availableChildren.sort((a, b) => {
+            return config.children.indexOf(a) - config.children.indexOf(b);
+          });
+
+          const children = sortedChildren.map((childSlug) => {
             const module = user?.sidebar_modules?.find(
               (m) => m.slug === childSlug,
             );
@@ -437,6 +498,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
               label: module?.name || childSlug,
               path: activeRouteMap[childSlug],
               icon: ICON_MAP[childSlug] || "fas fa-circle",
+              badge: badgeCounts[childSlug] || 0,
             };
           });
 
@@ -449,37 +511,32 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
             slug: parentKey,
             label: config.label,
             icon: config.icon,
-            children: children,
-            isActive: isActive,
+            children,
+            isActive,
             order: config.order || 500,
           });
 
           children.forEach((child) => processedSlugs.add(child.slug));
-        }
-        // If there's only 1 child, add it as a standalone item
-        else if (availableChildren.length === 1) {
+        } else if (availableChildren.length === 1) {
           const childSlug = availableChildren[0];
           const module = user?.sidebar_modules?.find(
             (m) => m.slug === childSlug,
           );
 
-          const childLabel = module?.name || childSlug;
-          const childIcon = ICON_MAP[childSlug] || "fas fa-circle";
-
           standaloneItems.push({
             type: "single",
             slug: childSlug,
-            label: childLabel,
+            label: module?.name || childSlug,
             path: activeRouteMap[childSlug],
-            icon: childIcon,
+            icon: ICON_MAP[childSlug] || "fas fa-circle",
             order: (config.order || 500) - 1,
+            badge: badgeCounts[childSlug] || 0,
           });
 
           processedSlugs.add(childSlug);
         }
       });
     } else {
-      // For regular employees, show my-leaves, my-tasks, my-wfh-requests, my-documents, my-attendance-requests as standalone
       const employeeStandalone = [
         "my-leaves",
         "my-tasks",
@@ -493,20 +550,20 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
           const module = user?.sidebar_modules?.find((m) => m.slug === slug);
           standaloneItems.push({
             type: "single",
-            slug: slug,
+            slug,
             label: module?.name || slug,
             path: activeRouteMap[slug],
             icon: ICON_MAP[slug] || "fas fa-circle",
-            order: MODULE_ORDER[slug] || 100,
+            order: 100,
+            badge: badgeCounts[slug] || 0,
           });
           processedSlugs.add(slug);
         }
       });
     }
 
-    // Add all standalone modules (skip children that are already in parent menus)
+    // Remaining standalone modules
     allModules.forEach((slug) => {
-      // Skip if already processed
       if (processedSlugs.has(slug)) return;
 
       const module = user?.sidebar_modules?.find((m) => m.slug === slug);
@@ -518,11 +575,12 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
 
       standaloneItems.push({
         type: "single",
-        slug: slug,
-        label: label,
+        slug,
+        label,
         path: activeRouteMap[slug],
         icon: ICON_MAP[slug] || "fas fa-circle",
-        order: MODULE_ORDER[slug] || 100,
+        order: 100,
+        badge: badgeCounts[slug] || 0,
       });
     });
 
@@ -542,13 +600,15 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
   };
 
   const isMenuExpanded = (slug) => {
-    if (isMobile) return expandedMenus[slug] || false;
     return expandedMenus[slug] || false;
   };
 
+  // ────────────────────────────────────────────────────────────
+  // Render
+  // ────────────────────────────────────────────────────────────
+
   return (
     <>
-      {/* Mobile overlay */}
       {isMobile && isOpen && (
         <div
           className="fixed inset-0 bg-black/50 z-40 transition-opacity duration-300"
@@ -556,21 +616,20 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
         />
       )}
 
-      {/* Sidebar */}
       <aside
         className={`
-          fixed top-0 left-0 h-full bg-gray-900 z-50 transition-all duration-300
-          flex flex-col
-          ${
-            isMobile
-              ? `${isOpen ? "translate-x-0" : "-translate-x-full"} w-64`
-              : "w-[72px] hover:w-64 group"
-          }
-        `}
+  fixed top-0 left-0 h-full bg-gray-900 z-50 transition-all duration-300
+  flex flex-col
+  ${
+    isMobile
+      ? `${isOpen ? "translate-x-0" : "-translate-x-full"} w-72`
+      : "w-20 hover:w-72 group"
+  }
+`}
         onMouseEnter={() => !isMobile && setIsOpen(true)}
         onMouseLeave={() => !isMobile && setIsOpen(false)}
       >
-        {/* Logo Section */}
+        {/* Logo */}
         <div className="flex-shrink-0 py-5 px-4 border-b border-white/10 flex justify-center items-center">
           <img
             src="https://violet-leopard-500489.hostingersite.com/hr/public/assets/images/hr-logo2.jpg"
@@ -581,7 +640,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
           />
         </div>
 
-        {/* Navigation Section */}
+        {/* Navigation */}
         <nav className="flex-1 overflow-y-auto py-4 scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent hover:scrollbar-thumb-gray-600">
           {navItems.length === 0 ? (
             <div className="text-center text-gray-500 text-sm px-4 py-8">
@@ -597,9 +656,13 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
                     <div
                       onClick={() => toggleMenu(item.slug)}
                       className={`
-                        flex items-center gap-3 px-5 py-3 mx-2 rounded-xl 
+                        flex items-center gap-3 px-5 py-3 mx-2 rounded-xl
                         transition-all duration-200 cursor-pointer select-none
-                        ${item.isActive ? "bg-green-500/20 text-white" : "text-gray-400 hover:text-white hover:bg-white/10"}
+                        ${
+                          item.isActive
+                            ? "bg-green-100/20 text-white"
+                            : "text-gray-400 hover:text-white hover:bg-white/10"
+                        }
                       `}
                     >
                       <i
@@ -616,7 +679,9 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
                       </span>
                       {(isMobile || isOpen) && (
                         <i
-                          className={`fas fa-chevron-${expanded ? "up" : "down"} text-xs transition-transform duration-200 flex-shrink-0`}
+                          className={`fas fa-chevron-${
+                            expanded ? "up" : "down"
+                          } text-xs transition-transform duration-200 flex-shrink-0`}
                         ></i>
                       )}
                     </div>
@@ -634,7 +699,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
                             className={({ isActive }) =>
                               `flex items-center gap-3 px-5 py-2 mx-2 rounded-xl transition-all duration-200 cursor-pointer ${
                                 isActive
-                                  ? "bg-green-500/20 text-white"
+                                  ? "bg-green-200/20 text-white"
                                   : "text-gray-400 hover:text-white hover:bg-white/10"
                               }`
                             }
@@ -644,7 +709,19 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
                                 child.icon + " w-6 text-sm flex-shrink-0"
                               }
                             ></i>
-                            <span className="text-sm">{child.label}</span>
+                            <span className="text-sm flex-1">
+                              {child.label}
+                            </span>
+
+                            {child.badge > 0 && (
+                              <span
+                                className={`ml-auto text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1.5 flex-shrink-0 ${
+                                  BADGE_COLORS[child.slug] || "bg-red-500"
+                                }`}
+                              >
+                                {child.badge > 99 ? "99+" : child.badge}
+                              </span>
+                            )}
                           </NavLink>
                         ))}
                       </div>
@@ -652,6 +729,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
                   </div>
                 );
               }
+
               return (
                 <NavLink
                   key={item.slug}
@@ -672,7 +750,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
                 >
                   <i className={item.icon + " w-6 text-lg flex-shrink-0"}></i>
                   <span
-                    className={`transition-opacity duration-200 ${
+                    className={`flex-1 transition-opacity duration-200 ${
                       !isMobile && !isOpen
                         ? "opacity-0 group-hover:opacity-100"
                         : "opacity-100"
@@ -680,6 +758,16 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
                   >
                     {item.label}
                   </span>
+
+                  {item.badge > 0 && (isMobile || isOpen) && (
+                    <span
+                      className={`text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1.5 flex-shrink-0 ${
+                        BADGE_COLORS[item.slug] || "bg-red-500"
+                      }`}
+                    >
+                      {item.badge > 99 ? "99+" : item.badge}
+                    </span>
+                  )}
                 </NavLink>
               );
             })

@@ -483,7 +483,7 @@ if (match) {
         address?.address?.neighbourhood ||
         address?.address?.city ||
         (location?.latitude && location?.longitude
-          ? `${location.latitude.toFixed(6)}, ${location.longitude.toFixed(6)}`
+          ? `${Number(location?.latitude)?.toFixed?.(6) ?? "-"}, ${location.longitude.toFixed(6)}`
           : "Location not available")}
     </p>
                       <div className="text-xs text-[var(--muted)] space-y-1">

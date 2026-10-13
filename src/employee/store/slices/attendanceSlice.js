@@ -114,17 +114,42 @@ export const submitLateAttendanceRequest = createAsyncThunk(
   "lateAttendance/submitRequest",
   async (data, { rejectWithValue }) => {
     try {
+      // Format the request_time as full ISO datetime with timezone
+      let requestDateTime = data.request_time;
+      
+      // If request_time is just a time string (HH:MM:SS), combine with request_date
+      if (data.request_time && !data.request_time.includes('T')) {
+        const tz = data.timezone || 'Asia/Kolkata';
+        const dateStr = data.request_date || new Date().toISOString().split('T')[0];
+        
+        // Get the timezone offset - use the one from location data
+        let tzOffsetMinutes = data.location?.timezone_offset_minutes;
+        
+        // If not available, use India timezone (UTC+5:30) as default
+        if (!tzOffsetMinutes) {
+          tzOffsetMinutes = 330; // UTC+5:30 in minutes
+        }
+        
+        const offsetHours = Math.floor(Math.abs(tzOffsetMinutes) / 60);
+        const offsetMins = Math.abs(tzOffsetMinutes) % 60;
+        const offsetSign = tzOffsetMinutes >= 0 ? '+' : '-';
+        const offsetStr = `${offsetSign}${String(offsetHours).padStart(2, '0')}:${String(offsetMins).padStart(2, '0')}`;
+        
+        // Combine date and time with timezone offset
+        requestDateTime = `${dateStr}T${data.request_time}${offsetStr}`;
+      }
+
       const payload = {
         employee_id: data.employee_id,
         type: data.type || 'late_check_in',
         request_date: data.request_date,
-        request_time: data.request_time,
+        request_time: requestDateTime, // Now in format: "2026-09-04T13:40:46+05:30"
         reason: data.reason,
         status: data.status || 'pending',
-        timezone: data.timezone,
+        timezone: data.timezone || 'Asia/Kolkata',
         created_by: data.created_by || 'admin',
         location: data.location,
-        work_location: data.work_location || data.location?.work_location || 'Unknown' // ✅ Add work_location
+        work_location: data.work_location || data.location?.work_location || 'India'
       };
 
       console.log("📤 Submitting late attendance request with payload:", payload);
@@ -145,7 +170,6 @@ export const submitLateAttendanceRequest = createAsyncThunk(
   }
 );
 
-// Punch Out with location and timezone
 // Punch Out with location and timezone
 export const punchOut = createAsyncThunk(
   "attendance/punchOut",

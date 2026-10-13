@@ -801,7 +801,7 @@ const handleEditSubmit = async (e) => {
               <FiPlus /> Request Leave for Employee
             </Link>
           ) : null}
-          {user?.type === "admin" ? (
+          {isAdminOrHR ? (
             <>
               <Link
                 to={`${basePath}/leaves/allocations`}

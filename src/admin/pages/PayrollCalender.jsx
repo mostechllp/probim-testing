@@ -124,7 +124,7 @@ const PayrollCalendar = () => {
   const handleMonthClick = (monthIndex) => {
     const monthNumber = monthIndex + 1;
     const monthPadded = String(monthNumber).padStart(2, "0");
-    navigate(`/admin/payroll/list?month=${monthPadded}&year=${viewYear}`);
+    navigate(`/${basePath}/payroll/list?month=${monthPadded}&year=${viewYear}`);
   };
 
   // Handle year change

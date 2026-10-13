@@ -138,6 +138,33 @@ const extractAttendanceRecords = (response) => {
   }
 };
 
+// Extract array data from various API response shapes
+const extractData = (response) => {
+  if (!response) return [];
+
+  // Shape: { data: { data: [...] } }
+  if (response?.data?.data?.data && Array.isArray(response.data.data.data)) {
+    return response.data.data.data;
+  }
+
+  // Shape: { data: { data: [...] } }  (alternate)
+  if (response?.data?.data && Array.isArray(response.data.data)) {
+    return response.data.data;
+  }
+
+  // Shape: { data: [...] }
+  if (response?.data && Array.isArray(response.data)) {
+    return response.data;
+  }
+
+  // Shape: [...]
+  if (Array.isArray(response)) {
+    return response;
+  }
+
+  return [];
+};
+
 // Async thunks
 export const fetchAttendanceRecords = createAsyncThunk(
   "attendance/fetchAll",

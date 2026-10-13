@@ -20,6 +20,15 @@ const OffboardingHeader = ({ currentStep }) => {
   const [isVisaRequired, setIsVisaRequired] = useState(true);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
+  const getBasePath = () => {
+    const path = location.pathname;
+    if (path.startsWith("/admin")) return "/admin";
+    if (path.startsWith("/employee")) return "/employee";
+    return "";
+  };
+
+  const basePath = `${getBasePath()}/employees`;
+
   // Handle window resize for mobile detection
   useEffect(() => {
     const handleResize = () => {
@@ -134,7 +143,7 @@ const OffboardingHeader = ({ currentStep }) => {
         <div className="flex items-center justify-between gap-4 mb-8">
           <div className="flex items-center gap-4">
             <button 
-              onClick={() => navigate("/admin/employees/offboarding")}
+              onClick={() => navigate(`/${basePath}/offboarding`)}
               className="p-1.5 -ml-1.5 rounded-full hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-400 transition-colors"
             >
               <ArrowLeft className="w-5 h-5" />
